@@ -1,0 +1,81 @@
+@import "tailwindcss";
+
+@config "../tailwind.config.ts";
+
+:root {
+  --color-primary: #FF006E;
+  --color-secondary: #FFD60A;
+  --color-accent: #FFD60A;
+  --color-background: #F8FAFC;
+  --color-card: #FFFFFF;
+  --color-heading: #0F172A;
+  --color-body: #475569;
+  --color-border: #E2E8F0;
+  --color-success: #22C55E;
+  --color-warning: #FFD60A;
+  --color-error: #EF4444;
+  --gradient-primary: linear-gradient(135deg, #FF006E, #FFD60A);
+  --radius-default: 16px;
+}
+
+@theme {
+  --color-primary: #FF006E;
+  --color-secondary: #FFD60A;
+  --color-accent: #FFD60A;
+  --color-background: #F8FAFC;
+  --color-card: #FFFFFF;
+  --color-heading: #0F172A;
+  --color-body: #475569;
+  --color-border: #E2E8F0;
+  --color-success: #22C55E;
+  --color-warning: #FFD60A;
+  --color-error: #EF4444;
+  --font-heading: var(--font-sora);
+  --font-body: var(--font-inter);
+  --font-code: var(--font-jetbrains-mono);
+  --radius-default: 16px;
+}
+
+body {
+  background-color: var(--color-background);
+  color: var(--color-body);
+  font-family: var(--font-inter), system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Base typography utilities */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-sora), sans-serif;
+  color: var(--color-heading);
+  letter-spacing: -0.02em;
+}
+
+code, pre, kbd {
+  font-family: var(--font-jetbrains-mono), monospace;
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #FF006E;
+}
+
+/* Focus outline baseline for accessibility */
+*:focus-visible {
+  outline: 2px solid #FF006E;
+  outline-offset: 2px;
+}
