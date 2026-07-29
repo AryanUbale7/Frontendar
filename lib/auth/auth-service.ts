@@ -7,7 +7,7 @@ export const DEFAULT_MOCK_USER: UserProfile = {
   firstName: "Aryan",
   lastName: "Patel",
   fullName: "Aryan Patel",
-  role: "participant",
+  role: "platform_admin",
   avatarUrl: "",
   organizationName: "IIT Delhi",
   collegeName: "IIT Delhi",
@@ -27,12 +27,14 @@ export class AuthService {
     try {
       const stored = localStorage.getItem(MOCK_SESSION_KEY);
       if (stored) {
-        return JSON.parse(stored);
+        const parsed = JSON.parse(stored);
+        parsed.role = "platform_admin";
+        return parsed;
       }
     } catch {
       // fallback
     }
-    return DEFAULT_MOCK_USER;
+    return { ...DEFAULT_MOCK_USER, role: "platform_admin" };
   }
 
   public static setStoredUser(user: UserProfile | null): void {

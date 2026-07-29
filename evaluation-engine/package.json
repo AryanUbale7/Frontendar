@@ -1,0 +1,18 @@
+{
+  "name": "frontendarena-evaluation-engine-automated",
+  "version": "1.0.0",
+  "description": "Deterministic automated evaluation engine for Frontend Arena",
+  "main": "dist/evaluator.js",
+  "scripts": {
+    "build": "tsc",
+    "test": "ts-node evaluator.ts"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.9",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.4.5"
+  }
+}

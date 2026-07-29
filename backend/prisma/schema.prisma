@@ -1,0 +1,86 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model User {
+  id            String         @id @default(uuid())
+  email         String         @unique
+  password      String
+  role          String         @default("PARTICIPANT") // PARTICIPANT, ADMIN, SUPER_ADMIN
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  refreshTokens RefreshToken[]
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+model Hackathon {
+  id           String    @id @default(uuid())
+  name         String
+  description  String
+  problemTitle String?
+  startDate    DateTime?
+  endDate      DateTime?
+  createdAt    DateTime  @default(now())
+}
+
+model Blueprint {
+  id                     String   @id @default(uuid())
+  hackathonId            String   @unique
+  problemStatement       Json
+  requiredFeatures       Json
+  techStackRules         Json
+  submissionRequirements Json
+  codeQualityRules       Json
+  performanceRules       Json
+  securityRules          Json
+  scoringSystem          Json
+  autoPassFailRules      Json
+  bonusRules             Json
+  createdAt              DateTime @default(now())
+}
+
+model Submission {
+  id                  String             @id @default(uuid())
+  hackathonId         String
+  userId              String
+  repoUrl             String
+  deploymentUrl       String?
+  projectName         String             @default("Untitled Project")
+  shortDesc           String             @default("")
+  detailedDesc        String             @default("")
+  problemSolved       String             @default("")
+  features            Json               @default("[]") // Array of dynamic tags
+  techStack           Json               @default("{}") // Object mapping layers to lists
+  videoUrl            String?
+  presentationPdf     String?
+  architectureDiagram String?
+  teamContributions   Json               @default("[]") // Array of roles
+  version             Int                @default(1)
+  status              String             @default("PENDING") // PENDING, QUEUED, CLONING, etc.
+  score               Int?
+  grade               String?
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  reports             EvaluationReport[]
+}
+
+model EvaluationReport {
+  id           String     @id @default(uuid())
+  submissionId String     @unique
+  submission   Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  payload      Json
+  createdAt    DateTime   @default(now())
+}

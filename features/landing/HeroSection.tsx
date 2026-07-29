@@ -20,19 +20,6 @@ export function HeroSection() {
       <div className="relative z-10 mx-auto max-w-7xl px-4 md:px-6">
         {/* Hero Header */}
         <div className="flex flex-col items-center text-center space-y-6 max-w-4xl mx-auto">
-          {/* Brand Logo Banner */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.4 }}
-            className="flex h-28 w-28 items-center justify-center rounded-2xl bg-black p-3.5 shadow-md hover:scale-105 transition-transform duration-300"
-          >
-            <img
-              src="/logo.png"
-              alt="Frontend Arena Brand Logo"
-              className="h-full w-full object-contain"
-            />
-          </motion.div>
 
           <motion.div
             initial={{ opacity: 0, y: -10 }}

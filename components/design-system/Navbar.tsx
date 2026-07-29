@@ -33,7 +33,7 @@ export function Navbar() {
 
         {/* Brand Logo & Title */}
         <Link href="/" className="flex items-center gap-2.5 group">
-          <div className="flex h-10 w-10 items-center justify-center rounded-[12px] bg-black p-1 shadow-sm group-hover:scale-105 transition-transform duration-200">
+          <div className="flex h-12 w-12 items-center justify-center rounded-[12px] bg-black p-0.5 shadow-sm group-hover:scale-105 transition-transform duration-200">
             <img
               src="/logo.png"
               alt="Frontend Arena Logo"

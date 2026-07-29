@@ -1,14 +1,12 @@
 import type { Metadata } from "next";
 import { LandingNavbar } from "@/features/landing/LandingNavbar";
 import { HeroSection } from "@/features/landing/HeroSection";
+import { MarqueeBanner } from "@/features/landing/MarqueeBanner";
 import { WhoWeAreSection } from "@/features/landing/WhoWeAreSection";
 import { WhatWeOrganizeSection } from "@/features/landing/WhatWeOrganizeSection";
 import { WhyJoinSection } from "@/features/landing/WhyJoinSection";
-import { HowItWorksSection } from "@/features/landing/HowItWorksSection";
-import { OurPlatformSection } from "@/features/landing/OurPlatformSection";
 import { FeaturedHackathonsSection } from "@/features/landing/FeaturedHackathonsSection";
 import { PlatformStatsSection } from "@/features/landing/PlatformStatsSection";
-import { TestimonialsSection } from "@/features/landing/TestimonialsSection";
 import { FAQSection } from "@/features/landing/FAQSection";
 import { CtaBannerSection } from "@/features/landing/CtaBannerSection";
 import { Footer } from "@/components/design-system/Footer";
@@ -54,6 +52,9 @@ export default function Home() {
         {/* 1. Hero Section */}
         <HeroSection />
 
+        {/* Continuous Scrolling Banner */}
+        <MarqueeBanner />
+
         {/* 2. Who We Are */}
         <WhoWeAreSection />
 
@@ -63,20 +64,11 @@ export default function Home() {
         {/* 4. Why Join Frontend Arena */}
         <WhyJoinSection />
 
-        {/* 5. How It Works (6-Step Timeline) */}
-        <HowItWorksSection />
-
-        {/* 6. Our Platform (Capabilities) */}
-        <OurPlatformSection />
-
         {/* 7. Featured Hackathons */}
         <FeaturedHackathonsSection />
 
         {/* 8. Community Impact (Statistics) */}
         <PlatformStatsSection />
-
-        {/* 9. Testimonials (Students, Developers, Winners) */}
-        <TestimonialsSection />
 
         {/* 10. FAQ */}
         <FAQSection />

@@ -17,7 +17,7 @@ export default function AuthLayout({
 
         {/* Top Brand Logo */}
         <div className="relative z-10 flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-[12px] bg-black p-1 shadow-md">
+          <div className="flex h-12 w-12 items-center justify-center rounded-[12px] bg-black p-0.5 shadow-md">
             <img
               src="/logo.png"
               alt="Frontend Arena Logo"

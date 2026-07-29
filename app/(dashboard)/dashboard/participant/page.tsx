@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import {
@@ -17,7 +17,20 @@ import { EmptyState } from "@/components/design-system/EmptyState";
 
 export default function ParticipantDashboardPage() {
   const { user } = useUser();
-  const initiatives: any[] = [];
+  const [initiatives, setInitiatives] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (user && typeof window !== "undefined") {
+      const stored = localStorage.getItem(`fa_enrolled_hackathons_usr_${user.id}`);
+      if (stored) {
+        try {
+          setInitiatives(JSON.parse(stored));
+        } catch (e) {
+          console.error(e);
+        }
+      }
+    }
+  }, [user]);
 
   return (
     <RequireRole role="participant">
@@ -88,10 +101,10 @@ export default function ParticipantDashboardPage() {
                     </div>
                     <div>
                       <h5 className="text-xs font-bold text-[#0F172A]">Active Initiatives</h5>
-                      <p className="text-[10px] text-[#475569]">Ongoing: 0</p>
+                      <p className="text-[10px] text-[#475569]">Ongoing: {initiatives.length}</p>
                     </div>
                   </div>
-                  <span className="font-heading text-lg font-extrabold text-[#0F172A]">0</span>
+                  <span className="font-heading text-lg font-extrabold text-[#0F172A]">{initiatives.length}</span>
                 </div>
 
                 <div className="flex items-center justify-between p-3 rounded-xl bg-[#FFFBEB] border border-[#FEF3C7]">
@@ -110,7 +123,7 @@ export default function ParticipantDashboardPage() {
             </Card>
           </div>
 
-          {/* Right Column (Initiatives Empty State) */}
+          {/* Right Column (Initiatives List/Empty State) */}
           <div className="lg:col-span-3 space-y-6">
             <Card className="p-6 space-y-6 border-[#E2E8F0] shadow-sm bg-white rounded-2xl">
               <div className="space-y-1">
@@ -126,10 +139,47 @@ export default function ParticipantDashboardPage() {
                 <span>This is your Primary Dashboard. Change it <a href="#" className="font-bold underline text-[#FF006E]">Here</a></span>
               </div>
 
-              <EmptyState
-                title="No Enrolled Initiatives Found"
-                description="You are not currently registered for any hackathons. When a new hackathon launches and you enroll, your active tracks and submissions portal will appear here."
-              />
+              {initiatives.length > 0 ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {initiatives.map((item, idx) => (
+                    <Card key={idx} className="p-4 border-[#E2E8F0] shadow-xs bg-white rounded-xl space-y-3 hover:border-[#FF006E]/40 transition-all flex flex-col justify-between">
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div
+                            className="h-8 w-8 rounded-lg text-white font-bold text-xs flex items-center justify-center font-heading"
+                            style={{ background: item.bannerUrl || "linear-gradient(to right, #0F172A, #1E293B)" }}
+                          >
+                            {item.title.charAt(0)}
+                          </div>
+                          <Badge variant="outline" size="sm" className="text-[10px]">
+                            {item.tag || "Free | Virtual"}
+                          </Badge>
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-xs text-[#0F172A] line-clamp-1">{item.title}</h4>
+                          <p className="text-[10px] text-[#475569] mt-0.5 font-medium">Closes: {item.date}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between pt-2 border-t border-[#E2E8F0]/60 text-[11px] mt-2">
+                        <span className="text-[#16A34A] font-semibold flex items-center gap-1">
+                          <CheckCircle2 className="h-3.5 w-3.5" /> Enrolled
+                        </span>
+                        <Link
+                          href={`/register?id=${item.id}`}
+                          className="text-[#FF006E] hover:underline font-bold"
+                        >
+                          View Workspace →
+                        </Link>
+                      </div>
+                    </Card>
+                  ))}
+                </div>
+              ) : (
+                <EmptyState
+                  title="No Enrolled Initiatives Found"
+                  description="You are not currently registered for any hackathons. When a new hackathon launches and you enroll, your active tracks and submissions portal will appear here."
+                />
+              )}
             </Card>
           </div>
         </div>
