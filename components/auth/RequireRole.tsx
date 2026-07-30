@@ -19,7 +19,7 @@ export function RequireRole({ role, children, fallback }: RequireRoleProps) {
 
   useEffect(() => {
     if (!isLoading && !isAuthorized && !fallback) {
-      router.push("/forbidden");
+      router.push("/sign-in");
     }
   }, [isLoading, isAuthorized, fallback, router]);
 

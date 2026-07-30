@@ -165,7 +165,7 @@ export function EvaluationReport({ report }: EvaluationReportProps) {
           <div className="h-10 w-px bg-slate-800 hidden sm:block" />
 
           <div className="flex flex-col gap-1">
-            <Button size="xs" variant="outline" className="text-xs bg-slate-800 hover:bg-slate-700 text-white border-slate-700" onClick={downloadJSON}>
+            <Button size="sm" variant="outline" className="text-xs bg-slate-800 hover:bg-slate-700 text-white border-slate-700" onClick={downloadJSON}>
               <Download className="h-3 w-3 mr-1" />
               <span>JSON Export</span>
             </Button>

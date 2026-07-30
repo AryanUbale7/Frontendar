@@ -33,10 +33,10 @@ export function MarqueeBanner() {
   const doubleItems = [...MARQUEE_ITEMS, ...MARQUEE_ITEMS];
 
   return (
-    <div className="relative w-full bg-white/80 py-4.5 overflow-hidden border-y border-[#E2E8F0] backdrop-blur-xs">
+    <div className="relative w-full bg-[#F8FAFC] py-4.5 overflow-hidden border-y border-[#E2E8F0] shadow-xs">
       {/* Light fading gradient overlays on the sides */}
-      <div className="absolute inset-y-0 left-0 w-24 bg-gradient-to-r from-white to-transparent z-10 pointer-events-none" />
-      <div className="absolute inset-y-0 right-0 w-24 bg-gradient-to-l from-white to-transparent z-10 pointer-events-none" />
+      <div className="absolute inset-y-0 left-0 w-24 bg-gradient-to-r from-[#F8FAFC] to-transparent z-10 pointer-events-none" />
+      <div className="absolute inset-y-0 right-0 w-24 bg-gradient-to-l from-[#F8FAFC] to-transparent z-10 pointer-events-none" />
 
       <div className="flex w-max">
         <motion.div
@@ -44,7 +44,7 @@ export function MarqueeBanner() {
           animate={{ x: ["0%", "-50%"] }}
           transition={{
             ease: "linear",
-            duration: 18, // Reduced from 35 to 18 for faster speed
+            duration: 18,
             repeat: Infinity,
           }}
         >
@@ -55,7 +55,7 @@ export function MarqueeBanner() {
                 <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#FF006E]/10 border border-[#FF006E]/20 text-[#FF006E]">
                   <Icon className="h-4.5 w-4.5" />
                 </div>
-                <span className="font-code text-xs font-semibold text-[#0F172A]">
+                <span className="font-code text-xs font-bold text-[#0F172A]">
                   {item.text}
                 </span>
               </div>

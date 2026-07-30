@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -68,6 +68,7 @@ interface Hackathon {
   submissionEnabled: boolean;
   leaderboardEnabled: boolean;
   discussionEnabled: boolean;
+  problemReleased?: boolean;
   rounds: Round[];
   problemTitle: string;
   problemDescription: string;
@@ -77,19 +78,23 @@ interface Hackathon {
   status: string;
 }
 
-export default function HackathonRegistrationPage() {
+function HackathonRegistrationContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const hackathonId = searchParams.get("id");
+  const goToWorkspace = searchParams.get("workspace") === "true";
   const { user } = useUser();
 
   const [hackathon, setHackathon] = useState<Hackathon | null>(null);
   const [loading, setLoading] = useState(true);
   const [isRegistered, setIsRegistered] = useState(false);
+  const [registrationStatus, setRegistrationStatus] = useState<string>("PENDING");
+  const [blueprint, setBlueprint] = useState<any>(null);
+  const [activeProblemIdx, setActiveProblemIdx] = useState<number>(0);
   
-  // Navigation states: Public details page by default
+  // If ?workspace=true, go straight to workspace tab (skip form)
   const [showRegistrationForm, setShowRegistrationForm] = useState(false);
-  const [activePortalTab, setActivePortalTab] = useState<"problem" | "rules" | "resources" | "submit" | "leaderboard">("problem");
+  const [activePortalTab, setActivePortalTab] = useState<"problem" | "rules" | "resources" | "submit" | "leaderboard">(goToWorkspace ? "submit" : "problem");
 
   // Form States
   const [collegeName, setCollegeName] = useState("");
@@ -141,6 +146,11 @@ export default function HackathonRegistrationPage() {
 
   // Load Hackathon details and check registration status
   useEffect(() => {
+    // If coming from "View Workspace", assume already registered to skip form instantly
+    if (goToWorkspace) {
+      setIsRegistered(true);
+    }
+
     const fetchHackathon = async () => {
       try {
         const res = await fetch("/api/hackathons");
@@ -150,35 +160,50 @@ export default function HackathonRegistrationPage() {
           if (found) {
             setHackathon(found);
             
+            // Fetch blueprint configuration
+            fetch(`/api/blueprint?hackathonId=${found.id}`)
+              .then((r) => r.json())
+              .then((bp) => {
+                if (bp && !bp.error) {
+                  setBlueprint(bp);
+                }
+              })
+              .catch((err) => console.warn("Failed to load blueprint: ", err));
+
             // Check if user is enrolled
             if (user) {
-              const storageKey = `fa_enrolled_hackathons_usr_${user.id}`;
-              const enrolled = localStorage.getItem(storageKey);
-              if (enrolled) {
-                const enrolledList = JSON.parse(enrolled);
-                if (enrolledList.some((h: any) => h.id === found.id)) {
-                  setIsRegistered(true);
-                  // Check if report exists
-                  const savedReport = localStorage.getItem(`fa_submission_report_${found.id}`);
-                  if (savedReport) {
-                    try {
-                      const parsed = JSON.parse(savedReport);
-                      if (parsed && typeof parsed === "object" && parsed.scoreSummary) {
-                        setEvaluationReport(parsed);
-                        setSubmissionSuccess(true);
-                      }
-                    } catch (e) {}
-                  }
+              fetch(`/api/registrations?hackathonId=${found.id}`)
+                .then((r) => r.json())
+                .then((list) => {
+                  if (Array.isArray(list)) {
+                    const myReg = list.find((r: any) => r.userId === user.id);
+                    if (myReg) {
+                      setIsRegistered(true);
+                      setRegistrationStatus(myReg.status);
 
-                  // Load attempts history
-                  const savedAttempts = localStorage.getItem(`fa_submission_attempts_${found.id}`);
-                  if (savedAttempts) {
-                    try {
-                      setSubmissionAttempts(JSON.parse(savedAttempts));
-                    } catch (e) {}
+                      // Check if report exists
+                      const savedReport = localStorage.getItem(`fa_submission_report_${found.id}`);
+                      if (savedReport) {
+                        try {
+                          const parsed = JSON.parse(savedReport);
+                          if (parsed && typeof parsed === "object" && parsed.scoreSummary) {
+                            setEvaluationReport(parsed);
+                            setSubmissionSuccess(true);
+                          }
+                        } catch (e) {}
+                      }
+
+                      // Load attempts history
+                      const savedAttempts = localStorage.getItem(`fa_submission_attempts_${found.id}`);
+                      if (savedAttempts) {
+                        try {
+                          setSubmissionAttempts(JSON.parse(savedAttempts));
+                        } catch (e) {}
+                      }
+                    }
                   }
-                }
-              }
+                })
+                .catch((err) => console.error("Failed to load registration: ", err));
             }
           }
         }
@@ -203,7 +228,7 @@ export default function HackathonRegistrationPage() {
     setMemberEmails(memberEmails.map((email, i) => (i === idx ? val : email)));
   };
 
-  const handleRegisterSubmit = (e: React.FormEvent) => {
+  const handleRegisterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg("");
 
@@ -228,44 +253,34 @@ export default function HackathonRegistrationPage() {
       return;
     }
 
+    const activeHackathon = hackathon;
+    const activeUser = user;
+    if (!activeHackathon || !activeUser) {
+      setErrorMsg("Invalid session state.");
+      return;
+    }
+
     try {
-      const storageKey = `fa_enrolled_hackathons_usr_${user.id}`;
-      const existing = localStorage.getItem(storageKey);
-      let enrolledList: any[] = [];
-      if (existing) {
-        enrolledList = JSON.parse(existing);
-      }
-
-      if (enrolledList.some((h) => h.id === hackathon.id)) {
-        setErrorMsg("You are already registered for this hackathon!");
-        return;
-      }
-
-      const enrollmentRecord = {
-        id: hackathon.id,
-        title: hackathon.name,
-        tagline: hackathon.tagline,
-        bannerUrl: hackathon.bannerUrl,
-        date: new Date(hackathon.registrationClose).toLocaleDateString("en-US", {
-          month: "short",
-          day: "numeric",
-          year: "numeric",
+      const response = await fetch("/api/registrations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          hackathonId: activeHackathon.id,
+          userId: activeUser.id,
+          userEmail: activeUser.email,
+          collegeName,
+          teamName: participationMode === "create_team" ? teamName : null,
+          participationMode,
         }),
-        status: "Coding Sprint",
-        tag: "Free | Virtual",
-        gradient: hackathon.bannerUrl || "from-blue-900 to-slate-900",
-        participationMode,
-        teamName: participationMode === "create_team" ? teamName : null,
-        rounds: hackathon.rounds,
-        problemTitle: hackathon.problemTitle,
-        problemDescription: hackathon.problemDescription,
-        testCases: hackathon.testCases,
-        rules: hackathon.rules,
-        resources: hackathon.resources,
-      };
+      });
 
-      const updated = [...enrolledList, enrollmentRecord];
-      localStorage.setItem(storageKey, JSON.stringify(updated));
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || "Failed to register.");
+      }
+
+      const reg = await response.json();
+      setRegistrationStatus(reg.status);
       setSuccess(true);
 
       setTimeout(() => {
@@ -273,13 +288,18 @@ export default function HackathonRegistrationPage() {
         setShowRegistrationForm(false);
         setSuccess(false);
       }, 2000);
-    } catch (err) {
-      setErrorMsg("Failed to register. Please try again.");
+    } catch (err: any) {
+      setErrorMsg(err.message || "Failed to register. Please try again.");
     }
   };
 
   const handleProjectSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const activeHackathon = hackathon;
+    if (!activeHackathon) {
+      alert("No active hackathon loaded.");
+      return;
+    }
     if (!repoUrl.includes("github.com")) {
       alert("Please provide a valid GitHub repository URL.");
       return;
@@ -287,19 +307,21 @@ export default function HackathonRegistrationPage() {
     setSubmittingProject(true);
     setAstCheckResult("analyzing");
 
-    let bpData = null;
-    const bpStored = localStorage.getItem(`fa_blueprint_${hackathon.id}`);
-    if (bpStored) {
-      try {
-        bpData = JSON.parse(bpStored);
-      } catch (e) {}
+    let bpData = blueprint; // Use the blueprint already fetched on mount
+
+    if (!bpData) {
+      const bpStored = localStorage.getItem(`fa_blueprint_${activeHackathon.id}`);
+      if (bpStored) {
+        try {
+          bpData = JSON.parse(bpStored);
+        } catch (e) {}
+      }
     }
 
     if (!bpData) {
-      // Default fallback blueprint
       bpData = {
-        problemStatement: { title: hackathon.name, description: hackathon.description },
-        requiredFeatures: hackathon.problemTitle ? [{ name: hackathon.problemTitle, description: "Core feature component", mandatory: true, weight: 25 }] : [],
+        problemStatement: { title: activeHackathon.name, description: activeHackathon.description },
+        requiredFeatures: activeHackathon.problemTitle ? [{ name: activeHackathon.problemTitle, description: "Core feature component", mandatory: true, weight: 25 }] : [],
         techStackRules: { allowed: ["React", "TypeScript"], preferred: [], restricted: [] },
         submissionRequirements: { githubRepo: true, liveDeployment: true, readme: true },
         codeQualityRules: { folders: 25, comments: 25 },
@@ -320,6 +342,9 @@ export default function HackathonRegistrationPage() {
       };
     }
 
+    // Attach which problem statement the participant is solving
+    bpData = { ...bpData, selectedProblemIndex: activeProblemIdx };
+
     try {
       const response = await fetch("/api/evaluate", {
         method: "POST",
@@ -333,7 +358,7 @@ export default function HackathonRegistrationPage() {
       if (response.ok) {
         const report = await response.json();
         setEvaluationReport(report);
-        localStorage.setItem(`fa_submission_report_${hackathon.id}`, JSON.stringify(report));
+        localStorage.setItem(`fa_submission_report_${activeHackathon.id}`, JSON.stringify(report));
         setAstCheckResult("passed");
         setSubmissionSuccess(true);
         setSubmittingProject(false);
@@ -346,7 +371,7 @@ export default function HackathonRegistrationPage() {
 
     // Fallback Mock Report
     const mockReport = {
-      hackathonTitle: hackathon.name,
+      hackathonTitle: activeHackathon.name,
       repoUrl,
       status: "pass",
       timestamp: new Date().toISOString(),
@@ -360,7 +385,7 @@ export default function HackathonRegistrationPage() {
       },
       aiEvaluation: {
         problemAlignment: { score: 18, reason: "Excellent alignment with expected solution coverage." },
-        requiredFeatures: { implemented: [hackathon.problemTitle || "Core dashboard"], missing: [], score: 20 },
+        requiredFeatures: { implemented: [activeHackathon.problemTitle || "Core dashboard"], missing: [], score: 20 },
         innovation: { score: 12, reason: "Highly interactive client components." },
         bonusSuggestions: ["Add server-side authentication validation"]
       },
@@ -402,7 +427,7 @@ export default function HackathonRegistrationPage() {
     };
 
     setEvaluationReport(mockReport);
-    localStorage.setItem(`fa_submission_report_${hackathon.id}`, JSON.stringify(mockReport));
+    localStorage.setItem(`fa_submission_report_${activeHackathon.id}`, JSON.stringify(mockReport));
     
     const attempt = {
       version: submissionAttempts.length + 1,
@@ -414,7 +439,7 @@ export default function HackathonRegistrationPage() {
     };
     const updatedAttempts = [...submissionAttempts, attempt];
     setSubmissionAttempts(updatedAttempts);
-    localStorage.setItem(`fa_submission_attempts_${hackathon.id}`, JSON.stringify(updatedAttempts));
+    localStorage.setItem(`fa_submission_attempts_${activeHackathon.id}`, JSON.stringify(updatedAttempts));
 
     setAstCheckResult("passed");
     setRepoUrl("");
@@ -534,6 +559,23 @@ export default function HackathonRegistrationPage() {
             <p className="text-xs text-slate-200">
               {hackathon.tagline || "Official Developer Hackathon Track"}
             </p>
+            {isRegistered && (
+              <div className="mt-1 flex items-center gap-2">
+                <span className="text-[10px] text-slate-300 font-bold uppercase tracking-wider">Registration:</span>
+                {registrationStatus === "SHORTLISTED" && (
+                  <Badge variant="success" size="sm" className="bg-[#D1FAE5] text-[#065F46] border-[#34D399] font-bold">Shortlisted</Badge>
+                )}
+                {registrationStatus === "REJECTED" && (
+                  <Badge variant="error" size="sm" className="bg-[#FEE2E2] text-[#991B1B] border-[#FCA5A5] font-bold">Rejected</Badge>
+                )}
+                {registrationStatus === "APPROVED" && (
+                  <Badge variant="success" size="sm" className="bg-[#DBEAFE] text-[#1E40AF] border-[#93C5FD] font-bold">Approved</Badge>
+                )}
+                {registrationStatus === "PENDING" && (
+                  <Badge variant="outline" size="sm" className="bg-slate-800 text-slate-200 border-slate-600 font-bold">Pending Review</Badge>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
@@ -620,60 +662,130 @@ export default function HackathonRegistrationPage() {
               {/* Workspace content sections */}
               <div className="space-y-6">
                 {activePortalTab === "problem" && (
-                  <Card className="p-6 space-y-6 bg-white border-[#E2E8F0] shadow-sm rounded-2xl animate-in fade-in duration-200">
-                    <div className="space-y-1.5 border-b border-[#F1F5F9] pb-4">
-                      <h2 className="font-heading text-lg font-bold text-[#0F172A] flex items-center gap-2">
-                        <FileCode2 className="h-5 w-5 text-[#FF006E]" />
-                        <span>{hackathon.problemTitle}</span>
-                      </h2>
-                      <p className="text-xs text-[#475569]">
-                        Read specifications, requirements, and test scenarios.
-                      </p>
-                    </div>
+                  !hackathon.problemReleased ? (
+                    <Card className="p-12 text-center bg-white border-[#E2E8F0] shadow-sm rounded-2xl animate-in fade-in duration-200 flex flex-col items-center justify-center space-y-4">
+                      <div className="p-4 rounded-full bg-rose-50 text-[#FF006E]">
+                        <AlertCircle className="h-10 w-10" />
+                      </div>
+                      <div className="space-y-2 max-w-md">
+                        <h2 className="font-heading text-lg font-bold text-[#0F172A]">
+                          Problem Statement Not Released
+                        </h2>
+                        <p className="text-xs text-[#64748B] leading-relaxed">
+                          The problem statement for this hackathon has not been released by the admin yet. Please check back later or when the hackathon begins!
+                        </p>
+                      </div>
+                    </Card>
+                  ) : (() => {
+                    const stmts = blueprint?.problemStatements && Array.isArray(blueprint.problemStatements) && blueprint.problemStatements.length > 0
+                      ? blueprint.problemStatements
+                      : [{ title: hackathon.problemTitle, description: hackathon.problemDescription, background: "", objectives: "", expectedSolution: "", difficulty: "" }];
+                    const activeStmt = stmts[activeProblemIdx] || stmts[0];
+                    return (
+                    <Card className="p-6 space-y-6 bg-white border-[#E2E8F0] shadow-sm rounded-2xl animate-in fade-in duration-200">
+                      <div className="space-y-3 border-b border-[#F1F5F9] pb-4">
+                        {/* Problem Tabs when multiple exist */}
+                        {stmts.length > 1 && (
+                          <div className="flex flex-wrap gap-2 mb-2">
+                            {stmts.map((s: any, sIdx: number) => (
+                              <button
+                                key={sIdx}
+                                type="button"
+                                onClick={() => setActiveProblemIdx(sIdx)}
+                                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                                  activeProblemIdx === sIdx
+                                    ? "bg-[#FF006E] text-white shadow-sm"
+                                    : "bg-[#F8FAFC] text-[#475569] border border-[#E2E8F0] hover:bg-[#FF006E]/5 hover:text-[#FF006E]"
+                                }`}
+                              >
+                                Problem #{sIdx + 1}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                        <h2 className="font-heading text-lg font-bold text-[#0F172A] flex items-center gap-2">
+                          <FileCode2 className="h-5 w-5 text-[#FF006E]" />
+                          <span>{activeStmt.title || hackathon.problemTitle}</span>
+                        </h2>
+                        {activeStmt.difficulty && (
+                          <Badge variant="outline" className="text-[10px] font-bold">
+                            {activeStmt.difficulty}
+                          </Badge>
+                        )}
+                        <p className="text-xs text-[#475569]">
+                          Read specifications, requirements, and test scenarios.
+                        </p>
+                      </div>
 
-                    <div className="text-xs text-[#475569] leading-relaxed whitespace-pre-wrap">
-                      {hackathon.problemDescription}
-                    </div>
+                      <div className="text-xs text-[#475569] leading-relaxed whitespace-pre-wrap">
+                        {activeStmt.description || hackathon.problemDescription}
+                      </div>
 
-                    <div className="space-y-3 pt-4 border-t border-[#F1F5F9]">
-                      <h3 className="text-xs font-bold uppercase tracking-wider text-[#0F172A]">
-                        Automated Evaluation Test Cases
-                      </h3>
-                      {hackathon.testCases.length > 0 ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          {hackathon.testCases.map((tc, tcIdx) => (
-                            <div
-                              key={tcIdx}
-                              className="p-4 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] space-y-2 text-xs"
-                            >
-                              <div className="flex items-center justify-between border-b border-[#E2E8F0] pb-1.5 font-bold">
-                                <span className="text-[#0F172A]">Test Scenario #{tcIdx + 1}</span>
-                                <Badge variant="accent" size="sm" className="bg-[#FEF3C7] text-[#B45309]">
-                                  Score weight: {tc.weight}%
-                                </Badge>
-                              </div>
-                              <div className="space-y-1.5 font-code text-[11px] pt-1">
-                                <div>
-                                  <span className="text-[#64748B] block font-sans text-[10px] font-bold uppercase">Input:</span>
-                                  <pre className="p-2 rounded bg-slate-100 border border-slate-200 overflow-x-auto select-all">
-                                    {tc.input}
-                                  </pre>
-                                </div>
-                                <div>
-                                  <span className="text-[#64748B] block font-sans text-[10px] font-bold uppercase">Expected Output:</span>
-                                  <pre className="p-2 rounded bg-slate-100 border border-slate-200 overflow-x-auto select-all">
-                                    {tc.output}
-                                  </pre>
-                                </div>
-                              </div>
+                      {/* Background & Objectives from blueprint */}
+                      {(activeStmt.background || activeStmt.objectives || activeStmt.expectedSolution) && (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                          {activeStmt.background && (
+                            <div className="p-3 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] text-xs space-y-1">
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-[#475569]">Background</span>
+                              <p className="text-[#0F172A]">{activeStmt.background}</p>
                             </div>
-                          ))}
+                          )}
+                          {activeStmt.objectives && (
+                            <div className="p-3 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] text-xs space-y-1">
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-[#475569]">Core Objectives</span>
+                              <p className="text-[#0F172A]">{activeStmt.objectives}</p>
+                            </div>
+                          )}
+                          {activeStmt.expectedSolution && (
+                            <div className="p-3 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] text-xs space-y-1 sm:col-span-2">
+                              <span className="text-[10px] font-bold uppercase tracking-wider text-[#475569]">Expected Solution</span>
+                              <p className="text-[#0F172A]">{activeStmt.expectedSolution}</p>
+                            </div>
+                          )}
                         </div>
-                      ) : (
-                        <p className="text-xs text-[#64748B] italic">No test cases configured for this problem statement.</p>
                       )}
-                    </div>
-                  </Card>
+
+                      <div className="space-y-3 pt-4 border-t border-[#F1F5F9]">
+                        <h3 className="text-xs font-bold uppercase tracking-wider text-[#0F172A]">
+                          Automated Evaluation Test Cases
+                        </h3>
+                        {hackathon.testCases.length > 0 ? (
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {hackathon.testCases.map((tc, tcIdx) => (
+                              <div
+                                key={tcIdx}
+                                className="p-4 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] space-y-2 text-xs"
+                              >
+                                <div className="flex items-center justify-between border-b border-[#E2E8F0] pb-1.5 font-bold">
+                                  <span className="text-[#0F172A]">Test Scenario #{tcIdx + 1}</span>
+                                  <Badge variant="accent" size="sm" className="bg-[#FEF3C7] text-[#B45309]">
+                                    Score weight: {tc.weight}%
+                                  </Badge>
+                                </div>
+                                <div className="space-y-1.5 font-code text-[11px] pt-1">
+                                  <div>
+                                    <span className="text-[#64748B] block font-sans text-[10px] font-bold uppercase">Input:</span>
+                                    <pre className="p-2 rounded bg-slate-100 border border-slate-200 overflow-x-auto select-all">
+                                      {tc.input}
+                                    </pre>
+                                  </div>
+                                  <div>
+                                    <span className="text-[#64748B] block font-sans text-[10px] font-bold uppercase">Expected Output:</span>
+                                    <pre className="p-2 rounded bg-slate-100 border border-slate-200 overflow-x-auto select-all">
+                                      {tc.output}
+                                    </pre>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <p className="text-xs text-[#64748B] italic">No test cases configured for this problem statement.</p>
+                        )}
+                      </div>
+                    </Card>
+                    );
+                  })()
                 )}
 
                 {activePortalTab === "rules" && (
@@ -1167,13 +1279,13 @@ export default function HackathonRegistrationPage() {
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <Input
                           label="Your Name"
-                          value={user.fullName}
+                          value={user?.fullName || ""}
                           disabled
                           helperText="Pre-filled from account settings"
                         />
                         <Input
                           label="Your Email"
-                          value={user.email}
+                          value={user?.email || ""}
                           disabled
                           helperText="Pre-filled from account settings"
                         />
@@ -1471,5 +1583,17 @@ export default function HackathonRegistrationPage() {
         </AnimatePresence>
       </main>
     </div>
+  );
+}
+
+export default function HackathonRegistrationPage() {
+  return (
+    <Suspense fallback={
+      <div className="flex min-h-screen w-full items-center justify-center bg-[#F8FAFC]">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#FF006E] border-t-transparent" />
+      </div>
+    }>
+      <HackathonRegistrationContent />
+    </Suspense>
   );
 }

@@ -25,10 +25,10 @@ export function useAuth() {
     }
   };
 
-  const signInWithGoogle = async () => {
+  const signInWithGoogle = async (credential: string) => {
     setIsLoading(true);
     try {
-      const u = await AuthService.signInWithGoogle();
+      const u = await AuthService.signInWithGoogle(credential);
       setUser(u);
       return u;
     } finally {

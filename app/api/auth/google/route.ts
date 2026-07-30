@@ -5,15 +5,20 @@ const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:4000";
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const response = await fetch(`${BACKEND_URL}/api/evaluate`, {
+    const response = await fetch(`${BACKEND_URL}/api/auth/google`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify(body),
     });
 
     const data = await response.json();
     return NextResponse.json(data, { status: response.status });
   } catch (error: any) {
-    return NextResponse.json({ error: "Failed to connect to evaluation backend: " + error.message }, { status: 502 });
+    return NextResponse.json(
+      { error: "Failed to connect to authentication backend: " + error.message },
+      { status: 502 }
+    );
   }
 }

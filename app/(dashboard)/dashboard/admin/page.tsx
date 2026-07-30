@@ -73,6 +73,7 @@ interface Hackathon {
   submissionEnabled: boolean;
   leaderboardEnabled: boolean;
   discussionEnabled: boolean;
+  problemReleased?: boolean;
   rounds: Round[];
   problemTitle: string;
   problemDescription: string;
@@ -85,7 +86,9 @@ interface Hackathon {
 export default function PlatformAdminDashboardPage() {
   const { activeTab } = useUIStore();
 
-  // Load hackathons from backend on mount
+  const [globalRegistrations, setGlobalRegistrations] = useState<any[]>([]);
+
+  // Load hackathons and global registrations from backend on mount
   React.useEffect(() => {
     const fetchHackathons = async () => {
       try {
@@ -100,7 +103,21 @@ export default function PlatformAdminDashboardPage() {
         console.error(e);
       }
     };
+    const fetchGlobalRegistrations = async () => {
+      try {
+        const res = await fetch("/api/registrations");
+        if (res.ok) {
+          const list = await res.json();
+          if (Array.isArray(list)) {
+            setGlobalRegistrations(list);
+          }
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    };
     fetchHackathons();
+    fetchGlobalRegistrations();
   }, []);
 
   // Settings Tab States
@@ -113,6 +130,58 @@ export default function PlatformAdminDashboardPage() {
   const [hackathons, setHackathons] = useState<Hackathon[]>([]);
   const [isCreatingHackathon, setIsCreatingHackathon] = useState(false);
   const [editingHackathonId, setEditingHackathonId] = useState<string | null>(null);
+  const [selectedRegHackathonId, setSelectedRegHackathonId] = useState<string>("");
+  const [registrations, setRegistrations] = useState<any[]>([]);
+  const [loadingRegs, setLoadingRegs] = useState<boolean>(false);
+
+  const fetchRegistrations = async (hackathonId: string) => {
+    if (!hackathonId) return;
+    setLoadingRegs(true);
+    try {
+      const res = await fetch(`/api/registrations?hackathonId=${hackathonId}`);
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          setRegistrations(data);
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoadingRegs(false);
+    }
+  };
+
+  const handleUpdateRegStatus = async (regId: string, newStatus: string) => {
+    try {
+      const response = await fetch(`/api/registrations/${regId}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      if (response.ok) {
+        showToast(`Registration updated to ${newStatus}!`);
+        fetchRegistrations(selectedRegHackathonId);
+      } else {
+        alert("Failed to update registration status.");
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  React.useEffect(() => {
+    if (Array.isArray(hackathons) && hackathons.length > 0 && !selectedRegHackathonId) {
+      setSelectedRegHackathonId(hackathons[0].id);
+    }
+  }, [hackathons, selectedRegHackathonId]);
+
+  React.useEffect(() => {
+    if (selectedRegHackathonId) {
+      fetchRegistrations(selectedRegHackathonId);
+    }
+  }, [selectedRegHackathonId]);
+
   const [activeBlueprintHackathonId, setActiveBlueprintHackathonId] = useState<string | null>(null);
   const [activeManageHackathonId, setActiveManageHackathonId] = useState<string | null>(null);
   const [activePortalTab, setActivePortalTab] = useState<"problem" | "rules" | "resources" | "submissions" | "leaderboard">("problem");
@@ -129,6 +198,7 @@ export default function PlatformAdminDashboardPage() {
     setSubmissionEnabled(true);
     setLeaderboardEnabled(true);
     setDiscussionEnabled(false);
+    setProblemReleased(false);
     setProblemTitle("");
     setProblemDescription("");
     setRounds([
@@ -153,6 +223,7 @@ export default function PlatformAdminDashboardPage() {
     setSubmissionEnabled(hackathon.submissionEnabled);
     setLeaderboardEnabled(hackathon.leaderboardEnabled);
     setDiscussionEnabled(hackathon.discussionEnabled);
+    setProblemReleased(hackathon.problemReleased || false);
     setRounds(hackathon.rounds);
     setProblemTitle(hackathon.problemTitle);
     setProblemDescription(hackathon.problemDescription);
@@ -160,6 +231,23 @@ export default function PlatformAdminDashboardPage() {
     setRules(hackathon.rules.length > 0 ? hackathon.rules : [""]);
     setResources(hackathon.resources.length > 0 ? hackathon.resources : [{ title: "", url: "", type: "Link" }]);
     setIsCreatingHackathon(true);
+  };
+
+  const handleDeleteHackathon = async (id: string, name: string) => {
+    if (!confirm(`Are you sure you want to delete "${name}"? This action cannot be undone.`)) {
+      return;
+    }
+    try {
+      const res = await fetch(`/api/hackathons/${id}`, { method: "DELETE" });
+      if (res.ok) {
+        setHackathons((prev) => prev.filter((h) => h.id !== id));
+      } else {
+        const err = await res.json();
+        alert(err.error || "Failed to delete hackathon.");
+      }
+    } catch (e: any) {
+      alert("Error deleting hackathon: " + e.message);
+    }
   };
 
   // Hackathon Form States
@@ -174,6 +262,7 @@ export default function PlatformAdminDashboardPage() {
   const [submissionEnabled, setSubmissionEnabled] = useState(true);
   const [leaderboardEnabled, setLeaderboardEnabled] = useState(true);
   const [discussionEnabled, setDiscussionEnabled] = useState(false);
+  const [problemReleased, setProblemReleased] = useState(false);
   
   // Stages Rounds States
   const [rounds, setRounds] = useState<Round[]>([
@@ -215,6 +304,26 @@ export default function PlatformAdminDashboardPage() {
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(""), 4000);
+  };
+
+  const fileInputRef = React.useRef<HTMLInputElement | null>(null);
+
+  const handleBannerFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      alert("Image size should be less than 5MB.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const result = event.target?.result as string;
+      if (result) {
+        setBannerImage(`url("${result}") center/cover no-repeat`);
+        showToast("Brand banner image uploaded successfully!");
+      }
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleMockBannerUpload = () => {
@@ -283,6 +392,7 @@ export default function PlatformAdminDashboardPage() {
       submissionEnabled,
       leaderboardEnabled,
       discussionEnabled,
+      problemReleased,
       rounds,
       problemTitle: problemTitle || "Default Challenge Title",
       problemDescription: problemDescription || "No description provided for this problem statement.",
@@ -295,7 +405,7 @@ export default function PlatformAdminDashboardPage() {
     if (editingHackathonId) {
       const updatedHackathons = hackathons.map((h) => {
         if (h.id === editingHackathonId) {
-          return {
+          const updated = {
             ...h,
             name: hackathonName,
             tagline: hackathonTagline,
@@ -308,6 +418,7 @@ export default function PlatformAdminDashboardPage() {
             submissionEnabled,
             leaderboardEnabled,
             discussionEnabled,
+            problemReleased,
             rounds,
             problemTitle: problemTitle || "Default Challenge Title",
             problemDescription: problemDescription || "No description provided for this problem statement.",
@@ -325,6 +436,8 @@ export default function PlatformAdminDashboardPage() {
               if (Array.isArray(list)) setHackathons(list);
             });
           });
+
+          return updated;
         }
         return h;
       });
@@ -364,85 +477,162 @@ export default function PlatformAdminDashboardPage() {
             exit={{ opacity: 0, y: -10 }}
             className="space-y-8"
           >
-            {/* Header */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 rounded-[16px] border border-[#E2E8F0] bg-[#0F172A] p-6 text-white shadow-lg">
-              <div className="space-y-1">
+            {/* Header Banner */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 rounded-[16px] border border-[#E2E8F0] bg-white p-6 shadow-sm relative overflow-hidden">
+              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-[#FF006E]/5 via-transparent to-transparent pointer-events-none" />
+              <div className="space-y-1 relative z-10">
                 <div className="flex items-center gap-2">
                   <Badge variant="solid" size="sm" className="bg-[#FF006E] text-white">
-                    Platform Admin
+                    Platform Insights
                   </Badge>
-                  <Badge variant="outline" size="sm" className="text-slate-400 border-slate-700">
-                    All Systems Dormant
-                  </Badge>
+                  <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                  <span className="text-[10px] font-bold text-emerald-600 tracking-wide uppercase">
+                    Evaluation Engine Online
+                  </span>
                 </div>
-                <h1 className="font-heading text-2xl font-bold">
-                  Frontend Arena System Telemetry
+                <h1 className="font-heading text-2xl font-bold text-[#0F172A]">
+                  Frontend Arena Console
                 </h1>
-                <p className="text-sm text-slate-300">
-                  Super-admin system governance, cluster health, and global user management.
+                <p className="text-sm text-[#475569]">
+                  Manage active hackathons, monitor live enrollments, and coordinate system evaluations.
                 </p>
               </div>
 
-              <Button variant="outline" className="text-white border-slate-700 hover:bg-slate-800" leftIcon={<Terminal className="h-4 w-4" />}>
-                System Diagnostics
-              </Button>
+              <div className="flex items-center gap-2 relative z-10">
+                <Button 
+                  onClick={async () => {
+                    const res = await fetch("/api/registrations");
+                    if (res.ok) {
+                      const list = await res.json();
+                      if (Array.isArray(list)) {
+                        setGlobalRegistrations(list);
+                      }
+                    }
+                  }}
+                  variant="outline" 
+                  className="text-[#0F172A] border-[#E2E8F0] hover:bg-[#F8FAFC]" 
+                  leftIcon={<Activity className="h-4 w-4" />}
+                >
+                  Sync Live Feed
+                </Button>
+              </div>
             </div>
 
-            {/* Telemetry Grid */}
+            {/* Metrics Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <Card className="p-5 flex items-center justify-between">
+              {/* Card 1: Active Hackathons */}
+              <Card className="p-5 flex items-center justify-between border-[#E2E8F0] shadow-sm hover:border-[#FF006E]/30 transition-all duration-200">
                 <div>
-                  <p className="text-xs font-semibold uppercase text-[#475569]">Global Users</p>
-                  <h3 className="font-heading text-2xl font-bold text-[#0F172A]">0</h3>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-[#475569]">Active Challenges</p>
+                  <h3 className="font-heading text-2xl font-extrabold text-[#0F172A] mt-1">{hackathons.length}</h3>
                 </div>
-                <div className="flex h-11 w-11 items-center justify-center rounded-[14px] bg-slate-100 text-slate-400">
+                <div className="flex h-11 w-11 items-center justify-center rounded-[12px] bg-[#FF006E]/5 text-[#FF006E]">
+                  <Trophy className="h-5 w-5" />
+                </div>
+              </Card>
+
+              {/* Card 2: Total Registrations */}
+              <Card className="p-5 flex items-center justify-between border-[#E2E8F0] shadow-sm hover:border-[#FF006E]/30 transition-all duration-200">
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-[#475569]">Total Enrollments</p>
+                  <h3 className="font-heading text-2xl font-extrabold text-[#0F172A] mt-1">{globalRegistrations.length}</h3>
+                </div>
+                <div className="flex h-11 w-11 items-center justify-center rounded-[12px] bg-indigo-50 text-indigo-600">
                   <Users className="h-5 w-5" />
                 </div>
               </Card>
 
-              <Card className="p-5 flex items-center justify-between">
+              {/* Card 3: Shortlisted */}
+              <Card className="p-5 flex items-center justify-between border-[#E2E8F0] shadow-sm hover:border-[#FF006E]/30 transition-all duration-200">
                 <div>
-                  <p className="text-xs font-semibold uppercase text-[#475569]">Subnet Health</p>
-                  <h3 className="font-heading text-2xl font-bold text-[#475569]">0.00%</h3>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-[#475569]">Shortlisted Teams</p>
+                  <h3 className="font-heading text-2xl font-extrabold text-[#0F172A] mt-1">
+                    {globalRegistrations.filter(r => r.status === "SHORTLISTED").length}
+                  </h3>
                 </div>
-                <div className="flex h-11 w-11 items-center justify-center rounded-[14px] bg-slate-100 text-slate-400">
+                <div className="flex h-11 w-11 items-center justify-center rounded-[12px] bg-emerald-50 text-emerald-600">
+                  <CheckCircle className="h-5 w-5" />
+                </div>
+              </Card>
+
+              {/* Card 4: Evaluation Docker Sandbox Status */}
+              <Card className="p-5 flex items-center justify-between border-[#E2E8F0] shadow-sm hover:border-[#FF006E]/30 transition-all duration-200">
+                <div>
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-[#475569]">Docker Sandbox</p>
+                  <h3 className="font-heading text-2xl font-extrabold text-emerald-600 mt-1">Active</h3>
+                </div>
+                <div className="flex h-11 w-11 items-center justify-center rounded-[12px] bg-emerald-50 text-emerald-600">
                   <Server className="h-5 w-5" />
-                </div>
-              </Card>
-
-              <Card className="p-5 flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-semibold uppercase text-[#475569]">Active Sockets</p>
-                  <h3 className="font-heading text-2xl font-bold text-[#0F172A] font-code">0</h3>
-                </div>
-                <div className="flex h-11 w-11 items-center justify-center rounded-[14px] bg-slate-100 text-slate-400">
-                  <Activity className="h-5 w-5" />
-                </div>
-              </Card>
-
-              <Card className="p-5 flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-semibold uppercase text-[#475569]">System Security</p>
-                  <h3 className="font-heading text-2xl font-bold text-[#0F172A]">No Audits</h3>
-                </div>
-                <div className="flex h-11 w-11 items-center justify-center rounded-[14px] bg-slate-100 text-slate-400">
-                  <Shield className="h-5 w-5" />
                 </div>
               </Card>
             </div>
 
-            {/* Global Cluster Table Card */}
-            <Card>
-              <CardHeader className="py-4 border-b border-[#E2E8F0]/60">
-                <CardTitle className="text-base font-bold text-[#0F172A]">
-                  Global Node Audit Log
-                </CardTitle>
+            {/* Recent Platform Registrations */}
+            <Card className="rounded-2xl border-[#E2E8F0] shadow-sm bg-white overflow-hidden">
+              <CardHeader className="py-4 border-b border-[#F1F5F9] bg-[#F8FAFC]/50 flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle className="text-base font-bold text-[#0F172A]">
+                    Recent Enrollments Log
+                  </CardTitle>
+                  <CardDescription className="text-xs text-[#475569]">
+                    Real-time participant registrations across all live challenges.
+                  </CardDescription>
+                </div>
+                <Badge variant="outline" className="text-[#FF006E] border-[#FF006E]/20 bg-[#FF006E]/5 font-bold">
+                  Live Feed
+                </Badge>
               </CardHeader>
-              <CardContent className="p-6">
-                <EmptyState
-                  title="No Active Clusters Found"
-                  description="There are currently no active subnets or node clusters registered in the system governance portal."
-                />
+              <CardContent className="p-0">
+                {globalRegistrations.length === 0 ? (
+                  <div className="p-8 text-center">
+                    <EmptyState
+                      title="No Enrollments Recorded"
+                      description="No participants have registered for any hackathons on the platform yet."
+                    />
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead>
+                        <tr className="border-b border-[#F1F5F9] bg-[#F8FAFC]/30 text-[#475569] font-semibold">
+                          <th className="p-4">Participant</th>
+                          <th className="p-4">College</th>
+                          <th className="p-4">Hackathon</th>
+                          <th className="p-4">Mode</th>
+                          <th className="p-4">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-[#F1F5F9]">
+                        {globalRegistrations.slice(0, 5).map((reg) => {
+                          const matchingHack = hackathons.find(h => h.id === reg.hackathonId);
+                          return (
+                            <tr key={reg.id} className="hover:bg-[#F8FAFC]/60 transition-colors">
+                              <td className="p-4">
+                                <div className="font-bold text-[#0F172A]">
+                                  {reg.user?.firstName ? `${reg.user.firstName} ${reg.user.lastName || ""}`.trim() : "Anonymous User"}
+                                </div>
+                                <div className="text-[10px] text-[#475569]">{reg.user?.email || "No email"}</div>
+                              </td>
+                              <td className="p-4 text-[#475569]">{reg.collegeName || "N/A"}</td>
+                              <td className="p-4 font-medium text-[#0F172A]">{matchingHack?.name || reg.hackathonId}</td>
+                              <td className="p-4 capitalize text-[#475569]">{reg.participationMode.replace("_", " ")}</td>
+                              <td className="p-4">
+                                <span className={`px-2 py-1 rounded-full text-[9px] font-bold ${
+                                  reg.status === "SHORTLISTED" ? "bg-green-50 text-green-700 border border-green-200" :
+                                  reg.status === "REJECTED" ? "bg-red-50 text-red-700 border border-red-200" :
+                                  reg.status === "APPROVED" ? "bg-blue-50 text-blue-700 border border-blue-200" :
+                                  "bg-yellow-50 text-yellow-700 border border-yellow-200"
+                                }`}>
+                                  {reg.status}
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </CardContent>
             </Card>
           </motion.div>
@@ -1172,37 +1362,80 @@ export default function PlatformAdminDashboardPage() {
                       <h3 className="font-heading text-sm font-bold text-[#0F172A] border-b border-[#F1F5F9] pb-2">
                         Branding & Banner
                       </h3>
+                      <input
+                        type="file"
+                        ref={fileInputRef}
+                        onChange={handleBannerFileUpload}
+                        accept="image/*"
+                        className="hidden"
+                      />
                       {bannerImage ? (
-                        <div className="relative h-28 w-full rounded-lg border border-[#E2E8F0] overflow-hidden flex flex-col justify-end p-3 text-white shadow-sm" style={{ background: bannerImage }}>
-                          <div className="absolute inset-0 bg-black/10" />
-                          <div className="relative z-10">
-                            <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#FFD60A]">
-                              Preview
-                            </p>
-                            <h4 className="font-heading text-xs font-bold truncate">
-                              {hackathonName || "Hackathon Name"}
-                            </h4>
+                        <div className="space-y-2">
+                          <div className="relative h-28 w-full rounded-lg border border-[#E2E8F0] overflow-hidden flex flex-col justify-end p-3 text-white shadow-sm" style={{ background: bannerImage }}>
+                            <div className="absolute inset-0 bg-black/20" />
+                            <div className="relative z-10">
+                              <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#FFD60A]">
+                                Preview
+                              </p>
+                              <h4 className="font-heading text-xs font-bold truncate">
+                                {hackathonName || "Hackathon Name"}
+                              </h4>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => setBannerImage(null)}
+                              className="absolute top-2 right-2 bg-black/50 text-white rounded-full p-1.5 hover:bg-[#EF4444] transition-colors"
+                              title="Remove Banner"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
                           </div>
-                          <button
+                          <Button
                             type="button"
-                            onClick={() => setBannerImage(null)}
-                            className="absolute top-2 right-2 bg-black/50 text-white rounded-full p-1 hover:bg-[#EF4444]"
+                            variant="outline"
+                            size="sm"
+                            className="w-full text-xs"
+                            onClick={() => fileInputRef.current?.click()}
                           >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </button>
+                            Change Banner Image
+                          </Button>
                         </div>
                       ) : (
-                        <div
-                          onClick={handleMockBannerUpload}
-                          className="flex flex-col items-center justify-center h-28 w-full border-2 border-dashed border-[#CBD5E1] rounded-lg bg-[#F8FAFC] hover:bg-slate-100 hover:border-[#FF006E] cursor-pointer transition-all p-4 text-center"
-                        >
-                          <ImageIcon className="h-6 w-6 text-[#94A3B8] mb-1.5" />
-                          <span className="text-[11px] font-bold text-[#0F172A]">
-                            Upload Brand Banner
-                          </span>
-                          <span className="text-[9px] text-[#64748B] mt-0.5">
-                            Recommended ratio: 16:9 (SVG/PNG)
-                          </span>
+                        <div className="space-y-3">
+                          <div
+                            onClick={() => fileInputRef.current?.click()}
+                            className="flex flex-col items-center justify-center h-28 w-full border-2 border-dashed border-[#CBD5E1] rounded-lg bg-[#F8FAFC] hover:bg-slate-100 hover:border-[#FF006E] cursor-pointer transition-all p-4 text-center group"
+                          >
+                            <ImageIcon className="h-6 w-6 text-[#94A3B8] group-hover:text-[#FF006E] mb-1.5 transition-colors" />
+                            <span className="text-[11px] font-bold text-[#0F172A]">
+                              Upload Brand Banner Image
+                            </span>
+                            <span className="text-[9px] text-[#64748B] mt-0.5">
+                              Click to choose PNG, JPG, WebP, SVG (Max 5MB)
+                            </span>
+                          </div>
+
+                          {/* Preset Gradients fallback options */}
+                          <div className="space-y-1.5">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-[#64748B]">Or choose preset gradient:</span>
+                            <div className="grid grid-cols-4 gap-1.5">
+                              {[
+                                { label: "Pink Glow", bg: "linear-gradient(135deg, #FF006E, #FFD60A)" },
+                                { label: "Ocean Blue", bg: "linear-gradient(to right, #2563EB, #06B6D4)" },
+                                { label: "Dark Arena", bg: "linear-gradient(to right, #0F172A, #312E81)" },
+                                { label: "Emerald", bg: "linear-gradient(to right, #059669, #10B981)" },
+                              ].map((preset, pIdx) => (
+                                <button
+                                  key={pIdx}
+                                  type="button"
+                                  onClick={() => setBannerImage(preset.bg)}
+                                  className="h-7 rounded-md border border-[#E2E8F0] shadow-2xs hover:scale-105 transition-transform"
+                                  style={{ background: preset.bg }}
+                                  title={preset.label}
+                                />
+                              ))}
+                            </div>
+                          </div>
                         </div>
                       )}
                     </Card>
@@ -1232,6 +1465,13 @@ export default function PlatformAdminDashboardPage() {
                           description="Allow participants to communicate and team up directly in a public thread."
                           checked={discussionEnabled}
                           onChange={(e) => setDiscussionEnabled(e.target.checked)}
+                        />
+                        <div className="border-t border-[#F1F5F9] my-1" />
+                        <Checkbox
+                          label="Release Problem Statement"
+                          description="Display the challenge details, problem description, and test scenarios to registered participants."
+                          checked={problemReleased}
+                          onChange={(e) => setProblemReleased(e.target.checked)}
                         />
                       </div>
                     </Card>
@@ -1329,6 +1569,15 @@ export default function PlatformAdminDashboardPage() {
                                 Leaderboard Active
                               </Badge>
                             )}
+                            {hackathon.problemReleased ? (
+                              <Badge variant="success" size="sm" className="bg-[#D1FAE5] text-[#065F46] border-[#34D399]">
+                                Problem Released
+                              </Badge>
+                            ) : (
+                              <Badge variant="outline" size="sm" className="bg-[#F3F4F6] text-[#374151] border-[#D1D5DB]">
+                                Problem Hidden
+                              </Badge>
+                            )}
                           </div>
                         </CardContent>
 
@@ -1364,6 +1613,15 @@ export default function PlatformAdminDashboardPage() {
                             >
                               <span>Workspace</span>
                               <ExternalLink className="h-3 w-3" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleDeleteHackathon(hackathon.id, hackathon.name)}
+                              className="text-[#EF4444] hover:text-[#B91C1C] flex items-center gap-0.5 font-bold"
+                              title="Delete Hackathon"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                              <span>Delete</span>
                             </button>
                           </div>
                         </CardFooter>
@@ -1481,23 +1739,131 @@ export default function PlatformAdminDashboardPage() {
             exit={{ opacity: 0, y: -10 }}
             className="space-y-6"
           >
-            <div>
-              <h1 className="font-heading text-2xl font-extrabold text-[#0F172A] flex items-center gap-2">
-                <Users className="h-6 w-6 text-[#FF006E]" />
-                <span>Teams & Squads</span>
-              </h1>
-              <p className="text-xs text-[#475569]">
-                Manage participant team clusters, invite tokens, and user membership records.
-              </p>
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <h1 className="font-heading text-2xl font-extrabold text-[#0F172A] flex items-center gap-2">
+                  <Users className="h-6 w-6 text-[#FF006E]" />
+                  <span>Participant Registrations</span>
+                </h1>
+                <p className="text-xs text-[#475569]">
+                  Manage participant entries, check details, and shortlist or reject registrations.
+                </p>
+              </div>
+
+              {/* Hackathon Selector */}
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-[#475569]">Hackathon:</span>
+                <select
+                  value={selectedRegHackathonId}
+                  onChange={(e) => setSelectedRegHackathonId(e.target.value)}
+                  className="flex h-9 w-64 rounded-xl border border-[#E2E8F0] bg-white px-3 text-xs font-bold text-[#0F172A] focus:outline-hidden shadow-xs"
+                >
+                  <option value="">Select a Hackathon...</option>
+                  {Array.isArray(hackathons) && hackathons.map((h) => (
+                    <option key={h.id} value={h.id}>{h.name}</option>
+                  ))}
+                </select>
+              </div>
             </div>
 
-            <Card className="p-6">
-              <EmptyState
-                title="No Registered Developer Teams"
-                description="No team formations have occurred yet. Registered participant teams will be listed here."
-                icon={<Users className="h-7 w-7" />}
-              />
-            </Card>
+            {loadingRegs ? (
+              <Card className="p-12 flex items-center justify-center">
+                <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#FF006E] border-t-transparent" />
+              </Card>
+            ) : registrations.length === 0 ? (
+              <Card className="p-6">
+                <EmptyState
+                  title="No Registered Participants"
+                  description="No participants have registered for this hackathon yet."
+                  icon={<Users className="h-7 w-7" />}
+                />
+              </Card>
+            ) : (
+              <Card className="overflow-hidden border border-[#E2E8F0] shadow-xs rounded-[16px]">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="border-b border-[#E2E8F0] bg-slate-50 font-bold text-[#475569]">
+                        <th className="p-4">Participant</th>
+                        <th className="p-4">College</th>
+                        <th className="p-4">Mode / Team Name</th>
+                        <th className="p-4">Status</th>
+                        <th className="p-4 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#E2E8F0]">
+                      {registrations.map((reg) => {
+                        const displayName = reg.user 
+                          ? `${reg.user.firstName || ""} ${reg.user.lastName || ""}`.trim() || reg.user.email.split("@")[0]
+                          : "Unknown User";
+                        const displayEmail = reg.user ? reg.user.email : "N/A";
+
+                        return (
+                          <tr key={reg.id} className="hover:bg-slate-50/50 transition-colors">
+                            <td className="p-4 space-y-0.5">
+                              <div className="font-bold text-[#0F172A]">{displayName}</div>
+                              <div className="text-[10px] text-[#64748B]">{displayEmail}</div>
+                            </td>
+                            <td className="p-4 text-[#475569]">{reg.collegeName || "N/A"}</td>
+                            <td className="p-4 space-y-0.5">
+                              <span className="font-medium text-[#0F172A] capitalize">{reg.participationMode}</span>
+                              {reg.teamName && (
+                                <div className="text-[10px] font-bold text-[#FF006E]">{reg.teamName}</div>
+                              )}
+                            </td>
+                            <td className="p-4">
+                              {reg.status === "SHORTLISTED" && (
+                                <Badge variant="success" size="sm" className="bg-[#D1FAE5] text-[#065F46] border-[#34D399]">Shortlisted</Badge>
+                              )}
+                              {reg.status === "REJECTED" && (
+                                <Badge variant="error" size="sm" className="bg-[#FEE2E2] text-[#991B1B] border-[#FCA5A5]">Rejected</Badge>
+                              )}
+                              {reg.status === "APPROVED" && (
+                                <Badge variant="success" size="sm" className="bg-[#DBEAFE] text-[#1E40AF] border-[#93C5FD]">Approved</Badge>
+                              )}
+                              {reg.status === "ON_HOLD" && (
+                                <Badge variant="outline" size="sm" className="bg-[#FEF3C7] text-[#92400E] border-[#FCD34D]">On Hold</Badge>
+                              )}
+                              {reg.status === "PENDING" && (
+                                <Badge variant="outline" size="sm" className="bg-slate-100 text-slate-700 border-slate-300">Pending Review</Badge>
+                              )}
+                            </td>
+                            <td className="p-4 text-right">
+                              <div className="flex justify-end gap-1.5">
+                                <Button
+                                  variant="default"
+                                  size="sm"
+                                  className="h-7 px-2.5 text-[10px] font-bold rounded-lg bg-[#10B981] hover:bg-[#0D9668] text-white"
+                                  onClick={() => handleUpdateRegStatus(reg.id, "SHORTLISTED")}
+                                >
+                                  Shortlist
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-7 px-2.5 text-[10px] font-bold rounded-lg bg-[#F59E0B] hover:bg-[#D97706] text-white border-0"
+                                  onClick={() => handleUpdateRegStatus(reg.id, "ON_HOLD")}
+                                >
+                                  On Hold
+                                </Button>
+                                <Button
+                                  variant="danger"
+                                  size="sm"
+                                  className="h-7 px-2.5 text-[10px] font-bold rounded-lg bg-[#EF4444] hover:bg-[#DC2626] text-white"
+                                  onClick={() => handleUpdateRegStatus(reg.id, "REJECTED")}
+                                >
+                                  Reject
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </Card>
+            )}
           </motion.div>
         );
 

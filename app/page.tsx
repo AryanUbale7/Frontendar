@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { LandingNavbar } from "@/features/landing/LandingNavbar";
-import { HeroSection } from "@/features/landing/HeroSection";
 import { MarqueeBanner } from "@/features/landing/MarqueeBanner";
+import { HeroSection } from "@/features/landing/HeroSection";
 import { WhoWeAreSection } from "@/features/landing/WhoWeAreSection";
 import { WhatWeOrganizeSection } from "@/features/landing/WhatWeOrganizeSection";
 import { WhyJoinSection } from "@/features/landing/WhyJoinSection";
@@ -52,7 +52,7 @@ export default function Home() {
         {/* 1. Hero Section */}
         <HeroSection />
 
-        {/* Continuous Scrolling Banner */}
+        {/* 1b. Marquee Banner */}
         <MarqueeBanner />
 
         {/* 2. Who We Are */}
@@ -64,16 +64,16 @@ export default function Home() {
         {/* 4. Why Join Frontend Arena */}
         <WhyJoinSection />
 
-        {/* 7. Featured Hackathons */}
+        {/* 5. Featured Hackathons */}
         <FeaturedHackathonsSection />
 
-        {/* 8. Community Impact (Statistics) */}
+        {/* 6. Community Impact (Statistics) */}
         <PlatformStatsSection />
 
-        {/* 10. FAQ */}
+        {/* 7. FAQ */}
         <FAQSection />
 
-        {/* 11. Final CTA Banner */}
+        {/* 8. Final CTA Banner */}
         <CtaBannerSection />
       </main>
 

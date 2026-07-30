@@ -23,18 +23,16 @@ export class AuthService {
   private static mockUser: UserProfile | null = null;
 
   public static getStoredUser(): UserProfile | null {
-    if (typeof window === "undefined") return DEFAULT_MOCK_USER;
+    if (typeof window === "undefined") return null;
     try {
       const stored = localStorage.getItem(MOCK_SESSION_KEY);
       if (stored) {
-        const parsed = JSON.parse(stored);
-        parsed.role = "platform_admin";
-        return parsed;
+        return JSON.parse(stored);
       }
     } catch {
       // fallback
     }
-    return { ...DEFAULT_MOCK_USER, role: "platform_admin" };
+    return null;
   }
 
   public static setStoredUser(user: UserProfile | null): void {
@@ -51,12 +49,47 @@ export class AuthService {
     this.mockUser = user;
   }
 
-  public static async signInWithGoogle(): Promise<UserProfile> {
+  public static async signInWithGoogle(credential: string): Promise<UserProfile> {
+    const res = await fetch("/api/auth/google", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ credential }),
+    });
+
+    if (!res.ok) {
+      const errorData = await res.json();
+      throw new Error(errorData.error || "Google sign-in failed on backend.");
+    }
+
+    const data = await res.json();
+
+    // Convert backend user schema response to frontend UserProfile schema
+    let role: UserRole = "participant";
+    const backendRole = (data.user.role || "").toUpperCase();
+    if (backendRole === "ADMIN" || backendRole === "SUPER_ADMIN" || backendRole === "PLATFORM_ADMIN") {
+      role = "platform_admin";
+    } else if (backendRole === "ORG_ADMIN") {
+      role = "org_admin";
+    }
+
     const user: UserProfile = {
-      ...DEFAULT_MOCK_USER,
-      email: "google.user@frontendarena.dev",
-      fullName: "Google Verified Builder",
+      id: data.user.id,
+      email: data.user.email,
+      firstName: data.user.firstName || data.user.email.split("@")[0],
+      lastName: data.user.lastName || "",
+      fullName: data.user.firstName ? `${data.user.firstName} ${data.user.lastName || ""}`.trim() : data.user.email.split("@")[0],
+      role,
+      avatarUrl: data.user.avatarUrl || "",
+      emailVerified: true,
+      createdAt: new Date().toISOString(),
     };
+
+    if (typeof window !== "undefined") {
+      localStorage.setItem("fa_access_token", data.accessToken);
+      localStorage.setItem("fa_refresh_token", data.refreshToken);
+      document.cookie = "fa_session_active=true; path=/; max-age=604800";
+    }
+
     this.setStoredUser(user);
     return user;
   }
@@ -75,6 +108,11 @@ export class AuthService {
       fullName: data.email.split("@")[0].replace(".", " "),
       role,
     };
+
+    if (typeof window !== "undefined") {
+      document.cookie = "fa_session_active=true; path=/; max-age=604800";
+    }
+
     this.setStoredUser(user);
     return user;
   }
@@ -91,6 +129,11 @@ export class AuthService {
       emailVerified: false,
       createdAt: new Date().toISOString(),
     };
+
+    if (typeof window !== "undefined") {
+      document.cookie = "fa_session_active=true; path=/; max-age=604800";
+    }
+
     this.setStoredUser(user);
     return user;
   }
@@ -106,6 +149,11 @@ export class AuthService {
   }
 
   public static async signOut(): Promise<void> {
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("fa_access_token");
+      localStorage.removeItem("fa_refresh_token");
+      document.cookie = "fa_session_active=false; path=/; max-age=0";
+    }
     this.setStoredUser(null);
   }
 

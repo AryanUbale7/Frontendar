@@ -32,7 +32,7 @@ export function LandingNavbar() {
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 md:px-6">
         {/* Brand Logo */}
         <Link href="#hero" className="flex items-center gap-2.5 group">
-          <div className="flex h-12 w-12 items-center justify-center rounded-[12px] bg-black p-0.5 shadow-sm group-hover:scale-105 transition-transform">
+          <div className="flex h-10 w-10 items-center justify-center rounded-[12px] bg-black p-1 shadow-sm group-hover:scale-105 transition-transform">
             <img
               src="/logo.png"
               alt="Frontend Arena Logo"
@@ -64,8 +64,14 @@ export function LandingNavbar() {
 
         {/* Right Desktop CTAs */}
         <div className="hidden sm:flex items-center gap-3">
-          <Button asChild variant="default" size="sm">
+          <Button asChild variant="ghost" size="sm">
             <Link href="/sign-in">Sign In</Link>
+          </Button>
+          <Button asChild variant="default" size="sm">
+            <Link href="/sign-up" className="flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              <span>Join Community</span>
+            </Link>
           </Button>
         </div>
 
@@ -96,8 +102,14 @@ export function LandingNavbar() {
             </a>
           ))}
           <div className="pt-2 border-t border-[#E2E8F0] flex flex-col gap-2">
-            <Button asChild variant="default" className="w-full">
+            <Button asChild variant="outline" className="w-full">
               <Link href="/sign-in">Sign In</Link>
+            </Button>
+            <Button asChild variant="default" className="w-full">
+              <Link href="/sign-up" className="flex items-center justify-center gap-2">
+                <Users className="h-4 w-4" />
+                <span>Join Community</span>
+              </Link>
             </Button>
           </div>
         </div>

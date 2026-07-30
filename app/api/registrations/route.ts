@@ -3,21 +3,22 @@ import { NextRequest, NextResponse } from "next/server";
 const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:4000";
 
 export async function GET(request: NextRequest) {
-  const { searchParams } = new URL(request.url);
-  const hackathonId = searchParams.get("hackathonId");
-
-  if (!hackathonId) {
-    return NextResponse.json({ error: "Missing hackathonId parameter." }, { status: 400 });
-  }
-
   try {
-    const response = await fetch(`${BACKEND_URL}/api/blueprints/${hackathonId}`, {
+    const { searchParams } = new URL(request.url);
+    const hackathonId = searchParams.get("hackathonId");
+    
+    let targetUrl = `${BACKEND_URL}/api/registrations`;
+    if (hackathonId) {
+      targetUrl += `?hackathonId=${hackathonId}`;
+    }
+
+    const response = await fetch(targetUrl, {
       method: "GET",
       cache: "no-store",
     });
 
     if (!response.ok) {
-      return NextResponse.json({ error: "Blueprint not found on backend." }, { status: 404 });
+      return NextResponse.json({ error: "Failed to fetch registrations from backend." }, { status: response.status });
     }
 
     const data = await response.json();
@@ -30,7 +31,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const response = await fetch(`${BACKEND_URL}/api/blueprints`, {
+    const response = await fetch(`${BACKEND_URL}/api/registrations`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),

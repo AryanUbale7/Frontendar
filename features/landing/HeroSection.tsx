@@ -21,6 +21,7 @@ export function HeroSection() {
         {/* Hero Header */}
         <div className="flex flex-col items-center text-center space-y-6 max-w-4xl mx-auto">
 
+
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -29,9 +30,6 @@ export function HeroSection() {
           >
             <Badge variant="accent" size="md" dot className="bg-[#FFD60A] text-[#0F172A] border-[#FFD60A] font-bold">
               Official Developer Community
-            </Badge>
-            <Badge variant="outline" size="md">
-              Free Premium Hackathons
             </Badge>
           </motion.div>
 

@@ -8,6 +8,10 @@ import {
   ChevronRight,
   Flame,
   CheckCircle2,
+  Clock,
+  ExternalLink,
+  Trophy,
+  GitBranch,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -19,6 +23,7 @@ export default function ParticipantDashboardPage() {
   const { user } = useUser();
   const [initiatives, setInitiatives] = useState<any[]>([]);
 
+  // Load enrolled hackathons from localStorage
   useEffect(() => {
     if (user && typeof window !== "undefined") {
       const stored = localStorage.getItem(`fa_enrolled_hackathons_usr_${user.id}`);
@@ -31,6 +36,15 @@ export default function ParticipantDashboardPage() {
       }
     }
   }, [user]);
+
+  // Count evaluated submissions
+  const submittedCount = React.useMemo(() => {
+    if (!user || typeof window === "undefined") return 0;
+    const subs = localStorage.getItem(`fa_submissions_${user.id}`);
+    if (!subs) return 0;
+    try { return JSON.parse(subs).length; } catch { return 0; }
+  }, [user]);
+
 
   return (
     <RequireRole role="participant">
@@ -57,6 +71,14 @@ export default function ParticipantDashboardPage() {
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_left,rgba(255,214,10,0.15),transparent_50%)]" />
           <div className="absolute top-4 right-8 text-white/10 font-heading font-black text-6xl select-none">
             FRONTEND ARENA
+          </div>
+          <div className="relative z-10 h-full flex flex-col justify-end p-6">
+            <div className="flex items-center gap-2">
+              <span className="flex h-2 w-2 rounded-full bg-[#22C55E] animate-pulse" />
+              <span className="text-[10px] font-bold text-[#22C55E] uppercase tracking-widest">
+                Evaluation Engine Online
+              </span>
+            </div>
           </div>
         </div>
 
@@ -89,6 +111,7 @@ export default function ParticipantDashboardPage() {
               </div>
             </Card>
 
+            {/* Stats */}
             <Card className="p-5 space-y-4 border-[#E2E8F0] shadow-sm bg-white rounded-2xl">
               <h4 className="font-heading text-sm font-bold text-[#0F172A] flex items-center gap-2">
                 <span>🎨</span> Statistics
@@ -113,25 +136,56 @@ export default function ParticipantDashboardPage() {
                       <CheckCircle2 className="h-5 w-5" />
                     </div>
                     <div>
-                      <h5 className="text-xs font-bold text-[#0F172A]">Submitted</h5>
-                      <p className="text-[10px] text-[#475569]">Evaluated</p>
+                      <h5 className="text-xs font-bold text-[#0F172A]">Evaluated</h5>
+                      <p className="text-[10px] text-[#475569]">Reports generated</p>
                     </div>
                   </div>
-                  <span className="font-heading text-lg font-extrabold text-[#0F172A]">0</span>
+                  <span className="font-heading text-lg font-extrabold text-[#0F172A]">{submittedCount}</span>
                 </div>
+
+
+              </div>
+            </Card>
+
+            {/* Quick Links */}
+            <Card className="p-5 space-y-3 border-[#E2E8F0] shadow-sm bg-white rounded-2xl">
+              <h4 className="font-heading text-sm font-bold text-[#0F172A]">⚡ Quick Links</h4>
+              <div className="space-y-2">
+                <a
+                  href="https://github.com"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center gap-2 p-2.5 rounded-xl border border-[#E2E8F0] hover:border-[#FF006E]/30 hover:bg-[#FFF2F7] transition-all text-xs font-semibold text-[#0F172A]"
+                >
+                  <GitBranch className="h-4 w-4 text-[#475569]" />
+                  <span>GitHub</span>
+                  <ExternalLink className="h-3 w-3 ml-auto text-[#94A3B8]" />
+                </a>
+                <Link
+                  href="/profile/settings"
+                  className="flex items-center gap-2 p-2.5 rounded-xl border border-[#E2E8F0] hover:border-[#FF006E]/30 hover:bg-[#FFF2F7] transition-all text-xs font-semibold text-[#0F172A]"
+                >
+                  <span>👤</span>
+                  <span>Edit Profile</span>
+                  <ChevronRight className="h-3 w-3 ml-auto text-[#94A3B8]" />
+                </Link>
               </div>
             </Card>
           </div>
 
-          {/* Right Column (Initiatives List/Empty State) */}
+          {/* Right Column */}
           <div className="lg:col-span-3 space-y-6">
+
+
+
+            {/* ── MY INITIATIVES ── */}
             <Card className="p-6 space-y-6 border-[#E2E8F0] shadow-sm bg-white rounded-2xl">
               <div className="space-y-1">
                 <h2 className="font-heading text-lg font-bold text-[#0F172A] flex items-center gap-2">
                   <span>🧩</span> My Initiatives
                 </h2>
                 <p className="text-xs text-[#475569]">
-                  Access a comprehensive listing of all initiatives you have registered for and participated.
+                  Access all hackathons you have registered for.
                 </p>
               </div>
 
@@ -157,15 +211,17 @@ export default function ParticipantDashboardPage() {
                         </div>
                         <div>
                           <h4 className="font-bold text-xs text-[#0F172A] line-clamp-1">{item.title}</h4>
-                          <p className="text-[10px] text-[#475569] mt-0.5 font-medium">Closes: {item.date}</p>
+                          <p className="text-[10px] text-[#475569] mt-0.5 font-medium flex items-center gap-1">
+                            <Clock className="h-3 w-3" /> Closes: {item.date}
+                          </p>
                         </div>
                       </div>
                       <div className="flex items-center justify-between pt-2 border-t border-[#E2E8F0]/60 text-[11px] mt-2">
                         <span className="text-[#16A34A] font-semibold flex items-center gap-1">
                           <CheckCircle2 className="h-3.5 w-3.5" /> Enrolled
                         </span>
-                        <Link
-                          href={`/register?id=${item.id}`}
+        <Link
+                          href={`/register?id=${item.id}&workspace=true`}
                           className="text-[#FF006E] hover:underline font-bold"
                         >
                           View Workspace →
@@ -181,6 +237,7 @@ export default function ParticipantDashboardPage() {
                 />
               )}
             </Card>
+
           </div>
         </div>
       </motion.div>

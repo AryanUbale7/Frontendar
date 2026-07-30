@@ -20,6 +20,8 @@ import {
   Settings,
   HelpCircle,
   FileText,
+  ChevronLeft,
+  RefreshCw,
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -109,6 +111,17 @@ export function BlueprintEditor({ hackathonId, onClose }: { hackathonId?: string
   const [idealWorkflow, setIdealWorkflow] = useState("");
   const [targetAudience, setTargetAudience] = useState("");
   const [difficulty, setDifficulty] = useState("Intermediate");
+
+  const [problemStatements, setProblemStatements] = useState<any[]>([
+    {
+      title: "",
+      description: "",
+      background: "",
+      objectives: "",
+      expectedSolution: "",
+      difficulty: "Intermediate",
+    }
+  ]);
 
   // SECTION 2: Required Features
   const [features, setFeatures] = useState<RequiredFeature[]>([
@@ -273,6 +286,18 @@ export function BlueprintEditor({ hackathonId, onClose }: { hackathonId?: string
     setProblemTitle(h.problemTitle || h.name || "");
     setProblemDescription(h.problemDescription || h.description || "");
 
+    // Set default problemStatements list
+    setProblemStatements([
+      {
+        title: h.problemTitle || h.name || "",
+        description: h.problemDescription || h.description || "",
+        background: "",
+        objectives: "",
+        expectedSolution: "",
+        difficulty: "Intermediate",
+      }
+    ]);
+
     let bpData: any = null;
 
     // 1. Try fetching from Backend API
@@ -301,12 +326,36 @@ export function BlueprintEditor({ hackathonId, onClose }: { hackathonId?: string
     if (bpData) {
       setBlueprintStatus(bpData.status || "draft");
       setVersion(bpData.version || 1);
-      setBackground(bpData.problemStatement?.background || "");
-      setObjectives(bpData.problemStatement?.objectives || "");
-      setExpectedSolution(bpData.problemStatement?.expectedSolution || "");
-      setIdealWorkflow(bpData.problemStatement?.idealWorkflow || "");
-      setTargetAudience(bpData.problemStatement?.targetAudience || "");
-      setDifficulty(bpData.problemStatement?.difficulty || "Intermediate");
+
+      // Load plural array or fallback to singular
+      if (Array.isArray(bpData.problemStatements) && bpData.problemStatements.length > 0) {
+        setProblemStatements(bpData.problemStatements);
+        if (bpData.problemStatements[0]) {
+          setProblemTitle(bpData.problemStatements[0].title || "");
+          setProblemDescription(bpData.problemStatements[0].description || "");
+          setBackground(bpData.problemStatements[0].background || "");
+          setObjectives(bpData.problemStatements[0].objectives || "");
+          setExpectedSolution(bpData.problemStatements[0].expectedSolution || "");
+          setDifficulty(bpData.problemStatements[0].difficulty || "Intermediate");
+        }
+      } else if (bpData.problemStatement) {
+        const stmt = {
+          title: bpData.problemStatement.title || bpData.problemStatement.name || "",
+          description: bpData.problemStatement.description || "",
+          background: bpData.problemStatement.background || "",
+          objectives: bpData.problemStatement.objectives || "",
+          expectedSolution: bpData.problemStatement.expectedSolution || "",
+          difficulty: bpData.problemStatement.difficulty || "Intermediate",
+        };
+        setProblemStatements([stmt]);
+        setProblemTitle(stmt.title);
+        setProblemDescription(stmt.description);
+        setBackground(stmt.background);
+        setObjectives(stmt.objectives);
+        setExpectedSolution(stmt.expectedSolution);
+        setDifficulty(stmt.difficulty);
+      }
+
       setFeatures(bpData.requiredFeatures || []);
       setAllowedTech((bpData.techStackRules?.allowed || []).join(", "));
       setPreferredTech((bpData.techStackRules?.preferred || []).join(", "));
@@ -345,15 +394,17 @@ export function BlueprintEditor({ hackathonId, onClose }: { hackathonId?: string
   };
 
   // Build blueprint JSON payload
-  const buildBlueprintPayload = (): Blueprint => {
+  const buildBlueprintPayload = (): any => {
     return {
-      problemStatement: {
+      problemStatement: problemStatements[0] || {
         title: problemTitle,
         description: problemDescription,
         background,
         objectives,
         expectedSolution,
+        difficulty,
       },
+      problemStatements: problemStatements,
       requiredFeatures: features,
       techStackRules: {
         allowed: allowedTech.split(",").map((s) => s.trim()).filter(Boolean),
@@ -797,58 +848,102 @@ export function BlueprintEditor({ hackathonId, onClose }: { hackathonId?: string
             <CardContent className="p-6 flex-1 space-y-4">
               {/* SECTION 1: Problem details */}
               {activeSection === 0 && (
-                <div className="space-y-4">
-                  <Input
-                    label="Problem Statement Title"
-                    value={problemTitle}
-                    onChange={(e) => setProblemTitle(e.target.value)}
-                    placeholder="e.g. Responsive Glassmorphic Ledger"
-                    required
-                  />
-                  <div className="space-y-1">
-                    <label className="text-xs font-bold uppercase tracking-wider text-[#0F172A]">
-                      Problem Description
-                    </label>
-                    <textarea
-                      value={problemDescription}
-                      onChange={(e) => setProblemDescription(e.target.value)}
-                      placeholder="Describe the problem to be solved..."
-                      className="flex min-h-[100px] w-full rounded-[12px] border border-[#E2E8F0] px-3 py-2 text-xs focus:ring-1 focus:ring-[#FF006E] focus:outline-none"
-                    />
+                <div className="space-y-6 animate-in fade-in duration-200">
+                  <div className="flex justify-between items-center border-b border-[#F1F5F9] pb-2">
+                    <h4 className="text-xs font-bold text-[#0F172A]">Problem Statements</h4>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setProblemStatements([...problemStatements, { title: "", description: "", background: "", objectives: "", expectedSolution: "", difficulty: "Intermediate" }])}
+                      leftIcon={<Plus className="h-3.5 w-3.5" />}
+                    >
+                      Add Problem Statement
+                    </Button>
                   </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <Input
-                      label="Background context"
-                      value={background}
-                      onChange={(e) => setBackground(e.target.value)}
-                      placeholder="e.g. Traditional portals are clunky"
-                    />
-                    <Input
-                      label="Core Objectives"
-                      value={objectives}
-                      onChange={(e) => setObjectives(e.target.value)}
-                      placeholder="e.g. Dynamic charts and dark layout"
-                    />
-                    <Input
-                      label="Expected Solution"
-                      value={expectedSolution}
-                      onChange={(e) => setExpectedSolution(e.target.value)}
-                      placeholder="e.g. React single page application"
-                    />
-                    <div className="space-y-1.5">
-                      <label className="text-xs font-bold uppercase tracking-wider text-[#0F172A]">
-                        Difficulty Level
-                      </label>
-                      <select
-                        value={difficulty}
-                        onChange={(e) => setDifficulty(e.target.value)}
-                        className="flex h-10 w-full rounded-md border border-[#E2E8F0] px-3 text-xs bg-white focus:outline-none"
-                      >
-                        <option value="Beginner">Beginner</option>
-                        <option value="Intermediate">Intermediate</option>
-                        <option value="Advanced">Advanced</option>
-                      </select>
-                    </div>
+
+                  <div className="space-y-6 max-h-[50vh] overflow-y-auto pr-1">
+                    {problemStatements.map((stmt, idx) => (
+                      <div key={idx} className="p-4 border border-[#E2E8F0] rounded-xl bg-[#F8FAFC]/50 space-y-4 relative">
+                        {problemStatements.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => setProblemStatements(problemStatements.filter((_, i) => i !== idx))}
+                            className="absolute top-3 right-3 text-[#94A3B8] hover:text-[#EF4444]"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        )}
+                        <span className="text-xs font-bold text-[#FF006E]">
+                          Problem Option #{idx + 1}
+                        </span>
+
+                        <Input
+                          label="Problem Statement Title"
+                          value={stmt.title}
+                          onChange={(e) =>
+                            setProblemStatements(problemStatements.map((s, i) => (i === idx ? { ...s, title: e.target.value } : s)))
+                          }
+                          placeholder="e.g. Responsive Glassmorphic Ledger"
+                          required
+                        />
+                        <div className="space-y-1">
+                          <label className="text-xs font-bold uppercase tracking-wider text-[#0F172A]">
+                            Problem Description
+                          </label>
+                          <textarea
+                            value={stmt.description}
+                            onChange={(e) =>
+                              setProblemStatements(problemStatements.map((s, i) => (i === idx ? { ...s, description: e.target.value } : s)))
+                            }
+                            placeholder="Describe the problem to be solved..."
+                            className="flex min-h-[100px] w-full rounded-[12px] border border-[#E2E8F0] px-3 py-2 text-xs focus:ring-1 focus:ring-[#FF006E] focus:outline-none bg-white text-[#0F172A]"
+                          />
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                          <Input
+                            label="Background Context"
+                            value={stmt.background}
+                            onChange={(e) =>
+                              setProblemStatements(problemStatements.map((s, i) => (i === idx ? { ...s, background: e.target.value } : s)))
+                            }
+                            placeholder="e.g. Traditional portals are clunky"
+                          />
+                          <Input
+                            label="Core Objectives"
+                            value={stmt.objectives}
+                            onChange={(e) =>
+                              setProblemStatements(problemStatements.map((s, i) => (i === idx ? { ...s, objectives: e.target.value } : s)))
+                            }
+                            placeholder="e.g. Dynamic charts and dark layout"
+                          />
+                          <Input
+                            label="Expected Solution"
+                            value={stmt.expectedSolution}
+                            onChange={(e) =>
+                              setProblemStatements(problemStatements.map((s, i) => (i === idx ? { ...s, expectedSolution: e.target.value } : s)))
+                            }
+                            placeholder="e.g. React single page application"
+                          />
+                          <div className="space-y-1.5">
+                            <label className="text-xs font-bold uppercase tracking-wider text-[#0F172A]">
+                              Difficulty Level
+                            </label>
+                            <select
+                              value={stmt.difficulty}
+                              onChange={(e) =>
+                                setProblemStatements(problemStatements.map((s, i) => (i === idx ? { ...s, difficulty: e.target.value } : s)))
+                              }
+                              className="flex h-10 w-full rounded-md border border-[#E2E8F0] px-3 text-xs bg-white focus:outline-none text-[#0F172A]"
+                            >
+                              <option value="Beginner">Beginner</option>
+                              <option value="Intermediate">Intermediate</option>
+                              <option value="Advanced">Advanced</option>
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}

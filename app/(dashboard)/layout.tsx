@@ -20,7 +20,7 @@ export default function DashboardLayout({
   const showSidebar = pathname.startsWith("/dashboard/admin");
 
   return (
-    <div className="flex min-h-screen flex-col bg-[#F8FAFC]">
+    <div className="flex min-h-screen flex-col bg-[#F8FAFC] text-[#0F172A]">
       {/* Top Navbar with UserMenu */}
       <Navbar />
 

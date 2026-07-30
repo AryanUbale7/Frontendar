@@ -1,5 +1,5 @@
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -10,11 +10,15 @@ generator client {
 model User {
   id            String         @id @default(uuid())
   email         String         @unique
-  password      String
+  password      String?
+  firstName     String?
+  lastName      String?
+  avatarUrl     String?
   role          String         @default("PARTICIPANT") // PARTICIPANT, ADMIN, SUPER_ADMIN
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   refreshTokens RefreshToken[]
+  registrations Registration[]
 }
 
 model RefreshToken {
@@ -27,19 +31,36 @@ model RefreshToken {
 }
 
 model Hackathon {
-  id           String    @id @default(uuid())
-  name         String
-  description  String
-  problemTitle String?
-  startDate    DateTime?
-  endDate      DateTime?
-  createdAt    DateTime  @default(now())
+  id                 String    @id @default(uuid())
+  name               String
+  tagline            String?
+  description        String
+  registrationStart  DateTime?
+  registrationClose  DateTime?
+  eventStart         DateTime?
+  eventClose         DateTime?
+  bannerUrl          String?
+  submissionEnabled  Boolean   @default(false)
+  leaderboardEnabled Boolean   @default(false)
+  discussionEnabled  Boolean   @default(false)
+  problemReleased    Boolean   @default(false)
+  rounds             Json
+  problemTitle       String?
+  problemDescription String?
+  testCases          Json
+  rules              Json
+  resources          Json
+  status             String    @default("upcoming")
+  startDate          DateTime?
+  endDate            DateTime?
+  createdAt          DateTime  @default(now())
 }
 
 model Blueprint {
   id                     String   @id @default(uuid())
   hackathonId            String   @unique
   problemStatement       Json
+  problemStatements      Json?
   requiredFeatures       Json
   techStackRules         Json
   submissionRequirements Json
@@ -62,12 +83,12 @@ model Submission {
   shortDesc           String             @default("")
   detailedDesc        String             @default("")
   problemSolved       String             @default("")
-  features            Json               @default("[]") // Array of dynamic tags
-  techStack           Json               @default("{}") // Object mapping layers to lists
+  features            Json               // Array of dynamic tags
+  techStack           Json               // Object mapping layers to lists
   videoUrl            String?
   presentationPdf     String?
   architectureDiagram String?
-  teamContributions   Json               @default("[]") // Array of roles
+  teamContributions   Json               // Array of roles
   version             Int                @default(1)
   status              String             @default("PENDING") // PENDING, QUEUED, CLONING, etc.
   score               Int?
@@ -83,4 +104,19 @@ model EvaluationReport {
   submission   Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
   payload      Json
   createdAt    DateTime   @default(now())
+}
+
+model Registration {
+  id                String   @id @default(uuid())
+  hackathonId       String
+  userId            String
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  collegeName       String?
+  teamName          String?
+  participationMode String   @default("solo")
+  status            String   @default("PENDING") // PENDING, SHORTLISTED, REJECTED, APPROVED
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([hackathonId, userId])
 }
