@@ -87,7 +87,7 @@ export class AuthService {
     if (typeof window !== "undefined") {
       localStorage.setItem("fa_access_token", data.accessToken);
       localStorage.setItem("fa_refresh_token", data.refreshToken);
-      document.cookie = "fa_session_active=true; path=/; max-age=604800";
+      document.cookie = "fa_session_active=true; path=/; max-age=604800; SameSite=Lax";
     }
 
     this.setStoredUser(user);
@@ -152,7 +152,7 @@ export class AuthService {
     if (typeof window !== "undefined") {
       localStorage.removeItem("fa_access_token");
       localStorage.removeItem("fa_refresh_token");
-      document.cookie = "fa_session_active=false; path=/; max-age=0";
+      document.cookie = "fa_session_active=; path=/; max-age=0; SameSite=Lax";
     }
     this.setStoredUser(null);
   }

@@ -23,7 +23,15 @@ export function middleware(request: NextRequest) {
   const authCookie = request.cookies.get("fa_session_active")?.value;
 
   // Protect internal routes if unauthenticated
-  if (!isPublicRoute && pathname.startsWith("/dashboard") && authCookie === "false") {
+  // User must have cookie set to "true" to access dashboard
+  if (!isPublicRoute && pathname.startsWith("/dashboard") && authCookie !== "true") {
+    const signInUrl = new URL("/sign-in", request.url);
+    signInUrl.searchParams.set("redirect", pathname);
+    return NextResponse.redirect(signInUrl);
+  }
+
+  // Also protect /register and /profile routes
+  if ((pathname.startsWith("/register") || pathname.startsWith("/profile")) && authCookie !== "true") {
     const signInUrl = new URL("/sign-in", request.url);
     signInUrl.searchParams.set("redirect", pathname);
     return NextResponse.redirect(signInUrl);
