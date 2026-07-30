@@ -372,7 +372,7 @@ export default function PlatformAdminDashboardPage() {
     setResources(resources.map((res, i) => (i === idx ? { ...res, ...fields } : res)));
   };
 
-  const handleCreateHackathonSubmit = (e: React.FormEvent) => {
+  const handleCreateHackathonSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!hackathonName || !regStart || !regClose) {
       alert("Please fill in the Hackathon name and registration dates.");
@@ -449,15 +449,18 @@ export default function PlatformAdminDashboardPage() {
       return;
     }
 
-    fetch("/api/hackathons", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(newHackathon)
-    }).then(() => {
-      fetch("/api/hackathons").then(r => r.json()).then(list => {
-        if (Array.isArray(list)) setHackathons(list);
+    try {
+      await fetch("/api/hackathons", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newHackathon)
       });
-    });
+      const refreshRes = await fetch("/api/hackathons");
+      const list = await refreshRes.json();
+      if (Array.isArray(list)) setHackathons(list);
+    } catch (e) {
+      console.error("Failed to create hackathon:", e);
+    }
 
     setIsCreatingHackathon(false);
     resetForm();
