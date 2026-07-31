@@ -55,20 +55,20 @@ export default function Home() {
         {/* 1b. Marquee Banner */}
         <MarqueeBanner />
 
-        {/* 2. Who We Are */}
+        {/* 2. Community Impact (Statistics) - Relocated right after Marquee & before Who We Are */}
+        <PlatformStatsSection />
+
+        {/* 3. Who We Are */}
         <WhoWeAreSection />
 
-        {/* 3. What We Organize */}
+        {/* 4. What We Organize */}
         <WhatWeOrganizeSection />
 
-        {/* 4. Why Join Frontend Arena */}
+        {/* 5. Why Join Frontend Arena */}
         <WhyJoinSection />
 
-        {/* 5. Featured Hackathons */}
+        {/* 6. Featured Hackathons */}
         <FeaturedHackathonsSection />
-
-        {/* 6. Community Impact (Statistics) */}
-        <PlatformStatsSection />
 
         {/* 7. FAQ */}
         <FAQSection />
@@ -77,7 +77,7 @@ export default function Home() {
         <CtaBannerSection />
       </main>
 
-      {/* 12. Footer */}
+      {/* 9. Footer */}
       <Footer />
     </div>
   );
