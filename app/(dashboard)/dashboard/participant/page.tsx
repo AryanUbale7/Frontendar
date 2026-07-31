@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import {
@@ -10,8 +10,9 @@ import {
   CheckCircle2,
   Clock,
   ExternalLink,
-  Trophy,
   GitBranch,
+  Camera,
+  Pencil,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -20,8 +21,43 @@ import { useUser } from "@/hooks/useUser";
 import { EmptyState } from "@/components/design-system/EmptyState";
 
 export default function ParticipantDashboardPage() {
-  const { user } = useUser();
+  const { user, updateUserProfile } = useUser();
   const [initiatives, setInitiatives] = useState<any[]>([]);
+
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+  const coverInputRef = useRef<HTMLInputElement>(null);
+
+  const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        alert("Avatar image size should be less than 5MB");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64Image = reader.result as string;
+        updateUserProfile({ avatarUrl: base64Image });
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleCoverUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 8 * 1024 * 1024) {
+        alert("Cover photo size should be less than 8MB");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64Image = reader.result as string;
+        updateUserProfile({ coverUrl: base64Image });
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   // Load enrolled hackathons from localStorage
   useEffect(() => {
@@ -45,7 +81,6 @@ export default function ParticipantDashboardPage() {
     try { return JSON.parse(subs).length; } catch { return 0; }
   }, [user]);
 
-
   return (
     <RequireRole role="participant">
       <motion.div
@@ -65,20 +100,51 @@ export default function ParticipantDashboardPage() {
           </span>
         </div>
 
-        {/* Top Dark Hero Cover Banner */}
-        <div className="relative h-36 w-full overflow-hidden rounded-2xl bg-gradient-to-r from-[#0F172A] via-[#1E1B4B] to-[#312E81] shadow-md">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,0,110,0.25),transparent_50%)]" />
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_left,rgba(255,214,10,0.15),transparent_50%)]" />
-          <div className="absolute top-4 right-8 text-white/10 font-heading font-black text-6xl select-none">
-            FRONTEND ARENA
-          </div>
+        {/* Top Dark Hero Cover Banner with Image Upload */}
+        <div
+          onClick={() => coverInputRef.current?.click()}
+          className="relative h-36 w-full overflow-hidden rounded-2xl bg-gradient-to-r from-[#0F172A] via-[#1E1B4B] to-[#312E81] shadow-md cursor-pointer group"
+        >
+          {user?.coverUrl ? (
+            <img src={user.coverUrl} alt="Cover Banner" className="h-full w-full object-cover" />
+          ) : (
+            <>
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,0,110,0.25),transparent_50%)]" />
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_bottom_left,rgba(255,214,10,0.15),transparent_50%)]" />
+              <div className="absolute top-4 right-8 text-white/10 font-heading font-black text-6xl select-none">
+                FRONTEND ARENA
+              </div>
+            </>
+          )}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              coverInputRef.current?.click();
+            }}
+            aria-label="Edit cover photo"
+            className="absolute top-3 right-3 flex h-8 w-8 items-center justify-center rounded-full bg-white/80 backdrop-blur-sm text-[#0F172A] hover:bg-white shadow-xs transition-all z-10"
+          >
+            <Pencil className="h-3.5 w-3.5" />
+          </button>
+          <input
+            type="file"
+            ref={coverInputRef}
+            onChange={handleCoverUpload}
+            accept="image/*"
+            className="hidden"
+          />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Left Column (User Card + Stats) */}
           <div className="lg:col-span-1 space-y-6">
             <Card className="relative -mt-14 p-5 space-y-4 text-center border-[#E2E8F0] shadow-sm bg-white rounded-2xl">
-              <div className="relative mx-auto h-20 w-20 rounded-full bg-[#FF006E] text-white font-heading font-bold text-2xl flex items-center justify-center shadow-md ring-4 ring-white overflow-hidden">
+              {/* Avatar Circle with Photo Upload */}
+              <div
+                onClick={() => avatarInputRef.current?.click()}
+                className="relative mx-auto h-20 w-20 rounded-full bg-[#FF006E] text-white font-heading font-bold text-2xl flex items-center justify-center shadow-md ring-4 ring-white overflow-hidden cursor-pointer group"
+              >
                 {user?.avatarUrl ? (
                   <img src={user.avatarUrl} alt={user?.fullName || "User"} className="h-full w-full object-cover rounded-full" />
                 ) : (
@@ -87,7 +153,27 @@ export default function ParticipantDashboardPage() {
                     {user?.lastName?.charAt(0) || "U"}
                   </>
                 )}
-                <span className="absolute bottom-0 right-0 h-4 w-4 rounded-full bg-[#22C55E] ring-2 ring-white" />
+                <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-full">
+                  <Camera className="h-5 w-5 text-white" />
+                </div>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    avatarInputRef.current?.click();
+                  }}
+                  aria-label="Upload profile photo"
+                  className="absolute bottom-0 right-0 flex h-6 w-6 items-center justify-center rounded-full bg-[#0F172A] text-white ring-2 ring-white hover:bg-[#FF006E] transition-all shadow-md z-10"
+                >
+                  <Camera className="h-3 w-3" />
+                </button>
+                <input
+                  type="file"
+                  ref={avatarInputRef}
+                  onChange={handleAvatarUpload}
+                  accept="image/*"
+                  className="hidden"
+                />
               </div>
 
               <div className="space-y-1">
@@ -140,8 +226,6 @@ export default function ParticipantDashboardPage() {
                   </div>
                   <span className="font-heading text-lg font-extrabold text-[#0F172A]">{submittedCount}</span>
                 </div>
-
-
               </div>
             </Card>
 
@@ -173,9 +257,6 @@ export default function ParticipantDashboardPage() {
 
           {/* Right Column */}
           <div className="lg:col-span-3 space-y-6">
-
-
-
             {/* ── MY INITIATIVES ── */}
             <Card className="p-6 space-y-6 border-[#E2E8F0] shadow-sm bg-white rounded-2xl">
               <div className="space-y-1">
@@ -214,7 +295,7 @@ export default function ParticipantDashboardPage() {
                         <span className="text-[#16A34A] font-semibold flex items-center gap-1">
                           <CheckCircle2 className="h-3.5 w-3.5" /> Enrolled
                         </span>
-        <Link
+                        <Link
                           href={`/register?id=${item.id}&workspace=true`}
                           className="text-[#FF006E] hover:underline font-bold"
                         >
@@ -231,7 +312,6 @@ export default function ParticipantDashboardPage() {
                 />
               )}
             </Card>
-
           </div>
         </div>
       </motion.div>
