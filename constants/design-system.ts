@@ -28,9 +28,9 @@ export const DEFAULT_NAVIGATION: NavGroup[] = [
   {
     title: "Platform",
     items: [
-      { id: "overview", label: "Dashboard", href: "#", icon: "LayoutDashboard", badge: "Live" },
-      { id: "hackathons", label: "Hackathons", href: "#", icon: "Trophy", badge: 12 },
-      { id: "submissions", label: "Submissions", href: "#", icon: "GitPullRequest", badge: 148 },
+      { id: "overview", label: "Dashboard", href: "#", icon: "LayoutDashboard" },
+      { id: "hackathons", label: "Hackathons", href: "#", icon: "Trophy" },
+      { id: "submissions", label: "Submissions", href: "#", icon: "GitPullRequest" },
       { id: "judging", label: "Virtual Judging", href: "#", icon: "Scale" },
     ],
   },
