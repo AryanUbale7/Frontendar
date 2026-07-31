@@ -94,10 +94,10 @@ export default function ParticipantDashboardPage() {
 
               <div className="space-y-1">
                 <h3 className="font-heading text-base font-bold text-[#0F172A] line-clamp-1">
-                  {user?.fullName || "Aryan Gajanan Ubale"}
+                  {user?.fullName || "Developer User"}
                 </h3>
                 <p className="text-xs text-[#475569] font-code truncate">
-                  {user?.email || "aryanubale318@gmail.com"}
+                  {user?.email || "user@frontendarena.dev"}
                 </p>
               </div>
 
