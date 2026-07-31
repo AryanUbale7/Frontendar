@@ -193,29 +193,29 @@ export function HeroSection() {
             </motion.div>
           </div>
 
-          {/* RIGHT CONTENT: LARGER LAPTOP (NO FLOATING MOTION) */}
-          <div className="lg:col-span-7 relative flex items-center justify-center mt-4 lg:mt-0">
+          {/* RIGHT CONTENT: SIGNIFICANTLY LARGER LAPTOP */}
+          <div className="lg:col-span-7 relative flex items-center justify-center mt-6 lg:mt-0 py-6">
             
             {/* Ambient Background Wave Accent */}
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <div className="w-[95%] h-[85%] rounded-full bg-gradient-to-tr from-[#8B5CF6]/15 via-[#4F46E5]/10 to-[#F97316]/10 blur-[110px] transform rotate-6" />
+              <div className="w-[110%] h-[100%] rounded-full bg-gradient-to-tr from-[#8B5CF6]/18 via-[#4F46E5]/12 to-[#F97316]/12 blur-[130px] transform rotate-6" />
             </div>
 
-            {/* LARGER LAPTOP CONTAINER - STATIC STEADY (NO MOVING/FLOATING ANIMATION) */}
-            <div className="relative z-20 w-full max-w-[850px] lg:max-w-[900px]">
+            {/* SIGNIFICANTLY LARGER LAPTOP CONTAINER */}
+            <div className="relative z-20 w-full scale-105 sm:scale-115 md:scale-125 lg:scale-130 xl:scale-135 transform origin-center transition-transform py-2">
               {/* Drop Shadow underneath */}
-              <div className="absolute -bottom-8 left-[6%] right-[6%] h-12 bg-black/15 blur-2xl rounded-full pointer-events-none" />
+              <div className="absolute -bottom-8 left-[4%] right-[4%] h-14 bg-black/18 blur-2xl rounded-full pointer-events-none" />
 
               {/* LOQ Laptop Image */}
               <div className="relative w-full h-auto">
                 <Image
                   src="/images/LOQ.png"
                   alt="Frontend Arena LOQ Laptop"
-                  width={1600}
-                  height={1020}
+                  width={1800}
+                  height={1150}
                   priority
                   quality={100}
-                  sizes="(max-width:768px) 100vw, 60vw"
+                  sizes="(max-width:768px) 100vw, 75vw"
                   className="w-full h-auto object-contain select-none pointer-events-none drop-shadow-2xl"
                 />
               </div>
