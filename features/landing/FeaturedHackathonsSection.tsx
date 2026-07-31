@@ -57,14 +57,8 @@ export function FeaturedHackathonsSection() {
           </Button>
         </div>
 
-        {/* Dynamic Hackathons Grid */}
-        {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="h-64 rounded-2xl bg-[#F1F5F9] animate-pulse" />
-            ))}
-          </div>
-        ) : hackathons.length > 0 ? (
+        {/* Dynamic Hackathons Grid or Clean Empty State */}
+        {hackathons.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {hackathons.map((item, idx) => {
               const title = item.name || item.title || "Frontend Hackathon";
@@ -135,8 +129,8 @@ export function FeaturedHackathonsSection() {
           </div>
         ) : (
           <EmptyState
-            title="Upcoming Hackathons Coming Soon"
-            description="We are currently auditing new hackathon tracks, sponsors, and smart contract prize allocations. Get notified as soon as registrations open!"
+            title="No Hackathons Published Yet"
+            description="Currently, no live hackathons are published. As soon as an organizer publishes a hackathon, it will appear here instantly!"
             primaryActionText="Join Community"
             onPrimaryAction={() => window.location.href = "/sign-up"}
           />
