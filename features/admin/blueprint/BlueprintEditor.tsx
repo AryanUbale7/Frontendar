@@ -568,16 +568,16 @@ export function BlueprintEditor({ hackathonId, onClose }: { hackathonId?: string
     } catch (err) {
       // Offline fallback: simulate logs locally
       const mockLogs = [
-        "[1/14] Submission received: " + previewRepoUrl,
-        "[2/14] Loaded Evaluation Blueprint: " + problemTitle,
-        "[3/14] Cloning repository to temporary workspace...",
-        "[4/14] Running Static Analysis on codebase...",
-        "[5/14] Running Security Analysis (Secrets scanner & npm audit)...",
-        "[6/14] Running Headless Performance Tests (Lighthouse simulator)...",
-        "[8/14] Extracting README.md file...",
-        "[11/14] Dispatching blueprint to Gemini AI judge...",
-        "[12/14] Calculating final score rules...",
-        "[14/14] Report generated successfully."
+        "[1/10] Submission received: " + previewRepoUrl,
+        "[2/10] Loaded Knowledge Blueprint: " + problemTitle,
+        "[3/10] Repository Engine: Scanning framework, dependencies, and AST code patterns...",
+        "[4/10] Route Engine: Detecting App Router, Pages Router, and React routes...",
+        "[5/10] Feature Engine: Evaluating hierarchical feature tree with multi-evidence cross-validation...",
+        "[6/10] UI Engine: Running Playwright multi-view navigation & screenshot capture...",
+        "[7/10] Inference Engine: Executing deterministic IF-THEN rule verifications...",
+        "[8/10] Evidence Engine: Formatting concrete proof citations and line references...",
+        "[9/10] Reasoning Engine: Generating explainable category reasonings...",
+        "[10/10] FAIE v2 Evaluation completed. Final Score: 92/100."
       ];
       setPreviewLogs(mockLogs);
       
@@ -586,49 +586,85 @@ export function BlueprintEditor({ hackathonId, onClose }: { hackathonId?: string
         repoUrl: previewRepoUrl,
         status: "pass",
         scoreSummary: {
-          finalScore: 88,
-          aiScoreTotal: 55,
-          toolScoreTotal: 30,
-          bonusPointsTotal: 3,
+          finalScore: 92,
+          featureCoveragePercent: 90,
+          technologyCompliancePercent: 95,
+          uiCompliancePercent: 88,
+          moduleCoveragePercent: 90,
+          overallAlignmentPercent: 92,
+          bonusPointsTotal: 5,
           deductionsTotal: 0
         },
-        aiEvaluation: {
-          problemAlignment: { score: 18, reason: "Semantically aligned with problem statement. Successfully covers the core objectives." },
-          requiredFeatures: { implemented: ["Authentication", "Dashboard"], missing: [], score: 25 },
-          innovation: { score: 12, reason: "Premium HSL custom layout and micro-animations." },
-          bonusSuggestions: ["Offline caching", "Widget personalization"]
+        faieEvaluation: {
+          engineName: "Frontend Arena Intelligence Engine (FAIE v2)",
+          version: "v2.0 (Multi-Evidence Cross-Validation)",
+          status: "PASS",
+          summary: "Evaluated categories without AI/LLM models. Every score backed by empirical evidence citations."
         },
+        featureTreeEvaluations: [
+          {
+            featureName: "Authentication",
+            mandatory: true,
+            maxWeight: 20,
+            awardedScore: 20,
+            status: "Implemented",
+            confidenceScore: 95,
+            subFeatures: [
+              { subFeatureName: "Login Page", weight: 5, awardedScore: 5, confidencePercent: 100, status: "Implemented" },
+              { subFeatureName: "Signup Registration", weight: 5, awardedScore: 5, confidencePercent: 95, status: "Implemented" },
+              { subFeatureName: "JWT / Session Token", weight: 5, awardedScore: 5, confidencePercent: 90, status: "Implemented" },
+              { subFeatureName: "Protected Route Middleware", weight: 5, awardedScore: 5, confidencePercent: 95, status: "Implemented" }
+            ]
+          },
+          {
+            featureName: "Interactive Dashboard",
+            mandatory: true,
+            maxWeight: 20,
+            awardedScore: 18,
+            status: "Implemented",
+            confidenceScore: 90,
+            subFeatures: [
+              { subFeatureName: "Analytics Charts", weight: 10, awardedScore: 9, confidencePercent: 90, status: "Implemented" },
+              { subFeatureName: "Statistics Cards", weight: 10, awardedScore: 9, confidencePercent: 90, status: "Implemented" }
+            ]
+          }
+        ],
+        rejectedClaims: [],
+        screenshots: [
+          { viewName: "Dashboard Overview", url: `${previewRepoUrl}/dashboard`, viewport: "1440x900", detectedSelectors: ["nav.navbar", "div.card", "canvas.chart"] },
+          { viewName: "Login View", url: `${previewRepoUrl}/login`, viewport: "375x812", detectedSelectors: ["form#login-form", "input[type=email]"] }
+        ],
         toolAudits: {
           performance: {
-            lighthouseScore: 88,
-            accessibilityScore: 92,
-            seoScore: 85,
-            bestPracticesScore: 90,
+            lighthouseScore: 92,
+            accessibilityScore: 95,
+            seoScore: 88,
+            bestPracticesScore: 94,
             passedMinChecks: true,
             evidence: {
-              metrics: ["Performance: 88/100", "Accessibility: 92/100", "SEO: 85/100"],
+              metrics: ["Performance: 92/100", "Accessibility: 95/100", "SEO: 88/100"],
               deductions: []
             }
           },
           security: {
-            vulnerabilities: [{ package: "lodash", severity: "moderate", details: "Prototype pollution" }],
+            vulnerabilities: [],
             secretsFound: [],
             passedScan: true,
             evidence: {
-              vulnerabilitySummary: "npm audit: 1 vulnerability found.",
+              vulnerabilitySummary: "npm audit: 0 vulnerabilities found.",
               secretsLog: "Secrets scanner: OK. No raw keys found."
             }
           },
           codeQuality: {
-            detectedFilesCount: 38,
-            typescriptUsagePercent: 92,
-            readmeSize: 1450,
-            commentsDensityPercent: 12,
+            detectedFilesCount: 42,
+            typescriptUsagePercent: 95,
+            readmeSize: 1650,
+            commentsDensityPercent: 14,
             folderStructureValid: true,
             evidence: {
               structureLog: "Standard layout folder structures validated.",
-              typescriptLog: "TypeScript code compliance verified (92%).",
-              documentationLog: "README size: 1450 bytes. Setup block found."
+              typescriptLog: "TypeScript code compliance verified (95%).",
+              documentationLog: "README size: 1650 bytes. Setup block found."
             }
           },
           gitHealth: { isPublic: true, hasReadme: true, hasGitHistory: true }
@@ -636,27 +672,27 @@ export function BlueprintEditor({ hackathonId, onClose }: { hackathonId?: string
         scoringDetails: [
           {
             categoryName: "Problem Alignment",
-            awardedMarks: 18,
+            awardedMarks: 19,
             maxMarks: 20,
             passingMarks: 12,
-            evaluatedBy: "AI Judge",
-            evidenceCitations: ["AI semantic check: Aligns with problem objectives."]
+            evaluatedBy: "Frontend Arena Intelligence Engine (FAIE v2)",
+            evidenceCitations: ["FAIE v2 check: Multi-evidence alignment ratio 95%."]
           },
           {
             categoryName: "UI/UX & Features",
-            awardedMarks: 25,
+            awardedMarks: 24,
             maxMarks: 25,
             passingMarks: 15,
-            evaluatedBy: "AI Judge",
-            evidenceCitations: ["AI check: Implemented features [Authentication, Dashboard]."]
+            evaluatedBy: "Frontend Arena Intelligence Engine (FAIE v2)",
+            evidenceCitations: ["FAIE v2 check: Implemented features [Authentication, Interactive Dashboard]."]
           },
           {
             categoryName: "Performance & SEO",
-            awardedMarks: 13,
+            awardedMarks: 14,
             maxMarks: 15,
             passingMarks: 9,
             evaluatedBy: "Deterministic Tool",
-            evidenceCitations: ["Lighthouse Performance: 88/100", "Lighthouse SEO: 85/100"]
+            evidenceCitations: ["Lighthouse Performance: 92/100", "Lighthouse SEO: 88/100"]
           },
           {
             categoryName: "Accessibility",
@@ -665,22 +701,6 @@ export function BlueprintEditor({ hackathonId, onClose }: { hackathonId?: string
             passingMarks: 6,
             evaluatedBy: "Deterministic Tool",
             evidenceCitations: ["Lighthouse Accessibility: 92/100"]
-          },
-          {
-            categoryName: "Innovation",
-            awardedMarks: 12,
-            maxMarks: 15,
-            passingMarks: 9,
-            evaluatedBy: "AI Judge",
-            evidenceCitations: ["AI check: Custom canvas interactive visualization layout."]
-          },
-          {
-            categoryName: "Documentation",
-            awardedMarks: 8,
-            maxMarks: 10,
-            passingMarks: 6,
-            evaluatedBy: "Deterministic Tool",
-            evidenceCitations: ["README.md file parsed: 1450 bytes. Installation block verified."]
           }
         ],
         logs: mockLogs,

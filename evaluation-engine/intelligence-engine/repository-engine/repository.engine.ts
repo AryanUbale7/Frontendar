@@ -1,6 +1,18 @@
 import * as fs from "fs";
 import * as path from "path";
 
+export interface ASTPatternAnalysis {
+  detectedHooks: string[];
+  detectedContexts: string[];
+  stateManagement: string[];
+  detectedForms: string[];
+  detectedValidationLibs: string[];
+  detectedAuthLibs: string[];
+  detectedChartLibs: string[];
+  detectedAPICallPatterns: string[];
+  detectedDBModels: string[];
+}
+
 export interface RepositoryAnalysisResult {
   framework: string;
   packageManager: "npm" | "yarn" | "pnpm" | "bun" | "unknown";
@@ -18,6 +30,7 @@ export interface RepositoryAnalysisResult {
   hasTsConfig: boolean;
   hasTailwind: boolean;
   buildScriptPresent: boolean;
+  astPatterns: ASTPatternAnalysis;
 }
 
 export class RepositoryEngine {
@@ -58,6 +71,29 @@ export class RepositoryEngine {
     let htmlFiles = 0;
     const detectedComponents: string[] = [];
 
+    const astPatterns: ASTPatternAnalysis = {
+      detectedHooks: [],
+      detectedContexts: [],
+      stateManagement: [],
+      detectedForms: [],
+      detectedValidationLibs: [],
+      detectedAuthLibs: [],
+      detectedChartLibs: [],
+      detectedAPICallPatterns: [],
+      detectedDBModels: [],
+    };
+
+    // Analyze packages
+    if (allDepsKeys.includes("zustand")) astPatterns.stateManagement.push("Zustand");
+    if (allDepsKeys.includes("redux") || allDepsKeys.includes("@reduxjs/toolkit")) astPatterns.stateManagement.push("Redux");
+    if (allDepsKeys.includes("recharts")) astPatterns.detectedChartLibs.push("Recharts");
+    if (allDepsKeys.includes("chart.js")) astPatterns.detectedChartLibs.push("Chart.js");
+    if (allDepsKeys.includes("zod")) astPatterns.detectedValidationLibs.push("Zod");
+    if (allDepsKeys.includes("yup")) astPatterns.detectedValidationLibs.push("Yup");
+    if (allDepsKeys.includes("next-auth")) astPatterns.detectedAuthLibs.push("NextAuth");
+    if (allDepsKeys.includes("@clerk/nextjs")) astPatterns.detectedAuthLibs.push("Clerk");
+    if (allDepsKeys.includes("prisma")) astPatterns.detectedDBModels.push("Prisma ORM");
+
     for (const file of allFiles) {
       const ext = path.extname(file).toLowerCase();
       const base = path.basename(file, ext);
@@ -76,6 +112,29 @@ export class RepositoryEngine {
         if (!detectedComponents.includes(base)) {
           detectedComponents.push(base);
         }
+      }
+
+      // AST text pattern inspection
+      if ([".ts", ".tsx", ".js", ".jsx"].includes(ext)) {
+        try {
+          const content = fs.readFileSync(file, "utf-8");
+
+          if (content.includes("useAuth") && !astPatterns.detectedHooks.includes("useAuth")) astPatterns.detectedHooks.push("useAuth");
+          if (content.includes("useState") && !astPatterns.detectedHooks.includes("useState")) astPatterns.detectedHooks.push("useState");
+          if (content.includes("useForm") && !astPatterns.detectedHooks.includes("useForm")) astPatterns.detectedHooks.push("useForm");
+
+          if (content.includes("createContext") || content.includes("AuthContext")) {
+            if (!astPatterns.detectedContexts.includes("React Context")) astPatterns.detectedContexts.push("React Context");
+          }
+
+          if (content.includes("<form") || content.includes("useForm")) {
+            if (!astPatterns.detectedForms.includes("HTML/React Forms")) astPatterns.detectedForms.push("HTML/React Forms");
+          }
+
+          if (content.includes("fetch(") || content.includes("axios.") || content.includes("useQuery")) {
+            if (!astPatterns.detectedAPICallPatterns.includes("HTTP API Client")) astPatterns.detectedAPICallPatterns.push("HTTP API Client");
+          }
+        } catch {}
       }
     }
 
@@ -101,6 +160,7 @@ export class RepositoryEngine {
         fs.existsSync(path.join(workspacePath, "tailwind.config.js")) ||
         fs.existsSync(path.join(workspacePath, "tailwind.config.ts")),
       buildScriptPresent,
+      astPatterns,
     };
   }
 

@@ -9,6 +9,19 @@ export interface ProblemStatement {
   difficulty?: "Beginner" | "Intermediate" | "Advanced" | "Expert" | string;
 }
 
+export interface SubFeature {
+  id?: string;
+  name: string;
+  description?: string;
+  weight: number;
+  aliases?: string[];
+  expectedRoutes?: string[];
+  expectedComponents?: string[];
+  expectedAPIs?: string[];
+  expectedPackages?: string[];
+  expectedUIElements?: string[];
+}
+
 export interface ExpectedFeature {
   id?: string;
   name: string;
@@ -17,6 +30,18 @@ export interface ExpectedFeature {
   weight: number;
   keywords?: string[];
   synonyms?: string[];
+  subFeatures?: SubFeature[];
+  expectedRoutes?: string[];
+  expectedComponents?: string[];
+  expectedAPIs?: string[];
+  expectedPackages?: string[];
+  expectedPages?: string[];
+  expectedUIElements?: string[];
+  expectedNavigation?: string[];
+  expectedButtons?: string[];
+  expectedForms?: string[];
+  expectedDatabaseModels?: string[];
+  expectedEnvVars?: string[];
 }
 
 export interface ExpectedModule {
@@ -111,6 +136,7 @@ export interface KnowledgeBlueprint {
   techStackRules: TechStackRules;
   keywords?: string[];
   synonymDictionary?: Record<string, string[]>;
+  confidenceThreshold?: number; // Configurable threshold (e.g. 75% for Implemented vs Partially Implemented)
   scoringSystem: {
     categories: ScoringCategory[];
   };

@@ -27,6 +27,7 @@ export interface Blueprint extends KnowledgeBlueprint {
     weight: number;
     keywords?: string[];
     synonyms?: string[];
+    subFeatures?: any[];
   }>;
   techStackRules: {
     allowed: string[];
@@ -129,6 +130,9 @@ export interface DynamicEvaluationReport {
     status: string;
     summary: string;
   };
+  featureTreeEvaluations?: any[];
+  rejectedClaims?: string[];
+  screenshots?: any[];
   toolAudits: ToolAuditResults;
   scoringDetails: Array<{
     categoryName: string;
@@ -329,7 +333,7 @@ export async function evaluateSubmission(
 
   // Clone Repository
   logs.push(`[3/10] Cloning repository to temporary workspace...`);
-  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "faie-eval-"));
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "faie-v2-eval-"));
   
   let cloneSuccess = false;
   try {
@@ -354,12 +358,12 @@ export async function evaluateSubmission(
     logs.push(`[4/10] Running static code quality and security scans...`);
     const toolResults = await runToolAudits(tempDir, blueprint);
 
-    // 2. Dispatch to Frontend Arena Intelligence Engine (FAIE)
-    logs.push(`[5/10] Dispatching workspace to Frontend Arena Intelligence Engine (FAIE)...`);
-    const faieOrchestrator = new FAIEOrchestrator(blueprint.synonymDictionary);
+    // 2. Dispatch to Frontend Arena Intelligence Engine (FAIE v2)
+    logs.push(`[5/10] Dispatching workspace to Frontend Arena Intelligence Engine (FAIE v2)...`);
+    const faieOrchestrator = new FAIEOrchestrator(blueprint.synonymDictionary, blueprint.confidenceThreshold || 75);
     const faieReport = await faieOrchestrator.evaluate(tempDir, repoUrl, blueprint);
 
-    logs.push(`[10/10] FAIE evaluation completed. Final Score: ${faieReport.scoreSummary.finalScore}/100.`);
+    logs.push(`[10/10] FAIE v2 evaluation completed. Final Score: ${faieReport.scoreSummary.finalScore}/100.`);
 
     return {
       hackathonTitle: activeProblem.title,
@@ -367,11 +371,14 @@ export async function evaluateSubmission(
       status: faieReport.status,
       scoreSummary: faieReport.scoreSummary,
       faieEvaluation: {
-        engineName: "Frontend Arena Intelligence Engine (FAIE)",
-        version: "v2.0 (Deterministic Rule Engine)",
+        engineName: "Frontend Arena Intelligence Engine (FAIE v2)",
+        version: "v2.0 (Multi-Evidence Cross-Validation)",
         status: faieReport.status.toUpperCase(),
-        summary: `Evaluated ${faieReport.scoringDetails.length} categories without AI/LLM models. Every score backed by empirical evidence citations.`,
+        summary: `Evaluated ${faieReport.scoringDetails.length} categories with hierarchical sub-features and Playwright UI navigation. Zero AI/LLM models.`,
       },
+      featureTreeEvaluations: faieReport.featureTreeEvaluations,
+      rejectedClaims: faieReport.rejectedClaims,
+      screenshots: faieReport.screenshots,
       toolAudits: toolResults,
       scoringDetails: faieReport.scoringDetails,
       logs: [...logs, ...faieReport.logs],

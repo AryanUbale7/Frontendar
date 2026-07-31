@@ -14,8 +14,14 @@ export const DEFAULT_ALIAS_DICTIONARY: Record<string, string[]> = {
     "authcontext",
     "nextauth",
     "clerk",
-    "passport"
+    "passport",
+    "protected route",
+    "middleware"
   ],
+  login: ["login", "signin", "sign in", "auth", "user login", "login form"],
+  signup: ["signup", "sign up", "register", "registration", "create account"],
+  jwt: ["jwt", "token", "json web token", "bearer", "authorization"],
+  protectedroutes: ["middleware", "protected", "private route", "auth guard", "require auth"],
   appointment: [
     "schedule visit",
     "doctor booking",
@@ -48,7 +54,8 @@ export const DEFAULT_ALIAS_DICTIONARY: Record<string, string[]> = {
     "bar chart",
     "line chart",
     "pie chart",
-    "analytics widget"
+    "analytics widget",
+    "apexcharts"
   ],
   ecommerce: [
     "cart",
@@ -62,6 +69,7 @@ export const DEFAULT_ALIAS_DICTIONARY: Record<string, string[]> = {
     "stripe",
     "payment"
   ],
+  payment: ["stripe", "paypal", "razorpay", "checkout", "billing", "invoice", "payment gateway"],
   darkmode: [
     "theme",
     "dark mode",
@@ -77,6 +85,15 @@ export const DEFAULT_ALIAS_DICTIONARY: Record<string, string[]> = {
     "media query",
     "breakpoints",
     "responsive layout",
-    "tailwind"
-  ]
+    "tailwind",
+    "sm:",
+    "md:",
+    "lg:"
+  ],
+  database: ["prisma", "sequelize", "mongoose", "sqlite", "postgres", "mysql", "mongodb", "supabase", "firebase"],
+  forms: ["form", "useform", "zod", "yup", "input", "submit", "formik"],
+  tables: ["table", "datatable", "grid", "rows", "columns", "pagination"],
+  maps: ["mapbox", "leaflet", "google maps", "map", "location", "coordinates"],
+  websockets: ["socket.io", "websocket", "realtime", "pusher", "pubsub"],
+  reports: ["report", "export", "pdf", "csv", "download", "summary report"]
 };

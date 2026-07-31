@@ -1,4 +1,4 @@
-import { KnowledgeBlueprint, ProblemStatement, ExpectedFeature } from "./knowledge-blueprint.interface";
+import { KnowledgeBlueprint, ProblemStatement, ExpectedFeature, SubFeature } from "./knowledge-blueprint.interface";
 
 export class KnowledgeEngine {
   public validateBlueprint(blueprint: KnowledgeBlueprint): { valid: boolean; errors: string[] } {
@@ -37,14 +37,43 @@ export class KnowledgeEngine {
   }
 
   public normalizeFeatures(blueprint: KnowledgeBlueprint): ExpectedFeature[] {
-    return blueprint.requiredFeatures.map((f, idx) => ({
-      id: f.id || `feat_${idx + 1}`,
-      name: f.name,
-      description: f.description || "",
-      mandatory: !!f.mandatory,
-      weight: f.weight || 10,
-      keywords: f.keywords || [f.name.toLowerCase()],
-      synonyms: f.synonyms || []
-    }));
+    return blueprint.requiredFeatures.map((f, idx) => {
+      const subFeaturesNormalized: SubFeature[] = Array.isArray(f.subFeatures) && f.subFeatures.length > 0
+        ? f.subFeatures.map((sub, sIdx) => ({
+            id: sub.id || `sub_${idx + 1}_${sIdx + 1}`,
+            name: sub.name,
+            description: sub.description || "",
+            weight: sub.weight || Math.round(f.weight / f.subFeatures!.length),
+            aliases: sub.aliases || [sub.name.toLowerCase()],
+            expectedRoutes: sub.expectedRoutes || [],
+            expectedComponents: sub.expectedComponents || [],
+            expectedAPIs: sub.expectedAPIs || [],
+            expectedPackages: sub.expectedPackages || [],
+            expectedUIElements: sub.expectedUIElements || [],
+          }))
+        : [];
+
+      return {
+        id: f.id || `feat_${idx + 1}`,
+        name: f.name,
+        description: f.description || "",
+        mandatory: !!f.mandatory,
+        weight: f.weight || 10,
+        keywords: f.keywords || [f.name.toLowerCase()],
+        synonyms: f.synonyms || [],
+        subFeatures: subFeaturesNormalized,
+        expectedRoutes: f.expectedRoutes || [],
+        expectedComponents: f.expectedComponents || [],
+        expectedAPIs: f.expectedAPIs || [],
+        expectedPackages: f.expectedPackages || [],
+        expectedPages: f.expectedPages || [],
+        expectedUIElements: f.expectedUIElements || [],
+        expectedNavigation: f.expectedNavigation || [],
+        expectedButtons: f.expectedButtons || [],
+        expectedForms: f.expectedForms || [],
+        expectedDatabaseModels: f.expectedDatabaseModels || [],
+        expectedEnvVars: f.expectedEnvVars || [],
+      };
+    });
   }
 }

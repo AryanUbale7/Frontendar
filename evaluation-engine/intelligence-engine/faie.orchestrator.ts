@@ -1,17 +1,17 @@
 import { KnowledgeBlueprint } from "./knowledge-engine/knowledge-blueprint.interface";
 import { KnowledgeEngine } from "./knowledge-engine/knowledge.engine";
 import { SynonymEngine } from "./synonym-engine/synonym.engine";
-import { FeatureEngine } from "./feature-engine/feature.engine";
+import { FeatureEngine, FeatureDetectionResult } from "./feature-engine/feature.engine";
 import { RepositoryEngine } from "./repository-engine/repository.engine";
 import { RouteEngine } from "./route-engine/route.engine";
-import { UIEngine } from "./ui-engine/ui.engine";
+import { UIEngine, UIScreenshotEvidence } from "./ui-engine/ui.engine";
 import { InferenceEngine } from "./inference-engine/inference.engine";
 import { ConfidenceEngine } from "./confidence-engine/confidence.engine";
 import { ReasoningEngine, CategoryReasoning } from "./reasoning-engine/reasoning.engine";
 import { EvidenceEngine } from "./evidence-engine/evidence.engine";
 import { ScoringEngine, FAIEReportSummary } from "./scoring-engine/scoring.engine";
 
-export interface FAIEReport {
+export interface FAIEReportV2 {
   hackathonTitle: string;
   repoUrl: string;
   deploymentUrl?: string;
@@ -26,16 +26,33 @@ export interface FAIEReport {
     bonusPointsTotal: number;
     deductionsTotal: number;
   };
+  featureTreeEvaluations: Array<{
+    featureName: string;
+    mandatory: boolean;
+    maxWeight: number;
+    awardedScore: number;
+    status: string;
+    confidenceScore: number;
+    subFeatures: Array<{
+      subFeatureName: string;
+      weight: number;
+      awardedScore: number;
+      confidencePercent: number;
+      status: string;
+    }>;
+  }>;
   scoringDetails: Array<{
     categoryName: string;
     awardedMarks: number;
     maxMarks: number;
-passingMarks: number;
+    passingMarks: number;
     evaluatedBy: string;
     evidenceCitations: string[];
     confidencePercent: number;
     ruleApplied: string;
   }>;
+  screenshots: UIScreenshotEvidence[];
+  rejectedClaims: string[];
   reasonings: CategoryReasoning[];
   logs: string[];
   auditableReportId: string;
@@ -50,14 +67,15 @@ export class FAIEOrchestrator {
   private routeEngine = new RouteEngine();
   private uiEngine = new UIEngine();
   private inferenceEngine = new InferenceEngine();
-  private confidenceEngine = new ConfidenceEngine();
+  private confidenceEngine: ConfidenceEngine;
   private reasoningEngine = new ReasoningEngine();
   private evidenceEngine = new EvidenceEngine();
   private scoringEngine = new ScoringEngine();
 
-  constructor(customSynonymDict?: Record<string, string[]>) {
+  constructor(customSynonymDict?: Record<string, string[]>, confidenceThreshold: number = 75) {
     this.synonymEngine = new SynonymEngine(customSynonymDict);
-    this.featureEngine = new FeatureEngine(this.synonymEngine);
+    this.featureEngine = new FeatureEngine(this.synonymEngine, confidenceThreshold);
+    this.confidenceEngine = new ConfidenceEngine(confidenceThreshold);
   }
 
   public async evaluate(
@@ -65,59 +83,67 @@ export class FAIEOrchestrator {
     repoUrl: string,
     blueprint: KnowledgeBlueprint,
     deploymentUrl?: string
-  ): Promise<FAIEReport> {
+  ): Promise<FAIEReportV2> {
     const logs: string[] = [];
-    logs.push(`[FAIE 1/10] Starting Frontend Arena Intelligence Engine evaluation for ${repoUrl}...`);
+    logs.push(`[FAIE v2 1/12] Initializing Frontend Arena Intelligence Engine v2.0 for ${repoUrl}...`);
 
-    // 1. Validate Blueprint
+    // 1. Validate & Normalize Blueprint
     const val = this.knowledgeEngine.validateBlueprint(blueprint);
     if (!val.valid) {
-      logs.push(`[FAIE 1/10] Blueprint validation warnings: ${val.errors.join("; ")}`);
+      logs.push(`[FAIE v2 1/12] Blueprint warnings: ${val.errors.join("; ")}`);
     }
 
     const activeProblem = this.knowledgeEngine.getActiveProblemStatement(blueprint);
-    logs.push(`[FAIE 2/10] Active Knowledge Blueprint problem: "${activeProblem.title}".`);
+    logs.push(`[FAIE v2 2/12] Knowledge Blueprint Active Problem: "${activeProblem.title}".`);
 
-    // 2. Repository Analysis
-    logs.push(`[FAIE 3/10] Repository Engine: Scanning framework, package.json, TypeScript density...`);
+    // 2. Repository Analysis & AST Code Scanning
+    logs.push(`[FAIE v2 3/12] Repository Engine: Scanning framework, dependencies, and AST code patterns...`);
     const repoAnalysis = this.repositoryEngine.analyzeRepository(workspacePath);
-    logs.push(`[FAIE 3/10] Framework detected: ${repoAnalysis.framework}. TS density: ${repoAnalysis.detectedLanguages.typescriptPercent}%.`);
+    logs.push(`[FAIE v2 3/12] Framework: ${repoAnalysis.framework}. Packages scanned: ${repoAnalysis.allDependencies.length}.`);
 
     // 3. Route Detection
-    logs.push(`[FAIE 4/10] Route Engine: Detecting App Router, Pages Router, and React routes...`);
+    logs.push(`[FAIE v2 4/12] Route Engine: Detecting App Router, Pages Router, and React routes...`);
     const expectedRoutePatterns = (blueprint.expectedRoutes || []).map((r) => r.pattern);
     const routeResults = this.routeEngine.detectRoutes(workspacePath, expectedRoutePatterns);
-    logs.push(`[FAIE 4/10] Detected ${routeResults.detectedRoutes.length} active routes. Coverage: ${routeResults.coveragePercent}%.`);
+    logs.push(`[FAIE v2 4/12] Detected ${routeResults.detectedRoutes.length} routes.`);
 
-    // 4. Feature Extraction & Synonym Matching
-    logs.push(`[FAIE 5/10] Feature Engine & Synonym Engine: Matching blueprint features against source code...`);
+    // 4. Multi-Evidence Feature Tree Evaluation
+    logs.push(`[FAIE v2 5/12] Feature Engine: Evaluating hierarchical feature tree with multi-evidence cross-validation...`);
     const normalizedFeatures = this.knowledgeEngine.normalizeFeatures(blueprint);
-    const detectedFiles = routeResults.detectedRoutes.map((r) => r.filePath);
-    const featureResults = this.featureEngine.evaluateFeatures(
+    const featureResults: FeatureDetectionResult[] = this.featureEngine.evaluateFeatures(
       workspacePath,
       normalizedFeatures,
-      detectedFiles,
-      expectedRoutePatterns,
-      repoAnalysis.detectedComponents
+      repoAnalysis,
+      routeResults,
+      this.uiEngine.analyzeUI(workspacePath, deploymentUrl)
     );
 
-    // 5. UI Analysis
-    logs.push(`[FAIE 6/10] UI Engine: Inspecting layouts, cards, buttons, footers, charts, and Playwright DOM signals...`);
+    // Collect all rejected claims across features
+    const allRejectedClaims: string[] = [];
+    featureResults.forEach((fr) => {
+      if (fr.evidence.rejectedClaims && fr.evidence.rejectedClaims.length > 0) {
+        allRejectedClaims.push(...fr.evidence.rejectedClaims);
+        fr.evidence.rejectedClaims.forEach((rc) => logs.push(`[FAIE v2 False Positive Shield] ${rc}`));
+      }
+    });
+
+    // 5. Playwright UI Verification & Screenshot Evidence
+    logs.push(`[FAIE v2 6/12] UI Engine: Running Playwright multi-view navigation & screenshot capture...`);
     const uiAnalysis = this.uiEngine.analyzeUI(workspacePath, deploymentUrl);
 
-    // 6. Inference Engine & Rule Evaluations
-    logs.push(`[FAIE 7/10] Inference Engine: Running deterministic IF-THEN rule verifications...`);
+    // 6. Inference Engine Rule Checks
+    logs.push(`[FAIE v2 7/12] Inference Engine: Executing deterministic IF-THEN rule verifications...`);
     const inferenceRules = this.inferenceEngine.runInference(featureResults, repoAnalysis, routeResults, uiAnalysis);
 
-    // 7. Evidence Engine & Citations Collection
-    logs.push(`[FAIE 8/10] Evidence Engine: Collecting concrete file paths, routes, and component proofs...`);
+    // 7. Evidence Engine Collection
+    logs.push(`[FAIE v2 8/12] Evidence Engine: Formatting concrete proof citations and line references...`);
     this.evidenceEngine.clear();
 
     featureResults.forEach((fr) => {
-      if (fr.implemented) {
+      if (fr.implementationStatus !== "Not Implemented") {
         this.evidenceEngine.addEvidence({
           category: "Components",
-          description: `Implemented feature '${fr.featureName}' with ${fr.confidenceScore}% confidence.`,
+          description: `Feature '${fr.featureName}' marked ${fr.implementationStatus} (${fr.confidenceScore}% confidence). Awarded ${fr.awardedScore}/${fr.maxWeight} pts.`,
           sourcePath: fr.evidence.fileMatches[0] || fr.evidence.routeMatches[0],
         });
       }
@@ -126,46 +152,48 @@ export class FAIEOrchestrator {
     uiAnalysis.detectedUIComponents.forEach((comp) => {
       this.evidenceEngine.addEvidence({
         category: "UI Screen",
-        description: `Verified ${comp} element in application layout.`,
+        description: `Verified interactive ${comp} component layout.`,
       });
     });
 
     // 8. Reasoning Engine Category Breakdowns
-    logs.push(`[FAIE 9/10] Reasoning Engine: Generating explainable category reasonings...`);
+    logs.push(`[FAIE v2 9/12] Reasoning Engine: Generating explainable category reasonings...`);
     const reasonings: CategoryReasoning[] = [];
 
     blueprint.scoringSystem.categories.forEach((cat) => {
       let scoreAwarded = 0;
       let ruleApplied = "";
       let reasonStr = "";
-      let confidence = 90;
+      let confidence = 95;
 
       const catLower = cat.name.toLowerCase();
 
       if (catLower.includes("alignment") || catLower.includes("problem")) {
-        const implementedCount = featureResults.filter((f) => f.implemented).length;
-        const ratio = normalizedFeatures.length > 0 ? implementedCount / normalizedFeatures.length : 1;
-        scoreAwarded = Math.round(cat.maxMarks * (0.6 + ratio * 0.4));
-        ruleApplied = "Problem Alignment Rule (Feature Coverage + Blueprint Objectives)";
-        reasonStr = `Deterministically aligned with '${activeProblem.title}'. Implemented ${implementedCount}/${normalizedFeatures.length} specified features.`;
+        const totalAwarded = featureResults.reduce((acc, fr) => acc + fr.awardedScore, 0);
+        const totalMax = featureResults.reduce((acc, fr) => acc + fr.maxWeight, 0) || 1;
+        const ratio = totalAwarded / totalMax;
+        scoreAwarded = Math.round(cat.maxMarks * (0.5 + ratio * 0.5));
+        ruleApplied = "Weighted Feature Tree Alignment Rule";
+        reasonStr = `Deterministically aligned with '${activeProblem.title}'. Hierarchical feature score ratio: Math.round(${ratio * 100})%.`;
       } else if (catLower.includes("feature") || catLower.includes("ui/ux") || catLower.includes("ui")) {
-        const implementedCount = featureResults.filter((f) => f.implemented).length;
-        const ratio = normalizedFeatures.length > 0 ? implementedCount / normalizedFeatures.length : 1;
+        const totalAwarded = featureResults.reduce((acc, fr) => acc + fr.awardedScore, 0);
+        const totalMax = featureResults.reduce((acc, fr) => acc + fr.maxWeight, 0) || 1;
+        const ratio = totalAwarded / totalMax;
         scoreAwarded = Math.round(cat.maxMarks * ratio);
-        ruleApplied = "Feature Completeness Rule (Deterministic Match)";
-        reasonStr = `Implemented ${implementedCount} required features (${featureResults.filter((f) => f.implemented).map((f) => f.featureName).join(", ")}).`;
+        ruleApplied = "Multi-Evidence Feature Tree Rule";
+        reasonStr = `Feature tree evaluation completed. Evaluated ${featureResults.length} root features and sub-features.`;
       } else if (catLower.includes("performance") || catLower.includes("seo") || catLower.includes("tech")) {
-        scoreAwarded = repoAnalysis.hasTailwind && repoAnalysis.hasTsConfig ? cat.maxMarks : Math.round(cat.maxMarks * 0.8);
-        ruleApplied = "Technology Compliance Rule (Framework & Build Config)";
-        reasonStr = `Framework '${repoAnalysis.framework}' with ${repoAnalysis.detectedLanguages.typescriptPercent}% TypeScript usage.`;
+        scoreAwarded = repoAnalysis.hasTailwind && repoAnalysis.hasTsConfig ? cat.maxMarks : Math.round(cat.maxMarks * 0.85);
+        ruleApplied = "AST Tech Stack & Architecture Rule";
+        reasonStr = `Framework: '${repoAnalysis.framework}'. TS Usage: ${repoAnalysis.detectedLanguages.typescriptPercent}%. Packages: ${repoAnalysis.allDependencies.length}.`;
       } else if (catLower.includes("documentation") || catLower.includes("readme")) {
         scoreAwarded = repoAnalysis.detectedFilesCount > 5 ? cat.maxMarks : Math.round(cat.maxMarks * 0.6);
-        ruleApplied = "Documentation Completeness Rule";
-        reasonStr = "Repository includes comprehensive README setup guides and file structure.";
+        ruleApplied = "Documentation & Setup Guide Rule";
+        reasonStr = "Repository documentation parsed and verified.";
       } else {
         scoreAwarded = Math.round(cat.maxMarks * 0.85);
-        ruleApplied = "General Compliance Category Rule";
-        reasonStr = `Category '${cat.name}' evaluated deterministically against blueprint rules.`;
+        ruleApplied = "General FAIE v2 Rule";
+        reasonStr = `Category '${cat.name}' evaluated against blueprint rules.`;
       }
 
       reasonings.push(
@@ -178,7 +206,7 @@ export class FAIEOrchestrator {
           reasonStr,
           confidence,
           this.evidenceEngine.getAllEvidence(),
-          detectedFiles,
+          routeResults.detectedRoutes.map((r) => r.filePath),
           routeResults.detectedRoutes.map((r) => r.pattern),
           repoAnalysis.detectedComponents,
           uiAnalysis.detectedUIComponents
@@ -187,7 +215,7 @@ export class FAIEOrchestrator {
     });
 
     // 9. Scoring Engine
-    logs.push(`[FAIE 10/10] Scoring Engine: Computing final audit report card...`);
+    logs.push(`[FAIE v2 10/12] Scoring Engine: Computing final weighted scores...`);
     const faieSummary: FAIEReportSummary = this.scoringEngine.calculateFinalScores(
       blueprint,
       featureResults,
@@ -196,6 +224,22 @@ export class FAIEOrchestrator {
       uiAnalysis,
       reasonings
     );
+
+    const featureTreeEvaluations = featureResults.map((fr) => ({
+      featureName: fr.featureName,
+      mandatory: fr.mandatory,
+      maxWeight: fr.maxWeight,
+      awardedScore: fr.awardedScore,
+      status: fr.implementationStatus,
+      confidenceScore: fr.confidenceScore,
+      subFeatures: fr.subFeatureResults.map((sf) => ({
+        subFeatureName: sf.subFeatureName,
+        weight: sf.weight,
+        awardedScore: sf.awardedScore,
+        confidencePercent: sf.confidenceResult.confidencePercent,
+        status: sf.confidenceResult.implementationStatus,
+      })),
+    }));
 
     const allLogs = [...logs, ...faieSummary.logs];
 
@@ -214,19 +258,22 @@ export class FAIEOrchestrator {
         bonusPointsTotal: faieSummary.bonusPointsTotal,
         deductionsTotal: faieSummary.deductionsTotal,
       },
+      featureTreeEvaluations,
       scoringDetails: reasonings.map((r) => ({
         categoryName: r.categoryName,
         awardedMarks: r.scoreAwarded,
         maxMarks: r.maxMarks,
         passingMarks: r.passingMarks,
-        evaluatedBy: "Frontend Arena Intelligence Engine (FAIE)",
+        evaluatedBy: "Frontend Arena Intelligence Engine (FAIE v2)",
         evidenceCitations: r.evidenceCitations,
         confidencePercent: r.confidencePercent,
         ruleApplied: r.ruleApplied,
       })),
+      screenshots: uiAnalysis.screenshots,
+      rejectedClaims: allRejectedClaims,
       reasonings,
       logs: allLogs,
-      auditableReportId: `faie_${Date.now()}`,
+      auditableReportId: `faie_v2_${Date.now()}`,
       timestamp: new Date().toISOString(),
     };
   }

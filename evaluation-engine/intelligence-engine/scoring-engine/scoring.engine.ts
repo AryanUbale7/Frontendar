@@ -35,7 +35,7 @@ export class ScoringEngine {
 
     // 1. Feature Coverage
     const totalReqFeatures = blueprint.requiredFeatures.length || 1;
-    const implementedCount = featureResults.filter((f) => f.implemented).length;
+    const implementedCount = featureResults.filter((f) => f.implementationStatus !== "Not Implemented").length;
     const featureCoveragePercent = Math.round((implementedCount / totalReqFeatures) * 100);
     logs.push(`Feature Coverage computed: ${featureCoveragePercent}% (${implementedCount}/${totalReqFeatures} features).`);
 

@@ -22,7 +22,7 @@ export class InferenceEngine {
     const rules: InferenceRuleResult[] = [];
 
     // Rule 1: Authentication Rule
-    const hasAuthFiles = features.some((f) => f.featureName.toLowerCase().includes("auth") && f.implemented);
+    const hasAuthFiles = features.some((f) => f.featureName.toLowerCase().includes("auth") && f.implementationStatus !== "Not Implemented");
     const hasAuthUI = ui.hasAuthPages;
     const hasAuthRoutes = routes.detectedRoutes.some((r) => r.pattern.includes("login") || r.pattern.includes("auth"));
     const authTriggered = hasAuthFiles || hasAuthUI || hasAuthRoutes;
