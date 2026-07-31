@@ -130,6 +130,11 @@ export interface DynamicEvaluationReport {
     status: string;
     summary: string;
   };
+  projectClassification?: {
+    detectedProjectType: string;
+    confidencePercent: number;
+    evidenceSummary: string[];
+  };
   featureTreeEvaluations?: any[];
   rejectedClaims?: string[];
   screenshots?: any[];
@@ -376,6 +381,7 @@ export async function evaluateSubmission(
         status: faieReport.status.toUpperCase(),
         summary: `Evaluated ${faieReport.scoringDetails.length} categories with hierarchical sub-features and Playwright UI navigation. Zero AI/LLM models.`,
       },
+      projectClassification: faieReport.projectClassification,
       featureTreeEvaluations: faieReport.featureTreeEvaluations,
       rejectedClaims: faieReport.rejectedClaims,
       screenshots: faieReport.screenshots,

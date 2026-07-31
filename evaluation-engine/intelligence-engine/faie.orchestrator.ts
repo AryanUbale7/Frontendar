@@ -10,12 +10,19 @@ import { ConfidenceEngine } from "./confidence-engine/confidence.engine";
 import { ReasoningEngine, CategoryReasoning } from "./reasoning-engine/reasoning.engine";
 import { EvidenceEngine } from "./evidence-engine/evidence.engine";
 import { ScoringEngine, FAIEReportSummary } from "./scoring-engine/scoring.engine";
+import { ProjectClassifierEngine } from "./project-classifier-engine/project-classifier.engine";
+import { ProjectType, ClassificationResult } from "./project-classifier-engine/project-type.interface";
 
 export interface FAIEReportV2 {
   hackathonTitle: string;
   repoUrl: string;
   deploymentUrl?: string;
   status: "pass" | "fail";
+  projectClassification?: {
+    detectedProjectType: ProjectType;
+    confidencePercent: number;
+    evidenceSummary: string[];
+  };
   scoreSummary: {
     finalScore: number;
     featureCoveragePercent: number;
@@ -71,6 +78,7 @@ export class FAIEOrchestrator {
   private reasoningEngine = new ReasoningEngine();
   private evidenceEngine = new EvidenceEngine();
   private scoringEngine = new ScoringEngine();
+  private projectClassifierEngine = new ProjectClassifierEngine();
 
   constructor(customSynonymDict?: Record<string, string[]>, confidenceThreshold: number = 75) {
     this.synonymEngine = new SynonymEngine(customSynonymDict);
@@ -81,31 +89,43 @@ export class FAIEOrchestrator {
   public async evaluate(
     workspacePath: string,
     repoUrl: string,
-    blueprint: KnowledgeBlueprint,
+    passedBlueprint: KnowledgeBlueprint,
     deploymentUrl?: string
   ): Promise<FAIEReportV2> {
     const logs: string[] = [];
     logs.push(`[FAIE v2 1/12] Initializing Frontend Arena Intelligence Engine v2.0 for ${repoUrl}...`);
 
-    // 1. Validate & Normalize Blueprint
+    // 1. Repository Analysis & AST Code Scanning
+    logs.push(`[FAIE v2 2/12] Repository Engine: Scanning framework, dependencies, and AST code patterns...`);
+    const repoAnalysis = this.repositoryEngine.analyzeRepository(workspacePath);
+    logs.push(`[FAIE v2 2/12] Framework: ${repoAnalysis.framework}. Packages scanned: ${repoAnalysis.allDependencies.length}.`);
+
+    // 2. Route Detection
+    logs.push(`[FAIE v2 3/12] Route Engine: Detecting App Router, Pages Router, and React routes...`);
+    const expectedRoutePatterns = (passedBlueprint?.expectedRoutes || []).map((r) => r.pattern);
+    const routeResults = this.routeEngine.detectRoutes(workspacePath, expectedRoutePatterns);
+    logs.push(`[FAIE v2 3/12] Detected ${routeResults.detectedRoutes.length} routes.`);
+
+    // 3. Deterministic Project Type Classification
+    logs.push(`[FAIE v2 4/12] Project Classifier Engine: Running multi-evidence category classification...`);
+    const uiAnalysis = this.uiEngine.analyzeUI(workspacePath, deploymentUrl);
+    const classification = this.projectClassifierEngine.classifyProject(repoAnalysis, routeResults, uiAnalysis, passedBlueprint);
+
+    // Select dynamic blueprint based on classification unless passed blueprint has explicit mandatory custom features
+    const blueprint = (classification.detectedProjectType !== "General Web App" && classification.confidencePercent >= 35)
+      ? classification.selectedBlueprint
+      : (passedBlueprint || classification.selectedBlueprint);
+
+    logs.push(`[FAIE v2 4/12] Project Type Classified: "${classification.detectedProjectType}" (${classification.confidencePercent}% confidence).`);
+    logs.push(`[FAIE v2 4/12] Classification Evidence: ${classification.evidenceSummary.slice(0, 4).join("; ")}`);
+
+    // Validate & Normalize Selected Blueprint
     const val = this.knowledgeEngine.validateBlueprint(blueprint);
     if (!val.valid) {
-      logs.push(`[FAIE v2 1/12] Blueprint warnings: ${val.errors.join("; ")}`);
+      logs.push(`[FAIE v2 4/12] Blueprint warnings: ${val.errors.join("; ")}`);
     }
-
     const activeProblem = this.knowledgeEngine.getActiveProblemStatement(blueprint);
-    logs.push(`[FAIE v2 2/12] Knowledge Blueprint Active Problem: "${activeProblem.title}".`);
-
-    // 2. Repository Analysis & AST Code Scanning
-    logs.push(`[FAIE v2 3/12] Repository Engine: Scanning framework, dependencies, and AST code patterns...`);
-    const repoAnalysis = this.repositoryEngine.analyzeRepository(workspacePath);
-    logs.push(`[FAIE v2 3/12] Framework: ${repoAnalysis.framework}. Packages scanned: ${repoAnalysis.allDependencies.length}.`);
-
-    // 3. Route Detection
-    logs.push(`[FAIE v2 4/12] Route Engine: Detecting App Router, Pages Router, and React routes...`);
-    const expectedRoutePatterns = (blueprint.expectedRoutes || []).map((r) => r.pattern);
-    const routeResults = this.routeEngine.detectRoutes(workspacePath, expectedRoutePatterns);
-    logs.push(`[FAIE v2 4/12] Detected ${routeResults.detectedRoutes.length} routes.`);
+    logs.push(`[FAIE v2 4/12] Selected Scoring Blueprint: "${activeProblem.title}".`);
 
     // 4. Multi-Evidence Feature Tree Evaluation
     logs.push(`[FAIE v2 5/12] Feature Engine: Evaluating hierarchical feature tree with multi-evidence cross-validation...`);
@@ -115,7 +135,7 @@ export class FAIEOrchestrator {
       normalizedFeatures,
       repoAnalysis,
       routeResults,
-      this.uiEngine.analyzeUI(workspacePath, deploymentUrl)
+      uiAnalysis
     );
 
     // Collect all rejected claims across features
@@ -129,7 +149,7 @@ export class FAIEOrchestrator {
 
     // 5. Playwright UI Verification & Screenshot Evidence
     logs.push(`[FAIE v2 6/12] UI Engine: Running Playwright multi-view navigation & screenshot capture...`);
-    const uiAnalysis = this.uiEngine.analyzeUI(workspacePath, deploymentUrl);
+    // Re-use already initialized uiAnalysis
 
     // 6. Inference Engine Rule Checks
     logs.push(`[FAIE v2 7/12] Inference Engine: Executing deterministic IF-THEN rule verifications...`);
@@ -248,6 +268,11 @@ export class FAIEOrchestrator {
       repoUrl,
       deploymentUrl,
       status: faieSummary.status,
+      projectClassification: {
+        detectedProjectType: classification.detectedProjectType,
+        confidencePercent: classification.confidencePercent,
+        evidenceSummary: classification.evidenceSummary,
+      },
       scoreSummary: {
         finalScore: faieSummary.finalScore,
         featureCoveragePercent: faieSummary.featureCoveragePercent,
