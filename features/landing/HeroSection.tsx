@@ -97,7 +97,7 @@ export function HeroSection() {
               </div>
             </motion.div>
 
-            {/* Headline (Compact & Balanced Sizing) */}
+            {/* Headline (Compact & Sleek) */}
             <motion.div
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
@@ -193,52 +193,38 @@ export function HeroSection() {
             </motion.div>
           </div>
 
-          {/* RIGHT CONTENT (55% -> 7 cols on lg) */}
-          <div className="lg:col-span-7 relative flex items-center justify-center min-h-[480px] md:min-h-[580px] mt-8 lg:mt-0">
+          {/* RIGHT CONTENT: LARGER LAPTOP (NO FLOATING MOTION) */}
+          <div className="lg:col-span-7 relative flex items-center justify-center min-h-[520px] lg:min-h-[620px] mt-8 lg:mt-0">
             
             {/* Ambient Background Wave Accent */}
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <div className="w-[90%] h-[80%] rounded-full bg-gradient-to-tr from-[#8B5CF6]/15 via-[#4F46E5]/10 to-[#F97316]/10 blur-[100px] transform rotate-6" />
+              <div className="w-[95%] h-[85%] rounded-full bg-gradient-to-tr from-[#8B5CF6]/15 via-[#4F46E5]/10 to-[#F97316]/10 blur-[110px] transform rotate-6" />
             </div>
 
-            {/* LAPTOP PRESENTATION CONTAINER */}
-            <motion.div
-              animate={{
-                y: [-6, 6, -6],
-              }}
-              transition={{
-                duration: 6,
-                repeat: Infinity,
-                ease: "easeInOut",
-              }}
-              className="relative z-20 w-full max-w-[680px]"
-            >
+            {/* LARGER LAPTOP CONTAINER - STATIC STEADY (NO MOVING/FLOATING ANIMATION) */}
+            <div className="relative z-20 w-full max-w-[850px] lg:max-w-[900px]">
               {/* Drop Shadow underneath */}
-              <div className="absolute -bottom-6 left-[8%] right-[8%] h-10 bg-black/10 blur-xl rounded-full pointer-events-none" />
+              <div className="absolute -bottom-8 left-[6%] right-[6%] h-12 bg-black/15 blur-2xl rounded-full pointer-events-none" />
 
               {/* LOQ Laptop Image */}
               <div className="relative w-full h-auto">
                 <Image
                   src="/images/LOQ.png"
                   alt="Frontend Arena LOQ Laptop"
-                  width={1400}
-                  height={900}
+                  width={1600}
+                  height={1020}
                   priority
                   quality={100}
-                  sizes="(max-width:768px) 100vw, 55vw"
+                  sizes="(max-width:768px) 100vw, 60vw"
                   className="w-full h-auto object-contain select-none pointer-events-none drop-shadow-2xl"
                 />
               </div>
-            </motion.div>
+            </div>
 
-            {/* FLOATING GLASS CARDS */}
+            {/* GLASS CARDS (STATIC STEADY / NO MOVING FLOATING EFFECT) */}
 
-            {/* Floating Card 1: Clean Code / AI Powered (Top Left) */}
-            <motion.div
-              animate={{ y: [-5, 5, -5] }}
-              transition={{ duration: 5, repeat: Infinity, ease: "easeInOut" }}
-              className="absolute top-6 left-2 sm:left-4 z-30 pointer-events-none hidden sm:block"
-            >
+            {/* Card 1: Clean Code (Top Left) */}
+            <div className="absolute top-2 left-0 sm:left-2 z-30 pointer-events-none hidden sm:block">
               <div className="px-4 py-3 rounded-2xl bg-white/95 backdrop-blur-md border border-[#E2E8F0] shadow-lg flex flex-col items-center text-center space-y-1">
                 <div className="h-9 w-9 rounded-xl bg-[#EEF2FF] text-[#4F46E5] flex items-center justify-center">
                   <Code2 className="h-5 w-5" />
@@ -246,14 +232,10 @@ export function HeroSection() {
                 <div className="text-xs font-bold text-[#0F172A] font-heading">Clean Code</div>
                 <div className="text-[10px] text-[#64748B]">AI Analyzed</div>
               </div>
-            </motion.div>
+            </div>
 
-            {/* Floating Card 2: Secure (Top Right) */}
-            <motion.div
-              animate={{ y: [5, -5, 5] }}
-              transition={{ duration: 5.5, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
-              className="absolute top-8 right-2 sm:right-4 z-30 pointer-events-none hidden sm:block"
-            >
+            {/* Card 2: Secure (Top Right) */}
+            <div className="absolute top-4 right-0 sm:right-2 z-30 pointer-events-none hidden sm:block">
               <div className="px-4 py-3 rounded-2xl bg-white/95 backdrop-blur-md border border-[#E2E8F0] shadow-lg flex flex-col items-center text-center space-y-1">
                 <div className="h-9 w-9 rounded-xl bg-[#EEF2FF] text-[#4F46E5] flex items-center justify-center">
                   <ShieldCheck className="h-5 w-5" />
@@ -261,14 +243,10 @@ export function HeroSection() {
                 <div className="text-xs font-bold text-[#0F172A] font-heading">Secure</div>
                 <div className="text-[10px] text-[#64748B]">No Vulnerabilities</div>
               </div>
-            </motion.div>
+            </div>
 
-            {/* Floating Card 3: Optimized (Bottom Right) */}
-            <motion.div
-              animate={{ y: [-6, 6, -6] }}
-              transition={{ duration: 6, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-              className="absolute bottom-6 right-2 sm:right-4 z-30 pointer-events-none hidden sm:block"
-            >
+            {/* Card 3: Optimized (Bottom Right) */}
+            <div className="absolute bottom-2 right-0 sm:right-2 z-30 pointer-events-none hidden sm:block">
               <div className="px-4 py-3 rounded-2xl bg-white/95 backdrop-blur-md border border-[#E2E8F0] shadow-lg flex flex-col items-center text-center space-y-1">
                 <div className="h-9 w-9 rounded-xl bg-[#EEF2FF] text-[#4F46E5] flex items-center justify-center">
                   <Zap className="h-5 w-5" />
@@ -276,7 +254,7 @@ export function HeroSection() {
                 <div className="text-xs font-bold text-[#0F172A] font-heading">Optimized</div>
                 <div className="text-[10px] text-[#64748B]">High Performance</div>
               </div>
-            </motion.div>
+            </div>
 
           </div>
         </div>
