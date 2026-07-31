@@ -12,6 +12,11 @@ import {
   ChevronLeft,
   ChevronRight,
   Zap,
+  Bot,
+  Palette,
+  Cloud,
+  Trophy,
+  ShieldCheck,
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -26,13 +31,13 @@ const ICON_MAP: Record<string, React.ElementType> = {
   Users,
 };
 
-const EXTRA_METRICS: Record<string, string> = {
-  "org-1": "⚡ 50+ Web Sprints",
-  "org-2": "🤖 Agentic LLM Pipelines",
-  "org-3": "🎨 Pixel-Perfect Tokens",
-  "org-4": "🌐 Cloud & API Infrastructure",
-  "org-5": "💡 Cash Prize Bounties",
-  "org-6": "👥 500+ Active Builders",
+const EXTRA_METRICS: Record<string, { label: string; icon: React.ElementType }> = {
+  "org-1": { label: "50+ Web Sprints", icon: Zap },
+  "org-2": { label: "Agentic LLM Pipelines", icon: Bot },
+  "org-3": { label: "Pixel-Perfect Tokens", icon: Palette },
+  "org-4": { label: "Cloud & API Infrastructure", icon: Cloud },
+  "org-5": { label: "Cash Prize Bounties", icon: Trophy },
+  "org-6": { label: "500+ Active Builders", icon: Users },
 };
 
 export function WhatWeOrganizeSection() {
@@ -131,7 +136,9 @@ export function WhatWeOrganizeSection() {
           >
             {WHAT_WE_ORGANIZE.map((item, idx) => {
               const Icon = ICON_MAP[item.iconName] || Code2;
-              
+              const metric = EXTRA_METRICS[item.id] || { label: "Official Arena Track", icon: ShieldCheck };
+              const MetricIcon = metric.icon;
+
               // Calculate offset relative to activeIndex
               let offset = idx - activeIndex;
               const total = WHAT_WE_ORGANIZE.length;
@@ -216,10 +223,11 @@ export function WhatWeOrganizeSection() {
                         </CardDescription>
                       </div>
 
-                      {/* Bottom Metric Badge */}
+                      {/* Bottom Metric Badge with Lucide SVG Icon */}
                       <div className="pt-2 border-t border-[#F1F5F9] flex items-center justify-between">
-                        <span className="text-xs font-semibold text-[#0F172A]">
-                          {EXTRA_METRICS[item.id] || "⭐ Official Arena Track"}
+                        <span className="text-xs font-semibold text-[#0F172A] flex items-center gap-1.5">
+                          <MetricIcon className="h-3.5 w-3.5 text-[#FF006E]" />
+                          <span>{metric.label}</span>
                         </span>
                         <span className="text-[10px] font-bold uppercase tracking-wider text-[#FF006E]">
                           {isActive ? "Active View" : "Click to view"}
