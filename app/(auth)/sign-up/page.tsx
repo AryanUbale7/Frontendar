@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
@@ -14,7 +14,7 @@ import { GoogleLogin } from "@react-oauth/google";
 
 export default function SignUpPage() {
   const router = useRouter();
-  const { signUp, signInWithGoogle, isLoading } = useAuth();
+  const { user, isAuthenticated, signUp, signInWithGoogle, isLoading } = useAuth();
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -25,6 +25,18 @@ export default function SignUpPage() {
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      if (user.role === "platform_admin") {
+        router.push("/dashboard/admin");
+      } else if (user.role === "org_admin") {
+        router.push("/dashboard/organization");
+      } else {
+        router.push("/dashboard/participant");
+      }
+    }
+  }, [user, isAuthenticated, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

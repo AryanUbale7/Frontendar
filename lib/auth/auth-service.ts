@@ -27,7 +27,10 @@ export class AuthService {
     try {
       const stored = localStorage.getItem(MOCK_SESSION_KEY);
       if (stored) {
-        return JSON.parse(stored);
+        const user = JSON.parse(stored);
+        // CRITICAL PERSISTENCE FIX: Sync session cookie on every getStoredUser check
+        document.cookie = "fa_session_active=true; path=/; max-age=31536000; SameSite=Lax";
+        return user;
       }
     } catch {
       // fallback
@@ -40,8 +43,12 @@ export class AuthService {
     try {
       if (user) {
         localStorage.setItem(MOCK_SESSION_KEY, JSON.stringify(user));
+        document.cookie = "fa_session_active=true; path=/; max-age=31536000; SameSite=Lax";
       } else {
         localStorage.removeItem(MOCK_SESSION_KEY);
+        localStorage.removeItem("fa_access_token");
+        localStorage.removeItem("fa_refresh_token");
+        document.cookie = "fa_session_active=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; max-age=0; SameSite=Lax";
       }
     } catch {
       // fallback
@@ -87,7 +94,6 @@ export class AuthService {
     if (typeof window !== "undefined") {
       localStorage.setItem("fa_access_token", data.accessToken);
       localStorage.setItem("fa_refresh_token", data.refreshToken);
-      document.cookie = "fa_session_active=true; path=/; max-age=604800; SameSite=Lax";
     }
 
     this.setStoredUser(user);
@@ -109,10 +115,6 @@ export class AuthService {
       role,
     };
 
-    if (typeof window !== "undefined") {
-      document.cookie = "fa_session_active=true; path=/; max-age=604800";
-    }
-
     this.setStoredUser(user);
     return user;
   }
@@ -130,10 +132,6 @@ export class AuthService {
       createdAt: new Date().toISOString(),
     };
 
-    if (typeof window !== "undefined") {
-      document.cookie = "fa_session_active=true; path=/; max-age=604800";
-    }
-
     this.setStoredUser(user);
     return user;
   }
@@ -149,11 +147,6 @@ export class AuthService {
   }
 
   public static async signOut(): Promise<void> {
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("fa_access_token");
-      localStorage.removeItem("fa_refresh_token");
-      document.cookie = "fa_session_active=; path=/; max-age=0; SameSite=Lax";
-    }
     this.setStoredUser(null);
   }
 
