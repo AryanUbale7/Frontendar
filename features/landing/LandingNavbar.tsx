@@ -2,15 +2,18 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { Terminal, Menu, X, Users } from "lucide-react";
+import { Menu, X, Users, LayoutDashboard, LogOut, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BRAND_CONFIG } from "@/constants/design-system";
 import { LANDING_NAV_LINKS } from "@/constants/landing-data";
+import { useAuth } from "@/hooks/useAuth";
+import { UserMenu } from "@/components/design-system/UserMenu";
 import { cn } from "@/lib/utils";
 
 export function LandingNavbar() {
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { user, isAuthenticated, signOut } = useAuth();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -62,21 +65,40 @@ export function LandingNavbar() {
           ))}
         </nav>
 
-        {/* Right Desktop CTAs */}
+        {/* Right Desktop CTAs / User Profile */}
         <div className="hidden sm:flex items-center gap-3">
-          <Button asChild variant="ghost" size="sm">
-            <Link href="/sign-in">Sign In</Link>
-          </Button>
-          <Button asChild variant="default" size="sm">
-            <Link href="/sign-up" className="flex items-center gap-2">
-              <Users className="h-4 w-4" />
-              <span>Join Community</span>
-            </Link>
-          </Button>
+          {isAuthenticated && user ? (
+            <>
+              <Button asChild variant="default" size="sm">
+                <Link href="/dashboard" className="flex items-center gap-2">
+                  <LayoutDashboard className="h-4 w-4" />
+                  <span>Dashboard</span>
+                </Link>
+              </Button>
+              <UserMenu />
+            </>
+          ) : (
+            <>
+              <Button asChild variant="ghost" size="sm">
+                <Link href="/sign-in">Sign In</Link>
+              </Button>
+              <Button asChild variant="default" size="sm">
+                <Link href="/sign-up" className="flex items-center gap-2">
+                  <Users className="h-4 w-4" />
+                  <span>Join Community</span>
+                </Link>
+              </Button>
+            </>
+          )}
         </div>
 
         {/* Mobile Menu Button */}
         <div className="flex lg:hidden items-center gap-2">
+          {isAuthenticated && user && (
+            <div className="mr-1">
+              <UserMenu />
+            </div>
+          )}
           <Button
             variant="ghost"
             size="icon"
@@ -101,16 +123,53 @@ export function LandingNavbar() {
               {link.label}
             </a>
           ))}
+
           <div className="pt-2 border-t border-[#E2E8F0] flex flex-col gap-2">
-            <Button asChild variant="outline" className="w-full">
-              <Link href="/sign-in">Sign In</Link>
-            </Button>
-            <Button asChild variant="default" className="w-full">
-              <Link href="/sign-up" className="flex items-center justify-center gap-2">
-                <Users className="h-4 w-4" />
-                <span>Join Community</span>
-              </Link>
-            </Button>
+            {isAuthenticated && user ? (
+              <>
+                <div className="p-3 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#2563EB] text-white font-bold text-xs">
+                      {user.firstName.charAt(0)}
+                      {user.lastName.charAt(0)}
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="text-xs font-bold text-[#0F172A]">{user.fullName}</span>
+                      <span className="text-[10px] text-[#64748B]">{user.email}</span>
+                    </div>
+                  </div>
+                </div>
+                <Button asChild variant="default" className="w-full">
+                  <Link href="/dashboard" className="flex items-center justify-center gap-2">
+                    <LayoutDashboard className="h-4 w-4" />
+                    <span>Go to Dashboard</span>
+                  </Link>
+                </Button>
+                <Button
+                  variant="outline"
+                  className="w-full text-[#EF4444] border-[#EF4444]/30 hover:bg-[#EF4444]/10"
+                  onClick={() => {
+                    signOut();
+                    setMobileMenuOpen(false);
+                  }}
+                >
+                  <LogOut className="h-4 w-4 mr-2" />
+                  <span>Log Out</span>
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button asChild variant="outline" className="w-full">
+                  <Link href="/sign-in">Sign In</Link>
+                </Button>
+                <Button asChild variant="default" className="w-full">
+                  <Link href="/sign-up" className="flex items-center justify-center gap-2">
+                    <Users className="h-4 w-4" />
+                    <span>Join Community</span>
+                  </Link>
+                </Button>
+              </>
+            )}
           </div>
         </div>
       )}
