@@ -6,25 +6,11 @@ import { motion, useInView } from "framer-motion";
 import {
   ArrowUpRight,
   Play,
-  CheckCircle2,
   ShieldCheck,
   Zap,
-  Award,
   Users,
   Code2,
-  TrendingUp,
-  LayoutDashboard,
-  FileCode2,
   Award as TrophyIcon,
-  ChevronRight,
-  Sparkles,
-  BarChart3,
-  HelpCircle,
-  Settings,
-  Flame,
-  Check,
-  ShieldAlert,
-  Gauge,
 } from "lucide-react";
 
 // Count up animation component
@@ -216,7 +202,7 @@ export function HeroSection() {
           </div>
 
           {/* RIGHT CONTENT (55% -> 7 cols on lg) */}
-          <div className="lg:col-span-7 relative flex items-center justify-center min-h-[500px] md:min-h-[600px] mt-8 lg:mt-0">
+          <div className="lg:col-span-7 relative flex items-center justify-center min-h-[480px] md:min-h-[580px] mt-8 lg:mt-0">
             
             {/* Ambient Background Wave Accent */}
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
@@ -242,193 +228,18 @@ export function HeroSection() {
               <div className="relative w-full h-auto">
                 <Image
                   src="/images/LOQ.png"
-                  alt="Frontend Arena Evaluation Dashboard on Laptop"
+                  alt="Frontend Arena LOQ Laptop"
                   width={1400}
                   height={900}
                   priority
                   quality={100}
                   sizes="(max-width:768px) 100vw, 55vw"
-                  className="w-full h-auto object-contain select-none pointer-events-none drop-shadow-xl"
+                  className="w-full h-auto object-contain select-none pointer-events-none drop-shadow-2xl"
                 />
-
-                {/* EXACT HIGH-FIDELITY DASHBOARD SCREEN OVERLAY */}
-                <div
-                  className="absolute top-[11.8%] left-[13.2%] right-[13.2%] bottom-[22.5%] rounded-[8px] sm:rounded-[12px] bg-white overflow-hidden border border-[#E2E8F0] shadow-2xl flex flex-col pointer-events-auto"
-                >
-                  {/* Dashboard Header Bar */}
-                  <div className="h-8 bg-white border-b border-[#E2E8F0] px-3 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="h-5 w-5 rounded bg-[#4F46E5] text-white flex items-center justify-center font-bold text-[10px]">
-                        F
-                      </div>
-                      <span className="text-[11px] font-bold text-[#0F172A] font-heading">
-                        Frontend Arena
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <img
-                        className="h-5 w-5 rounded-full object-cover border border-[#E2E8F0]"
-                        src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80"
-                        alt="Aryan Ubale"
-                      />
-                      <div className="hidden sm:flex flex-col text-left">
-                        <span className="text-[9px] font-bold text-[#0F172A] leading-tight">
-                          Aryan Ubale
-                        </span>
-                        <span className="text-[7px] text-[#64748B] leading-tight">
-                          Team Leader
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Dashboard Body Container (Sidebar + Main Content) */}
-                  <div className="flex-1 flex overflow-hidden bg-[#FCFCFD]">
-                    
-                    {/* Left Sidebar inside Laptop */}
-                    <div className="w-16 sm:w-28 bg-[#F8FAFC] border-r border-[#E2E8F0] p-1.5 flex flex-col space-y-1">
-                      <div className="px-2 py-1 text-[8px] sm:text-[9px] font-extrabold text-[#4F46E5] bg-[#EEF2FF] rounded-md flex items-center gap-1.5">
-                        <LayoutDashboard className="h-3 w-3" />
-                        <span className="hidden sm:inline">Overview</span>
-                      </div>
-                      <div className="px-2 py-1 text-[8px] sm:text-[9px] font-medium text-[#64748B] hover:bg-white rounded-md flex items-center gap-1.5">
-                        <FileCode2 className="h-3 w-3" />
-                        <span className="hidden sm:inline">Submissions</span>
-                      </div>
-                      <div className="px-2 py-1 text-[8px] sm:text-[9px] font-medium text-[#64748B] hover:bg-white rounded-md flex items-center gap-1.5">
-                        <Sparkles className="h-3 w-3" />
-                        <span className="hidden sm:inline">Evaluation</span>
-                      </div>
-                      <div className="px-2 py-1 text-[8px] sm:text-[9px] font-medium text-[#64748B] hover:bg-white rounded-md flex items-center gap-1.5">
-                        <BarChart3 className="h-3 w-3" />
-                        <span className="hidden sm:inline">Leaderboards</span>
-                      </div>
-                      <div className="px-2 py-1 text-[8px] sm:text-[9px] font-medium text-[#64748B] hover:bg-white rounded-md flex items-center gap-1.5">
-                        <TrophyIcon className="h-3 w-3" />
-                        <span className="hidden sm:inline">Hackathons</span>
-                      </div>
-                      <div className="px-2 py-1 text-[8px] sm:text-[9px] font-medium text-[#64748B] hover:bg-white rounded-md flex items-center gap-1.5">
-                        <Settings className="h-3 w-3" />
-                        <span className="hidden sm:inline">Settings</span>
-                      </div>
-                    </div>
-
-                    {/* Main Content Area */}
-                    <div className="flex-1 p-2 sm:p-3 flex flex-col justify-between space-y-2 overflow-hidden">
-                      
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] sm:text-xs font-bold text-[#0F172A]">
-                          Evaluation Overview
-                        </span>
-                      </div>
-
-                      {/* Top Metric Cards Grid */}
-                      <div className="grid grid-cols-12 gap-2">
-                        
-                        {/* Overall Score Circle Card */}
-                        <div className="col-span-5 bg-white rounded-xl p-2 border border-[#E2E8F0] flex flex-col items-center justify-center text-center shadow-2xs">
-                          <span className="text-[8px] sm:text-[9px] font-bold text-[#64748B]">
-                            Overall Score
-                          </span>
-                          
-                          <div className="relative my-1 flex items-center justify-center">
-                            <svg className="w-12 h-12 sm:w-16 sm:h-16 transform -rotate-90">
-                              <circle
-                                cx="32"
-                                cy="32"
-                                r="24"
-                                stroke="#F1F5F9"
-                                strokeWidth="5"
-                                fill="transparent"
-                              />
-                              <circle
-                                cx="32"
-                                cy="32"
-                                r="24"
-                                stroke="url(#dashboardGradient)"
-                                strokeWidth="5"
-                                strokeDasharray={150.7}
-                                strokeDashoffset={150.7 * (1 - 0.92)}
-                                strokeLinecap="round"
-                                fill="transparent"
-                              />
-                              <defs>
-                                <linearGradient id="dashboardGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                                  <stop offset="0%" stopColor="#4F46E5" />
-                                  <stop offset="50%" stopColor="#6366F1" />
-                                  <stop offset="100%" stopColor="#06B6D4" />
-                                </linearGradient>
-                              </defs>
-                            </svg>
-                            <div className="absolute flex flex-col items-center">
-                              <span className="font-mono text-sm sm:text-base font-extrabold text-[#0F172A]">
-                                92
-                              </span>
-                              <span className="text-[7px] text-[#64748B]">/100</span>
-                            </div>
-                          </div>
-
-                          <span className="text-[8px] font-bold text-[#0F172A]">Excellent</span>
-                          <span className="text-[7px] text-[#64748B]">Top 10% Submissions</span>
-                        </div>
-
-                        {/* Score Breakdown List Card */}
-                        <div className="col-span-7 bg-white rounded-xl p-2 border border-[#E2E8F0] space-y-1 shadow-2xs">
-                          <span className="text-[8px] sm:text-[9px] font-bold text-[#0F172A] block">
-                            Score Breakdown
-                          </span>
-
-                          {[
-                            { name: "Code Quality", val: "18/20", color: "bg-[#2563EB]", width: "90%" },
-                            { name: "Performance", val: "16/20", color: "bg-[#3B82F6]", width: "80%" },
-                            { name: "Accessibility", val: "13/15", color: "bg-[#8B5CF6]", width: "86%" },
-                            { name: "Best Practices", val: "12/15", color: "bg-[#06B6D4]", width: "80%" },
-                            { name: "SEO", val: "8/10", color: "bg-[#0EA5E9]", width: "80%" },
-                            { name: "AI Alignment", val: "18/20", color: "bg-[#6366F1]", width: "90%" },
-                          ].map((item) => (
-                            <div key={item.name} className="space-y-0.5">
-                              <div className="flex justify-between text-[7px] sm:text-[8px]">
-                                <span className="text-[#64748B]">{item.name}</span>
-                                <span className="font-mono font-bold text-[#0F172A]">{item.val}</span>
-                              </div>
-                              <div className="w-full bg-[#F1F5F9] h-1 rounded-full overflow-hidden">
-                                <div className={`h-full ${item.color} rounded-full`} style={{ width: item.width }} />
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Bottom Status Cards Row */}
-                      <div className="grid grid-cols-3 gap-1.5">
-                        <div className="bg-white rounded-lg p-1.5 border border-[#E2E8F0] space-y-0.5">
-                          <div className="text-[7px] sm:text-[8px] text-[#64748B]">Build Status</div>
-                          <div className="text-[9px] sm:text-[10px] font-bold text-[#22C55E]">Passed</div>
-                          <div className="text-[6px] sm:text-[7px] text-[#94A3B8]">All checks successful</div>
-                        </div>
-
-                        <div className="bg-white rounded-lg p-1.5 border border-[#E2E8F0] space-y-0.5">
-                          <div className="text-[7px] sm:text-[8px] text-[#64748B]">Security Scan</div>
-                          <div className="text-[9px] sm:text-[10px] font-bold text-[#F97316]">No Issues</div>
-                          <div className="text-[6px] sm:text-[7px] text-[#94A3B8]">0 vulnerabilities found</div>
-                        </div>
-
-                        <div className="bg-white rounded-lg p-1.5 border border-[#E2E8F0] space-y-0.5">
-                          <div className="text-[7px] sm:text-[8px] text-[#64748B]">Lighthouse Score</div>
-                          <div className="text-[9px] sm:text-[10px] font-bold text-[#06B6D4]">96</div>
-                          <div className="text-[6px] sm:text-[7px] text-[#94A3B8]">Performance - 96%</div>
-                        </div>
-                      </div>
-
-                    </div>
-                  </div>
-
-                </div>
               </div>
             </motion.div>
 
-            {/* FLOATING GLASS CARDS (Matching Reference Image) */}
+            {/* FLOATING GLASS CARDS */}
 
             {/* Floating Card 1: Clean Code / AI Powered (Top Left) */}
             <motion.div
@@ -478,7 +289,7 @@ export function HeroSection() {
           </div>
         </div>
 
-        {/* BOTTOM HERO STATS CONTAINER (Matching Reference Image) */}
+        {/* BOTTOM HERO STATS CONTAINER */}
         <motion.div
           initial={{ opacity: 0, y: 25 }}
           whileInView={{ opacity: 1, y: 0 }}
