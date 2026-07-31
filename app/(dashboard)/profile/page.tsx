@@ -29,6 +29,25 @@ import { EmptyState } from "@/components/design-system/EmptyState";
 
 export default function ProfilePage() {
   const { user, updateUserProfile } = useUser();
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        alert("Image size should be less than 5MB");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64Image = reader.result as string;
+        updateUserProfile({ avatarUrl: base64Image });
+        setSavedSuccess(true);
+        setTimeout(() => setSavedSuccess(false), 3000);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
 
   const [isEditing, setIsEditing] = useState(false);
   const [fullName, setFullName] = useState("");
@@ -123,15 +142,39 @@ export default function ProfilePage() {
             {/* Top Row: Avatar & Public View CTA */}
             <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4">
               <div className="relative -mt-20">
-                <div className="relative flex h-28 w-28 items-center justify-center rounded-full bg-[#FF006E] text-white font-heading font-bold text-3xl ring-4 ring-white shadow-md">
-                  {user?.firstName?.charAt(0) || "U"}
-                  {user?.lastName?.charAt(0) || ""}
+                <div
+                  onClick={() => fileInputRef.current?.click()}
+                  className="relative flex h-28 w-28 items-center justify-center rounded-full bg-[#FF006E] text-white font-heading font-bold text-3xl ring-4 ring-white shadow-md overflow-hidden cursor-pointer group"
+                >
+                  {user?.avatarUrl ? (
+                    <img src={user.avatarUrl} alt={user?.fullName || "Avatar"} className="h-full w-full rounded-full object-cover" />
+                  ) : (
+                    <>
+                      {user?.firstName?.charAt(0) || "U"}
+                      {user?.lastName?.charAt(0) || ""}
+                    </>
+                  )}
+                  <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-full">
+                    <Camera className="h-6 w-6 text-white" />
+                  </div>
                   <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      fileInputRef.current?.click();
+                    }}
                     aria-label="Upload profile photo"
-                    className="absolute bottom-0 right-0 flex h-8 w-8 items-center justify-center rounded-full bg-[#0F172A] text-white ring-2 ring-white hover:bg-[#FF006E] transition-all"
+                    className="absolute bottom-0 right-0 flex h-8 w-8 items-center justify-center rounded-full bg-[#0F172A] text-white ring-2 ring-white hover:bg-[#FF006E] transition-all shadow-md z-10"
                   >
                     <Camera className="h-4 w-4" />
                   </button>
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleImageUpload}
+                    accept="image/*"
+                    className="hidden"
+                  />
                 </div>
               </div>
 

@@ -78,9 +78,15 @@ export default function ParticipantDashboardPage() {
           {/* Left Column (User Card + Stats) */}
           <div className="lg:col-span-1 space-y-6">
             <Card className="relative -mt-14 p-5 space-y-4 text-center border-[#E2E8F0] shadow-sm bg-white rounded-2xl">
-              <div className="relative mx-auto h-20 w-20 rounded-full bg-[#FF006E] text-white font-heading font-bold text-2xl flex items-center justify-center shadow-md ring-4 ring-white">
-                {user?.firstName?.charAt(0) || "A"}
-                {user?.lastName?.charAt(0) || "U"}
+              <div className="relative mx-auto h-20 w-20 rounded-full bg-[#FF006E] text-white font-heading font-bold text-2xl flex items-center justify-center shadow-md ring-4 ring-white overflow-hidden">
+                {user?.avatarUrl ? (
+                  <img src={user.avatarUrl} alt={user?.fullName || "User"} className="h-full w-full object-cover rounded-full" />
+                ) : (
+                  <>
+                    {user?.firstName?.charAt(0) || "A"}
+                    {user?.lastName?.charAt(0) || "U"}
+                  </>
+                )}
                 <span className="absolute bottom-0 right-0 h-4 w-4 rounded-full bg-[#22C55E] ring-2 ring-white" />
               </div>
 

@@ -16,6 +16,7 @@ export interface AuthContextType {
   signInWithGoogle: (credential: string) => Promise<UserProfile>;
   signUp: (data: SignUpData) => Promise<UserProfile>;
   signOut: () => Promise<void>;
+  updateUserProfile: (updates: Partial<UserProfile>) => UserProfile | null;
   hasRole: (role: UserRole) => boolean;
 }
 
@@ -87,6 +88,20 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const updateUserProfile = (updates: Partial<UserProfile>) => {
+    if (!user) return null;
+    const updatedUser: UserProfile = {
+      ...user,
+      ...updates,
+      fullName: updates.firstName && updates.lastName
+        ? `${updates.firstName} ${updates.lastName}`
+        : updates.firstName ? updates.firstName : user.fullName,
+    };
+    AuthService.setStoredUser(updatedUser);
+    setUser(updatedUser);
+    return updatedUser;
+  };
+
   const hasRole = (role: UserRole) => {
     return AuthService.hasRole(user, role);
   };
@@ -102,6 +117,7 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
         signInWithGoogle,
         signUp,
         signOut,
+        updateUserProfile,
         hasRole,
       }}
     >

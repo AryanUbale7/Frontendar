@@ -1,6 +1,6 @@
 "use client";
 
-import { useContext, useState, useEffect } from "react";
+import { useContext, useState } from "react";
 import { AuthContext } from "@/app/providers";
 import { UserProfile, UserRole, SignInData, SignUpData } from "@/types/auth";
 import { AuthService } from "@/lib/auth/auth-service";
@@ -59,6 +59,19 @@ export function useAuth() {
       } finally {
         setLocalLoading(false);
       }
+    },
+    updateUserProfile: (updates: Partial<UserProfile>) => {
+      if (!localUser) return null;
+      const updatedUser: UserProfile = {
+        ...localUser,
+        ...updates,
+        fullName: updates.firstName && updates.lastName
+          ? `${updates.firstName} ${updates.lastName}`
+          : updates.firstName ? updates.firstName : localUser.fullName,
+      };
+      AuthService.setStoredUser(updatedUser);
+      setLocalUser(updatedUser);
+      return updatedUser;
     },
     hasRole: (role: UserRole) => AuthService.hasRole(localUser, role),
   };

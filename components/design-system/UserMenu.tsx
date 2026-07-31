@@ -41,9 +41,15 @@ export function UserMenu() {
           aria-label="User Profile Menu"
           className="relative flex items-center gap-2.5 rounded-full p-1 transition-all hover:ring-2 hover:ring-[#2563EB]/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]"
         >
-          <div className="relative flex h-9 w-9 items-center justify-center rounded-full bg-[#2563EB] text-white font-heading font-semibold text-xs shadow-sm">
-            {user.firstName.charAt(0)}
-            {user.lastName.charAt(0)}
+          <div className="relative flex h-9 w-9 items-center justify-center rounded-full bg-[#FF006E] text-white font-heading font-semibold text-xs shadow-sm overflow-hidden ring-2 ring-white">
+            {user.avatarUrl ? (
+              <img src={user.avatarUrl} alt={user.fullName} className="h-full w-full object-cover rounded-full" />
+            ) : (
+              <>
+                {user.firstName.charAt(0)}
+                {user.lastName.charAt(0)}
+              </>
+            )}
             <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-[#22C55E] ring-2 ring-white" />
           </div>
         </button>
