@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
 import { motion } from "framer-motion";
 import {
   Code2,
@@ -9,13 +9,12 @@ import {
   Globe,
   Lightbulb,
   Users,
-  ArrowRight,
   ChevronLeft,
   ChevronRight,
+  Zap,
 } from "lucide-react";
-import { Card, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { WHAT_WE_ORGANIZE } from "@/constants/landing-data";
 
 const ICON_MAP: Record<string, React.ElementType> = {
@@ -27,8 +26,19 @@ const ICON_MAP: Record<string, React.ElementType> = {
   Users,
 };
 
+const EXTRA_METRICS: Record<string, string> = {
+  "org-1": "⚡ 50+ Web Sprints",
+  "org-2": "🤖 Agentic LLM Pipelines",
+  "org-3": "🎨 Pixel-Perfect Tokens",
+  "org-4": "🌐 Cloud & API Infrastructure",
+  "org-5": "💡 Cash Prize Bounties",
+  "org-6": "👥 500+ Active Builders",
+};
+
 export function WhatWeOrganizeSection() {
-  const [activeIndex, setActiveIndex] = useState(1); // Center on 2nd card by default
+  const [activeIndex, setActiveIndex] = useState(1);
+  const isScrollingRef = useRef(false);
+  const touchStartX = useRef<number | null>(null);
 
   const handleNext = () => {
     setActiveIndex((prev) => (prev + 1) % WHAT_WE_ORGANIZE.length);
@@ -38,8 +48,39 @@ export function WhatWeOrganizeSection() {
     setActiveIndex((prev) => (prev - 1 + WHAT_WE_ORGANIZE.length) % WHAT_WE_ORGANIZE.length);
   };
 
+  // Mouse wheel scroll handler
+  const handleWheel = (e: React.WheelEvent) => {
+    if (isScrollingRef.current) return;
+    if (Math.abs(e.deltaX) > 20 || Math.abs(e.deltaY) > 20) {
+      isScrollingRef.current = true;
+      if (e.deltaY > 0 || e.deltaX > 0) {
+        handleNext();
+      } else {
+        handlePrev();
+      }
+      setTimeout(() => {
+        isScrollingRef.current = false;
+      }, 400);
+    }
+  };
+
+  // Touch swipe handlers
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.touches[0].clientX;
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX.current === null) return;
+    const diffX = touchStartX.current - e.changedTouches[0].clientX;
+    if (Math.abs(diffX) > 40) {
+      if (diffX > 0) handleNext();
+      else handlePrev();
+    }
+    touchStartX.current = null;
+  };
+
   return (
-    <section id="what-we-organize" className="py-16 md:py-24 bg-[#F8FAFC] overflow-hidden">
+    <section id="what-we-organize" className="py-16 md:py-24 bg-[#F8FAFC] overflow-hidden select-none">
       <div className="mx-auto max-w-7xl px-4 md:px-6 space-y-12">
         {/* Section Header */}
         <div className="text-center space-y-3 max-w-3xl mx-auto">
@@ -53,10 +94,19 @@ export function WhatWeOrganizeSection() {
             From 48-hour hackathon sprints to month-long innovation challenges, explore
             our official developer competitions.
           </p>
+          <span className="inline-flex items-center gap-1.5 text-xs text-[#94A3B8] font-medium pt-1">
+            <Zap className="h-3.5 w-3.5 text-[#FF006E]" />
+            Use mouse wheel or drag to navigate cards
+          </span>
         </div>
 
-        {/* 3D Coverflow Carousel Container matching paper sketch */}
-        <div className="relative w-full py-4 flex flex-col items-center justify-center min-h-[420px]">
+        {/* 3D Coverflow Carousel Container with Wheel & Touch Listeners */}
+        <div
+          onWheel={handleWheel}
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+          className="relative w-full py-4 flex flex-col items-center justify-center min-h-[420px]"
+        >
           {/* Navigation Arrows */}
           <button
             onClick={handlePrev}
@@ -76,7 +126,7 @@ export function WhatWeOrganizeSection() {
 
           {/* 3D Cards Stage */}
           <div
-            className="relative w-full max-w-5xl h-[380px] flex items-center justify-center"
+            className="relative w-full max-w-5xl h-[360px] flex items-center justify-center"
             style={{ perspective: "1100px" }}
           >
             {WHAT_WE_ORGANIZE.map((item, idx) => {
@@ -93,10 +143,10 @@ export function WhatWeOrganizeSection() {
 
               if (!isVisible) return null;
 
-              // Transforms according to paper diagram depth perspective
-              const xOffset = offset * 230; // Horizontal offset px
+              // Transforms according to depth perspective
+              const xOffset = offset * 230;
               const scale = isActive ? 1 : Math.abs(offset) === 1 ? 0.86 : 0.72;
-              const rotateY = offset * -16; // 3D Y rotation
+              const rotateY = offset * -16;
               const zIndex = 30 - Math.abs(offset) * 10;
               const opacity = isActive ? 1 : Math.abs(offset) === 1 ? 0.85 : 0.55;
 
@@ -116,7 +166,7 @@ export function WhatWeOrganizeSection() {
                     stiffness: 260,
                     damping: 25,
                   }}
-                  className={`absolute w-[290px] sm:w-[330px] cursor-pointer select-none transition-shadow ${
+                  className={`absolute w-[290px] sm:w-[340px] cursor-pointer transition-shadow ${
                     isActive ? "drop-shadow-2xl" : "drop-shadow-md"
                   }`}
                   style={{
@@ -124,53 +174,58 @@ export function WhatWeOrganizeSection() {
                   }}
                 >
                   <Card
-                    className={`h-[350px] flex flex-col justify-between rounded-2xl border transition-all duration-300 ${
+                    className={`h-[330px] flex flex-col justify-between rounded-3xl border overflow-hidden transition-all duration-300 ${
                       isActive
-                        ? "border-[#FF006E] bg-white ring-4 ring-[#FF006E]/15 shadow-xl"
+                        ? "border-[#FF006E] bg-white ring-4 ring-[#FF006E]/15 shadow-2xl"
                         : "border-[#E2E8F0] bg-white/95 hover:border-[#0F172A]/30"
                     }`}
                   >
-                    <CardHeader className="space-y-4 p-6">
+                    {/* Top Decorative Gradient Line */}
+                    <div
+                      className={`h-1.5 w-full bg-gradient-to-r ${
+                        isActive
+                          ? "from-[#FF006E] via-[#FF8A00] to-[#FFD60A]"
+                          : "from-[#CBD5E1] to-[#E2E8F0]"
+                      }`}
+                    />
+
+                    <CardHeader className="space-y-5 p-6 flex-1 flex flex-col justify-between">
                       <div className="flex items-center justify-between">
-                        <div className="flex h-12 w-12 items-center justify-center rounded-[14px] bg-gradient-to-br from-[#FF006E] to-[#FFD60A] text-white shadow-md">
-                          <Icon className="h-6 w-6 text-white" />
+                        <div
+                          className={`flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-[#FF006E] to-[#FFD60A] text-white shadow-lg transition-transform duration-300 ${
+                            isActive ? "scale-105 shadow-[#FF006E]/30" : ""
+                          }`}
+                        >
+                          <Icon className="h-7 w-7 text-white" />
                         </div>
                         <Badge
                           variant={isActive ? "solid" : "outline"}
                           size="sm"
-                          className={isActive ? "bg-[#FF006E] text-white" : ""}
+                          className={isActive ? "bg-[#FF006E] text-white font-bold" : "text-[#475569]"}
                         >
                           {item.tag}
                         </Badge>
                       </div>
 
-                      <CardTitle className="text-xl font-bold text-[#0F172A]">
-                        {item.title}
-                      </CardTitle>
-                      <CardDescription className="text-sm leading-relaxed text-[#475569] line-clamp-3">
-                        {item.description}
-                      </CardDescription>
-                    </CardHeader>
+                      <div className="space-y-2">
+                        <CardTitle className="text-xl font-bold text-[#0F172A] tracking-tight">
+                          {item.title}
+                        </CardTitle>
+                        <CardDescription className="text-sm leading-relaxed text-[#475569] line-clamp-3">
+                          {item.description}
+                        </CardDescription>
+                      </div>
 
-                    <CardFooter className="p-6 pt-0">
-                      <Button
-                        asChild
-                        variant={isActive ? "default" : "outline"}
-                        className={`w-full ${
-                          isActive
-                            ? "bg-[#0F172A] hover:bg-[#FF006E] text-white"
-                            : "hover:bg-[#F8FAFC]"
-                        }`}
-                      >
-                        <a
-                          href="#featured-hackathons"
-                          className="flex items-center justify-between w-full"
-                        >
-                          <span>Explore {item.title}</span>
-                          <ArrowRight className="h-4 w-4" />
-                        </a>
-                      </Button>
-                    </CardFooter>
+                      {/* Bottom Metric Badge */}
+                      <div className="pt-2 border-t border-[#F1F5F9] flex items-center justify-between">
+                        <span className="text-xs font-semibold text-[#0F172A]">
+                          {EXTRA_METRICS[item.id] || "⭐ Official Arena Track"}
+                        </span>
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-[#FF006E]">
+                          {isActive ? "Active View" : "Click to view"}
+                        </span>
+                      </div>
+                    </CardHeader>
                   </Card>
                 </motion.div>
               );
