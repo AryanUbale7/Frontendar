@@ -11,10 +11,12 @@
   "dependencies": {
     "@prisma/adapter-pg": "^7.9.1",
     "@prisma/client": "^6.2.0",
+    "bullmq": "^6.0.2",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",
     "google-auth-library": "^10.9.1",
+    "ioredis": "^6.0.0",
     "jsonwebtoken": "^9.0.2",
     "pg": "^8.11.5",
     "prisma": "^6.2.0",

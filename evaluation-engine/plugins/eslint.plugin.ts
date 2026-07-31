@@ -1,3 +1,4 @@
+import { execSync } from "child_process";
 import * as fs from "fs";
 import * as path from "path";
 import { IEvaluationPlugin, AuditResult } from "./plugin.interface";
@@ -14,31 +15,66 @@ export class EslintPlugin implements IEvaluationPlugin {
     const maxScore = 20;
 
     try {
-      // 1. Check for ESLint configuration files
-      const eslintFiles = [
-        "eslint.config.mjs",
-        "eslint.config.js",
-        ".eslintrc.json",
-        ".eslintrc.js",
-        ".eslintrc"
-      ];
+      // 1. ESLint Real CLI Execution & JSON Parsing
+      let totalLintErrors = 0;
+      let totalLintWarnings = 0;
 
-      let hasConfig = false;
-      for (const f of eslintFiles) {
-        if (fs.existsSync(path.join(workspacePath, f))) {
-          hasConfig = true;
-          evidence.push(`Found ESLint configuration: ${f}`);
-          break;
+      try {
+        const eslintOutput = execSync(`npx -y eslint "${workspacePath}" --format json`, {
+          timeout: 10000,
+          maxBuffer: 10 * 1024 * 1024,
+          encoding: "utf-8",
+        });
+        const parsed = JSON.parse(eslintOutput);
+        if (Array.isArray(parsed)) {
+          parsed.forEach((item) => {
+            totalLintErrors += item.errorCount || 0;
+            totalLintWarnings += item.warningCount || 0;
+          });
+        }
+      } catch (err: any) {
+        if (err.stdout) {
+          try {
+            const parsed = JSON.parse(err.stdout);
+            if (Array.isArray(parsed)) {
+              parsed.forEach((item) => {
+                totalLintErrors += item.errorCount || 0;
+                totalLintWarnings += item.warningCount || 0;
+              });
+            }
+          } catch {}
         }
       }
 
-      if (!hasConfig) {
-        warnings.push("ESLint configuration file is missing in workspace root.");
-        recommendations.push("Add an eslint config file (e.g. eslint.config.mjs) to enforce code style linting.");
-        score -= 4;
+      evidence.push(`Real ESLint Audit Results: ${totalLintErrors} errors, ${totalLintWarnings} warnings detected.`);
+
+      if (totalLintErrors > 0) {
+        warnings.push(`ESLint static check found ${totalLintErrors} syntax/rule error(s).`);
+        score -= Math.min(6, totalLintErrors);
       }
 
-      // 2. Scan code files for TS usage ratio
+      // 2. TypeScript Compiler Real CLI Execution (tsc --noEmit)
+      let tsErrorsCount = 0;
+      const tsconfigPath = path.join(workspacePath, "tsconfig.json");
+
+      if (fs.existsSync(tsconfigPath)) {
+        evidence.push("Found tsconfig.json file in root workspace.");
+        try {
+          execSync(`npx -y tsc --noEmit --project "${workspacePath}"`, { timeout: 10000, stdio: "pipe" });
+          evidence.push("TypeScript Compiler API Check: 0 type errors detected (Clean build!).");
+        } catch (tscErr: any) {
+          const tscLogs = String(tscErr.stdout || tscErr.stderr || "");
+          const matches = tscLogs.match(/error TS\d+/g);
+          tsErrorsCount = matches ? matches.length : 1;
+          warnings.push(`TypeScript Compiler API Check: Detected ${tsErrorsCount} type/syntax error(s).`);
+          score -= Math.min(5, tsErrorsCount);
+        }
+      } else {
+        warnings.push("tsconfig.json configuration file missing.");
+        score -= 3;
+      }
+
+      // 3. Scan code files for TS usage ratio and comment density
       let tsFilesCount = 0;
       let jsFilesCount = 0;
       let totalLinesCount = 0;
@@ -54,19 +90,22 @@ export class EslintPlugin implements IEvaluationPlugin {
           return;
         }
 
-        const lines = fs.readFileSync(filePath, "utf-8").split("\n");
-        totalLinesCount += lines.length;
-        for (const line of lines) {
-          if (line.trim().startsWith("//") || line.trim().startsWith("/*") || line.trim().startsWith("*")) {
-            commentsLinesCount++;
+        try {
+          const lines = fs.readFileSync(filePath, "utf-8").split("\n");
+          totalLinesCount += lines.length;
+          for (const line of lines) {
+            if (line.trim().startsWith("//") || line.trim().startsWith("/*") || line.trim().startsWith("*")) {
+              commentsLinesCount++;
+            }
           }
-        }
+        } catch {}
       };
 
       const walk = (dir: string) => {
+        if (!fs.existsSync(dir)) return;
         const files = fs.readdirSync(dir);
         for (const file of files) {
-          if (file === "node_modules" || file === ".git" || file === ".next" || file === "dist") continue;
+          if (file === "node_modules" || file === ".git" || file === ".next" || file === "dist" || file === "build") continue;
           const fullPath = path.join(dir, file);
           if (fs.statSync(fullPath).isDirectory()) {
             walk(fullPath);
@@ -76,30 +115,17 @@ export class EslintPlugin implements IEvaluationPlugin {
         }
       };
 
-      if (fs.existsSync(workspacePath)) {
-        walk(workspacePath);
-      }
+      walk(workspacePath);
 
       const totalSourceFiles = tsFilesCount + jsFilesCount;
       if (totalSourceFiles > 0) {
         const tsPercent = Math.round((tsFilesCount / totalSourceFiles) * 100);
-        evidence.push(`Source files found: ${totalSourceFiles} (TypeScript: ${tsPercent}%, JavaScript: ${100 - tsPercent}%).`);
-        
-        if (tsPercent < 80) {
-          warnings.push(`Low TypeScript usage (${tsPercent}%). The blueprint prefers TypeScript.`);
-          score -= 3;
-        }
+        evidence.push(`Source files metrics: ${totalSourceFiles} files (TypeScript: ${tsPercent}%, JavaScript: ${100 - tsPercent}%).`);
       }
 
       if (totalLinesCount > 0) {
         const commentsDensity = Math.round((commentsLinesCount / totalLinesCount) * 100);
-        evidence.push(`Codebase line metrics: Total lines: ${totalLinesCount}, Comment lines: ${commentsLinesCount} (Density: ${commentsDensity}%).`);
-        
-        if (commentsDensity < 5) {
-          warnings.push(`Low comments density (${commentsDensity}%). Code might be harder to audit.`);
-          recommendations.push("Provide descriptive block comments on core helper hooks and components.");
-          score -= 2;
-        }
+        evidence.push(`Codebase line metrics: Total lines: ${totalLinesCount}, Comment density: ${commentsDensity}%.`);
       }
 
     } catch (e: any) {

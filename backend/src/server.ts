@@ -271,21 +271,54 @@ app.post("/api/registrations", async (req: Request, res: Response) => {
   }
 });
 
-// Update registration status (shortlisted, rejected, approved)
-app.put("/api/registrations/:id", async (req: Request, res: Response) => {
-  const { id } = req.params;
-  const { status } = req.body;
-  if (!status) {
-    return res.status(400).json({ error: "Missing status field." });
+// PostgreSQL-backed Hackathon Leaderboard Endpoint
+app.get("/api/hackathons/:hackathonId/leaderboard", async (req: Request, res: Response) => {
+  const { hackathonId } = req.params;
+  if (!hackathonId) {
+    return res.status(400).json({ error: "Missing hackathonId parameter." });
   }
+
   try {
-    const updated = await prisma.registration.update({
-      where: { id },
-      data: { status }
+    const submissions = await prisma.submission.findMany({
+      where: { hackathonId },
+      orderBy: [
+        { score: "desc" },
+        { updatedAt: "asc" }
+      ],
+      select: {
+        id: true,
+        hackathonId: true,
+        userId: true,
+        projectName: true,
+        repoUrl: true,
+        deploymentUrl: true,
+        score: true,
+        grade: true,
+        status: true,
+        updatedAt: true,
+      }
     });
-    res.json(updated);
+
+    const rankedLeaderboard = submissions.map((sub, idx) => ({
+      rank: idx + 1,
+      submissionId: sub.id,
+      participantId: sub.userId,
+      projectName: sub.projectName,
+      repoUrl: sub.repoUrl,
+      deploymentUrl: sub.deploymentUrl,
+      score: sub.score ?? 0,
+      grade: sub.grade || (sub.score && sub.score >= 75 ? "PASSED" : "FAILED"),
+      status: sub.status,
+      timestamp: sub.updatedAt
+    }));
+
+    res.json({
+      hackathonId,
+      totalEntries: rankedLeaderboard.length,
+      leaderboard: rankedLeaderboard
+    });
   } catch (err: any) {
-    res.status(500).json({ error: "Failed to update registration status: " + err.message });
+    res.status(500).json({ error: "Failed to fetch PostgreSQL leaderboard: " + err.message });
   }
 });
 
