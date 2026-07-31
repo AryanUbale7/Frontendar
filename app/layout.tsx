@@ -39,7 +39,7 @@ export default function RootLayout({
       lang="en"
       className={`${sora.variable} ${inter.variable} ${jetbrainsMono.variable}`}
     >
-      <body className="min-h-screen bg-[#FCFCFD] text-[#64748B] font-body antialiased">
+      <body className="min-h-screen bg-[#0A0E1A] text-[#E2E8F0] font-body antialiased">
         <Providers>{children}</Providers>
       </body>
     </html>

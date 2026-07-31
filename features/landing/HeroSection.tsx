@@ -1,339 +1,82 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
-import Image from "next/image";
-import { motion, useInView } from "framer-motion";
-import {
-  ArrowUpRight,
-  Play,
-  ShieldCheck,
-  Zap,
-  Users,
-  Code2,
-  Award as TrophyIcon,
-} from "lucide-react";
-
-// Count up animation component
-function CountUp({
-  end,
-  duration = 2,
-  decimals = 0,
-  prefix = "",
-  suffix = "",
-}: {
-  end: number;
-  duration?: number;
-  decimals?: number;
-  prefix?: string;
-  suffix?: string;
-}) {
-  const [count, setCount] = useState(0);
-  const ref = React.useRef<HTMLSpanElement>(null);
-  const isInView = useInView(ref, { once: true, margin: "-50px" });
-
-  useEffect(() => {
-    if (!isInView) return;
-    let startTime: number | null = null;
-    let animationFrame: number;
-
-    const step = (timestamp: number) => {
-      if (!startTime) startTime = timestamp;
-      const progress = Math.min((timestamp - startTime) / (duration * 1000), 1);
-      const easeOut = 1 - Math.pow(1 - progress, 3);
-      setCount(easeOut * end);
-
-      if (progress < 1) {
-        animationFrame = requestAnimationFrame(step);
-      }
-    };
-
-    animationFrame = requestAnimationFrame(step);
-    return () => cancelAnimationFrame(animationFrame);
-  }, [isInView, end, duration]);
-
-  return (
-    <span ref={ref} className="font-mono">
-      {prefix}
-      {count.toFixed(decimals)}
-      {suffix}
-    </span>
-  );
-}
+import React from "react";
+import Link from "next/link";
+import { motion } from "framer-motion";
+import { ArrowRight, Users } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 
 export function HeroSection() {
   return (
-    <section
-      id="hero"
-      className="relative min-h-screen pt-20 pb-8 md:pt-24 md:pb-12 overflow-hidden bg-[#FCFCFD]"
-    >
-      {/* Background Soft Glow Blobs */}
-      <div className="absolute top-[-5%] left-[-5%] w-[600px] h-[600px] bg-gradient-to-br from-[#4F46E5]/08 via-[#6366F1]/05 to-transparent rounded-full blur-[140px] pointer-events-none" />
-      <div className="absolute top-[25%] right-[-5%] w-[650px] h-[650px] bg-gradient-to-bl from-[#8B5CF6]/08 via-[#F97316]/06 to-transparent rounded-full blur-[160px] pointer-events-none" />
+    <section id="hero" className="relative py-16 md:py-28 overflow-hidden bg-gradient-to-b from-[#FFF2F7] via-[#FFFBEB] to-[#F8FAFC]">
+      {/* Background Decorative Gradients/Blobs */}
+      <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-gradient-to-tr from-[#FF006E]/12 to-transparent rounded-full blur-[120px] pointer-events-none" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-gradient-to-bl from-[#FFD60A]/25 to-transparent rounded-full blur-[120px] pointer-events-none" />
+      
+      {/* Decorative Grid Pattern */}
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,#FF006E/[0.03]_1px,transparent_1px),linear-gradient(to_bottom,#FF006E/[0.03]_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_30%,#000_70%,transparent_100%)] pointer-events-none" />
 
-      {/* Decorative Grid & Dot Patterns */}
-      <div className="absolute inset-0 bg-grid-pattern opacity-40 pointer-events-none" />
-      <div className="absolute inset-0 bg-dot-pattern opacity-30 pointer-events-none" />
+      <div className="relative z-10 mx-auto max-w-7xl px-4 md:px-6">
+        {/* Hero Header */}
+        <div className="flex flex-col items-center text-center space-y-6 max-w-4xl mx-auto">
 
-      <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-        
-        {/* Main 45% / 55% Desktop Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center">
-          
-          {/* LEFT CONTENT (45% -> 5 cols on lg) */}
-          <div className="lg:col-span-5 flex flex-col space-y-7 text-left">
-            
-            {/* Small Badge */}
-            <motion.div
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-              className="inline-flex items-center"
-            >
-              <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-[#EEF2FF] border border-[#E0E7FF] text-xs font-semibold text-[#4F46E5] shadow-xs">
-                <span className="text-sm">🚀</span>
-                <span className="font-heading font-bold">
-                  Automated. Transparent. Fair.
-                </span>
-              </div>
-            </motion.div>
 
-            {/* Headline (Compact & Sleek) */}
-            <motion.div
-              initial={{ opacity: 0, y: 15 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.1 }}
-            >
-              <h1 className="font-heading text-3xl sm:text-4xl lg:text-[42px] font-extrabold text-[#0F172A] tracking-tight leading-[1.2]">
-                Build. <span className="animate-hero-gradient-text">Compete.</span>
-                <br />
-                Get Evaluated. <span className="animate-hero-gradient-text">Automatically.</span>
-              </h1>
-            </motion.div>
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4 }}
+            className="flex flex-wrap items-center justify-center gap-2"
+          >
+            <Badge variant="accent" size="md" dot className="bg-[#FFD60A] text-[#0F172A] border-[#FFD60A] font-bold">
+              Official Developer Community
+            </Badge>
+          </motion.div>
 
-            {/* Subtitle */}
-            <motion.p
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.2 }}
-              className="text-base sm:text-lg text-[#64748B] leading-relaxed max-w-xl font-normal"
-            >
-              Frontend Arena is a next-generation hackathon platform featuring
-              automated code evaluation, AI-assisted problem alignment, transparent
-              scoring, enterprise-grade reports, and real-time leaderboards.
-            </motion.p>
+          {/* Headline */}
+          <motion.h1
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+            className="font-heading text-4xl sm:text-5xl lg:text-6xl font-extrabold tracking-tight text-[#0F172A] leading-[1.15]"
+          >
+            Build. Compete.{" "}
+            <span className="bg-gradient-to-r from-[#FF006E] to-[#FFD60A] bg-clip-text text-transparent">
+              Innovate.
+            </span>
+          </motion.h1>
 
-            {/* Buttons */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.3 }}
-              className="flex flex-wrap items-center gap-4 pt-1"
-            >
-              {/* Primary Button */}
-              <motion.div whileHover={{ y: -2, scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                <a
-                  href="#featured-hackathons"
-                  className="inline-flex items-center gap-2 px-7 py-3.5 rounded-xl bg-[#4F46E5] hover:bg-[#4338CA] text-white font-heading font-bold text-sm shadow-md shadow-[#4F46E5]/25 transition-all"
-                >
-                  <span>Explore Hackathons</span>
-                  <ArrowUpRight className="h-4 w-4" />
-                </a>
-              </motion.div>
+          {/* Subheading */}
+          <motion.p
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+            className="text-base sm:text-lg text-[#475569] max-w-3xl leading-relaxed"
+          >
+            Join Frontend Arena and participate in premium hackathons, innovation challenges and developer events designed to help you build real-world projects, showcase your skills and grow with the community.
+          </motion.p>
 
-              {/* Secondary Button */}
-              <motion.div whileHover={{ y: -2, scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                <a
-                  href="#demo"
-                  className="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl bg-white border border-[#E2E8F0] text-[#0F172A] font-heading font-semibold text-sm shadow-xs hover:bg-[#F8FAFC] hover:border-[#CBD5E1] transition-all"
-                >
-                  <div className="flex h-5 w-5 items-center justify-center rounded-full bg-[#EEF2FF] text-[#4F46E5]">
-                    <Play className="h-3 w-3 fill-current ml-0.5" />
-                  </div>
-                  <span>Watch Demo</span>
-                </a>
-              </motion.div>
-            </motion.div>
-
-            {/* Trust Indicators */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.4 }}
-              className="pt-3 flex items-center gap-3.5"
-            >
-              <div className="flex -space-x-2 overflow-hidden">
-                <img
-                  className="inline-block h-8 w-8 rounded-full ring-2 ring-white object-cover"
-                  src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80"
-                  alt="Developer"
-                />
-                <img
-                  className="inline-block h-8 w-8 rounded-full ring-2 ring-white object-cover"
-                  src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80"
-                  alt="Developer"
-                />
-                <img
-                  className="inline-block h-8 w-8 rounded-full ring-2 ring-white object-cover"
-                  src="https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&auto=format&fit=crop&q=80"
-                  alt="Developer"
-                />
-                <img
-                  className="inline-block h-8 w-8 rounded-full ring-2 ring-white object-cover"
-                  src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&auto=format&fit=crop&q=80"
-                  alt="Developer"
-                />
-                <div className="inline-block h-8 w-8 rounded-full ring-2 ring-white bg-[#4F46E5] text-white text-[10px] font-bold flex items-center justify-center">
-                  +2K
-                </div>
-              </div>
-
-              <div className="text-xs text-[#64748B]">
-                Trusted by <span className="font-bold text-[#0F172A]">5000+</span> developers and students
-              </div>
-            </motion.div>
-          </div>
-
-          {/* RIGHT CONTENT: SIGNIFICANTLY LARGER LAPTOP */}
-          <div className="lg:col-span-7 relative flex items-center justify-center mt-6 lg:mt-0 py-6">
-            
-            {/* Ambient Background Wave Accent */}
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-              <div className="w-[110%] h-[100%] rounded-full bg-gradient-to-tr from-[#8B5CF6]/18 via-[#4F46E5]/12 to-[#F97316]/12 blur-[130px] transform rotate-6" />
-            </div>
-
-            {/* SIGNIFICANTLY LARGER LAPTOP CONTAINER */}
-            <div className="relative z-20 w-full scale-105 sm:scale-115 md:scale-125 lg:scale-130 xl:scale-135 transform origin-center transition-transform py-2">
-              {/* Drop Shadow underneath */}
-              <div className="absolute -bottom-8 left-[4%] right-[4%] h-14 bg-black/18 blur-2xl rounded-full pointer-events-none" />
-
-              {/* LOQ Laptop Image */}
-              <div className="relative w-full h-auto">
-                <Image
-                  src="/images/LOQ.png"
-                  alt="Frontend Arena LOQ Laptop"
-                  width={1800}
-                  height={1150}
-                  priority
-                  quality={100}
-                  sizes="(max-width:768px) 100vw, 75vw"
-                  className="w-full h-auto object-contain select-none pointer-events-none drop-shadow-2xl"
-                />
-              </div>
-            </div>
-
-            {/* GLASS CARDS (STATIC STEADY / NO MOVING FLOATING EFFECT) */}
-
-            {/* Card 1: Clean Code (Top Left) */}
-            <div className="absolute top-2 left-0 sm:left-2 z-30 pointer-events-none hidden sm:block">
-              <div className="px-4 py-3 rounded-2xl bg-white/95 backdrop-blur-md border border-[#E2E8F0] shadow-lg flex flex-col items-center text-center space-y-1">
-                <div className="h-9 w-9 rounded-xl bg-[#EEF2FF] text-[#4F46E5] flex items-center justify-center">
-                  <Code2 className="h-5 w-5" />
-                </div>
-                <div className="text-xs font-bold text-[#0F172A] font-heading">Clean Code</div>
-                <div className="text-[10px] text-[#64748B]">AI Analyzed</div>
-              </div>
-            </div>
-
-            {/* Card 2: Secure (Top Right) */}
-            <div className="absolute top-4 right-0 sm:right-2 z-30 pointer-events-none hidden sm:block">
-              <div className="px-4 py-3 rounded-2xl bg-white/95 backdrop-blur-md border border-[#E2E8F0] shadow-lg flex flex-col items-center text-center space-y-1">
-                <div className="h-9 w-9 rounded-xl bg-[#EEF2FF] text-[#4F46E5] flex items-center justify-center">
-                  <ShieldCheck className="h-5 w-5" />
-                </div>
-                <div className="text-xs font-bold text-[#0F172A] font-heading">Secure</div>
-                <div className="text-[10px] text-[#64748B]">No Vulnerabilities</div>
-              </div>
-            </div>
-
-            {/* Card 3: Optimized (Bottom Right) */}
-            <div className="absolute bottom-2 right-0 sm:right-2 z-30 pointer-events-none hidden sm:block">
-              <div className="px-4 py-3 rounded-2xl bg-white/95 backdrop-blur-md border border-[#E2E8F0] shadow-lg flex flex-col items-center text-center space-y-1">
-                <div className="h-9 w-9 rounded-xl bg-[#EEF2FF] text-[#4F46E5] flex items-center justify-center">
-                  <Zap className="h-5 w-5" />
-                </div>
-                <div className="text-xs font-bold text-[#0F172A] font-heading">Optimized</div>
-                <div className="text-[10px] text-[#64748B]">High Performance</div>
-              </div>
-            </div>
-
-          </div>
+          {/* Action CTAs */}
+          <motion.div
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.3 }}
+            className="flex flex-wrap items-center justify-center gap-4 pt-2"
+          >
+            <Button asChild variant="default" size="lg">
+              <a href="#featured-hackathons" className="flex items-center gap-2">
+                <span>Explore Hackathons</span>
+                <ArrowRight className="h-4 w-4" />
+              </a>
+            </Button>
+            <Button asChild variant="outline" size="lg">
+              <Link href="/sign-up" className="flex items-center gap-2">
+                <Users className="h-4 w-4" />
+                <span>Join Community</span>
+              </Link>
+            </Button>
+          </motion.div>
         </div>
-
-        {/* BOTTOM HERO STATS CONTAINER */}
-        <motion.div
-          initial={{ opacity: 0, y: 25 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.6 }}
-          className="mt-6 md:mt-8"
-        >
-          <div className="rounded-2xl bg-white border border-[#E2E8F0] p-6 md:p-8 shadow-[0_10px_35px_rgba(0,0,0,0.03)]">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-8 divide-y md:divide-y-0 md:divide-x divide-[#E2E8F0]">
-              
-              {/* Stat 1: Developers */}
-              <div className="flex items-center justify-center gap-4 pt-4 md:pt-0">
-                <div className="h-12 w-12 rounded-2xl bg-[#EEF2FF] text-[#4F46E5] flex items-center justify-center shrink-0">
-                  <Users className="h-6 w-6" />
-                </div>
-                <div className="flex flex-col text-left">
-                  <div className="text-2xl sm:text-3xl font-extrabold text-[#0F172A] font-mono">
-                    <CountUp end={5000} suffix="+" />
-                  </div>
-                  <div className="text-xs font-semibold text-[#64748B]">
-                    Developers
-                  </div>
-                </div>
-              </div>
-
-              {/* Stat 2: Hackathons */}
-              <div className="flex items-center justify-center gap-4 pt-4 md:pt-0">
-                <div className="h-12 w-12 rounded-2xl bg-[#FDF2F8] text-[#EC4899] flex items-center justify-center shrink-0">
-                  <TrophyIcon className="h-6 w-6" />
-                </div>
-                <div className="flex flex-col text-left">
-                  <div className="text-2xl sm:text-3xl font-extrabold text-[#0F172A] font-mono">
-                    <CountUp end={100} suffix="+" />
-                  </div>
-                  <div className="text-xs font-semibold text-[#64748B]">
-                    Hackathons
-                  </div>
-                </div>
-              </div>
-
-              {/* Stat 3: Submissions / Evaluations */}
-              <div className="flex items-center justify-center gap-4 pt-4 md:pt-0">
-                <div className="h-12 w-12 rounded-2xl bg-[#EEF2FF] text-[#6366F1] flex items-center justify-center shrink-0">
-                  <Zap className="h-6 w-6" />
-                </div>
-                <div className="flex flex-col text-left">
-                  <div className="text-2xl sm:text-3xl font-extrabold text-[#0F172A] font-mono">
-                    <CountUp end={10} suffix="K+" />
-                  </div>
-                  <div className="text-xs font-semibold text-[#64748B]">
-                    Submissions
-                  </div>
-                </div>
-              </div>
-
-              {/* Stat 4: Uptime */}
-              <div className="flex items-center justify-center gap-4 pt-4 md:pt-0">
-                <div className="h-12 w-12 rounded-2xl bg-[#F0FDF4] text-[#22C55E] flex items-center justify-center shrink-0">
-                  <ShieldCheck className="h-6 w-6" />
-                </div>
-                <div className="flex flex-col text-left">
-                  <div className="text-2xl sm:text-3xl font-extrabold text-[#0F172A] font-mono">
-                    <CountUp end={99.9} decimals={1} suffix="%" />
-                  </div>
-                  <div className="text-xs font-semibold text-[#64748B]">
-                    Uptime
-                  </div>
-                </div>
-              </div>
-
-            </div>
-          </div>
-        </motion.div>
-
       </div>
     </section>
   );

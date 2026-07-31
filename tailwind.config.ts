@@ -11,36 +11,40 @@ const config: Config = {
     extend: {
       colors: {
         primary: {
-          DEFAULT: "#2563EB",
+          DEFAULT: "#FF006E",
           foreground: "#FFFFFF",
         },
         secondary: {
-          DEFAULT: "#6366F1",
-          foreground: "#FFFFFF",
+          DEFAULT: "#FFD60A",
+          foreground: "#0F172A",
         },
         accent: {
-          DEFAULT: "#8B5CF6",
+          DEFAULT: "#FFD60A",
+          foreground: "#0F172A",
+        },
+        magenta: {
+          DEFAULT: "#FF006E",
           foreground: "#FFFFFF",
         },
-        highlight: {
-          DEFAULT: "#F97316",
-          foreground: "#FFFFFF",
+        yellow: {
+          DEFAULT: "#FFD60A",
+          foreground: "#0F172A",
         },
-        background: "#FCFCFD",
+        background: "#F8FAFC",
         card: {
           DEFAULT: "#FFFFFF",
           foreground: "#0F172A",
         },
         heading: "#0F172A",
-        body: "#64748B",
+        body: "#475569",
         border: "#E2E8F0",
         success: {
           DEFAULT: "#22C55E",
           foreground: "#FFFFFF",
         },
         warning: {
-          DEFAULT: "#F59E0B",
-          foreground: "#FFFFFF",
+          DEFAULT: "#FFD60A",
+          foreground: "#0F172A",
         },
         error: {
           DEFAULT: "#EF4444",
@@ -57,18 +61,14 @@ const config: Config = {
         heading: ["var(--font-sora)", "sans-serif"],
         body: ["var(--font-inter)", "sans-serif"],
         code: ["var(--font-jetbrains-mono)", "monospace"],
-        mono: ["var(--font-jetbrains-mono)", "monospace"],
       },
       backgroundImage: {
-        "gradient-primary": "linear-gradient(135deg, #2563EB, #6366F1, #8B5CF6, #F97316)",
-        "gradient-hero": "linear-gradient(135deg, #2563EB, #6366F1, #8B5CF6, #F97316)",
+        "gradient-primary": "linear-gradient(135deg, #FF006E, #FFD60A)",
       },
       boxShadow: {
         subtle: "0 1px 3px 0 rgba(15, 23, 42, 0.05), 0 1px 2px -1px rgba(15, 23, 42, 0.03)",
         card: "0 4px 6px -1px rgba(15, 23, 42, 0.04), 0 2px 4px -2px rgba(15, 23, 42, 0.03)",
         elevated: "0 10px 15px -3px rgba(15, 23, 42, 0.06), 0 4px 6px -4px rgba(15, 23, 42, 0.04)",
-        glass: "0 8px 32px 0 rgba(31, 38, 135, 0.07)",
-        "glass-lg": "0 20px 40px 0 rgba(15, 23, 42, 0.08)",
       },
     },
   },
