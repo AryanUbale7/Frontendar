@@ -64,7 +64,7 @@ export function HeroSection() {
   return (
     <section
       id="hero"
-      className="relative min-h-screen pt-28 pb-16 md:pt-36 md:pb-24 overflow-hidden bg-[#FCFCFD]"
+      className="relative min-h-screen pt-20 pb-8 md:pt-24 md:pb-12 overflow-hidden bg-[#FCFCFD]"
     >
       {/* Background Soft Glow Blobs */}
       <div className="absolute top-[-5%] left-[-5%] w-[600px] h-[600px] bg-gradient-to-br from-[#4F46E5]/08 via-[#6366F1]/05 to-transparent rounded-full blur-[140px] pointer-events-none" />
@@ -194,7 +194,7 @@ export function HeroSection() {
           </div>
 
           {/* RIGHT CONTENT: LARGER LAPTOP (NO FLOATING MOTION) */}
-          <div className="lg:col-span-7 relative flex items-center justify-center min-h-[520px] lg:min-h-[620px] mt-8 lg:mt-0">
+          <div className="lg:col-span-7 relative flex items-center justify-center mt-4 lg:mt-0">
             
             {/* Ambient Background Wave Accent */}
             <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
@@ -265,7 +265,7 @@ export function HeroSection() {
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
           transition={{ duration: 0.6 }}
-          className="mt-16 md:mt-24"
+          className="mt-6 md:mt-8"
         >
           <div className="rounded-2xl bg-white border border-[#E2E8F0] p-6 md:p-8 shadow-[0_10px_35px_rgba(0,0,0,0.03)]">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6 md:gap-8 divide-y md:divide-y-0 md:divide-x divide-[#E2E8F0]">
