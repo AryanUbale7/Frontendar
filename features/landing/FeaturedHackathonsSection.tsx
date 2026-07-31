@@ -3,11 +3,10 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { Trophy, Calendar, ArrowRight, Clock, Sparkles, CheckCircle2 } from "lucide-react";
+import { Trophy, ArrowRight, Clock, Sparkles, CheckCircle2 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { FEATURED_HACKATHONS } from "@/constants/landing-data";
 import { EmptyState } from "@/components/design-system/EmptyState";
 
 export function FeaturedHackathonsSection() {
@@ -20,19 +19,15 @@ export function FeaturedHackathonsSection() {
         const res = await fetch("/api/hackathons");
         if (res.ok) {
           const apiHackathons = await res.json();
-          if (Array.isArray(apiHackathons) && apiHackathons.length > 0) {
+          if (Array.isArray(apiHackathons)) {
             setHackathons(apiHackathons);
-            setLoading(false);
-            return;
           }
         }
       } catch (err) {
         console.error(err);
+      } finally {
+        setLoading(false);
       }
-      
-      // Fallback to FEATURED_HACKATHONS constant if API returns empty
-      setHackathons(FEATURED_HACKATHONS);
-      setLoading(false);
     };
 
     loadHackathons();
@@ -75,7 +70,7 @@ export function FeaturedHackathonsSection() {
               const title = item.name || item.title || "Frontend Hackathon";
               const subtitle = item.tagline || item.subtitle || "Official Hackathon Challenge";
               const prize = item.prize || "$25,000 Cash Pool";
-              const dateStr = item.registrationClose ? `Closes: ${item.registrationClose}` : (item.date || "Aug 15 - Aug 20");
+              const dateStr = item.registrationClose ? `Closes: ${item.registrationClose}` : (item.date || "Registration Open");
               const id = item.id || `h_${idx}`;
 
               return (
