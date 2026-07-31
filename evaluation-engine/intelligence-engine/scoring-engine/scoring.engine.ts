@@ -35,7 +35,7 @@ export class ScoringEngine {
 
     // 1. Feature Coverage
     const totalReqFeatures = blueprint.requiredFeatures.length || 1;
-    const implementedCount = featureResults.filter((f) => f.implementationStatus !== "Not Implemented").length;
+    const implementedCount = featureResults.filter((f) => f.implementationStatus === "Implemented" || f.implementationStatus === "Partially Implemented").length;
     const featureCoveragePercent = Math.round((implementedCount / totalReqFeatures) * 100);
     logs.push(`Feature Coverage computed: ${featureCoveragePercent}% (${implementedCount}/${totalReqFeatures} features).`);
 
@@ -48,15 +48,15 @@ export class ScoringEngine {
       });
     }
     const technologyCompliancePercent =
-      allowedTech.length > 0 ? Math.min(100, Math.round((matchedTechCount / allowedTech.length) * 100) + 70) : 100;
+      allowedTech.length > 0 ? Math.min(100, Math.round((matchedTechCount / allowedTech.length) * 100) + 40) : 100;
 
     // 3. Folder Compliance
-    const folderCompliancePercent = repoAnalysis.detectedFilesCount > 5 ? 100 : 50;
+    const folderCompliancePercent = repoAnalysis.detectedFilesCount > 3 ? 100 : 40;
 
     // 4. UI Compliance
     const uiCompliancePercent = uiAnalysis.detectedUIComponents.length > 0
-      ? Math.min(100, uiAnalysis.detectedUIComponents.length * 15 + (uiAnalysis.isResponsive ? 25 : 0))
-      : 50;
+      ? Math.min(100, uiAnalysis.detectedUIComponents.length * 20 + (uiAnalysis.isResponsive ? 30 : 0))
+      : 20;
 
     // 5. Module & Overall Alignment
     const moduleCoveragePercent = routeResults.coveragePercent;
@@ -73,13 +73,37 @@ export class ScoringEngine {
       sumCategoryScore += r.scoreAwarded;
     });
 
-    // Check mandatory pass/fail rules
-    let status: "pass" | "fail" = "pass";
+    // Check false positive rejected claims
     let deductionsTotal = 0;
+    let rejectedClaimsCount = 0;
+    featureResults.forEach((fr) => {
+      if (fr.evidence.rejectedClaims && fr.evidence.rejectedClaims.length > 0) {
+        rejectedClaimsCount += fr.evidence.rejectedClaims.length;
+      }
+    });
+
+    if (rejectedClaimsCount > 0) {
+      const penalty = rejectedClaimsCount * 15;
+      deductionsTotal += penalty;
+      logs.push(`False-Positive Shield Penalty: ${rejectedClaimsCount} claim(s) rejected without supporting codebase/UI (-${penalty} pts).`);
+    }
+
+    // Mandatory pass/fail rules
+    let status: "pass" | "fail" = "pass";
+
+    if (overallAlignmentPercent < 45 && implementedCount === 0) {
+      status = "fail";
+      logs.push("Automatic Fail Triggered: Zero implemented features detected.");
+    }
+
+    if (rejectedClaimsCount >= 2 || (rejectedClaimsCount > 0 && implementedCount === 0)) {
+      status = "fail";
+      logs.push("Automatic Fail Triggered: Multiple documentation claims rejected by False-Positive Shield.");
+    }
 
     if (blueprint.mandatoryRules) {
       for (const rule of blueprint.mandatoryRules) {
-        if (rule.autoFail && overallAlignmentPercent < 40) {
+        if (rule.autoFail && overallAlignmentPercent < 50) {
           status = "fail";
           logs.push(`Mandatory Rule Triggered AUTO-FAIL: ${rule.rule}`);
         } else if (rule.penalty > 0 && !uiAnalysis.isResponsive) {
@@ -91,19 +115,21 @@ export class ScoringEngine {
 
     // Check bonus rules
     let bonusPointsTotal = 0;
-    if (blueprint.bonusRules) {
-      for (const bonus of blueprint.bonusRules) {
-        if (bonus.points > 0 && (repoAnalysis.hasTailwind || repoAnalysis.hasTsConfig)) {
-          bonusPointsTotal += bonus.points;
-          logs.push(`Bonus Awarded: ${bonus.name} (+${bonus.points} pts)`);
-        }
+    if (status === "pass") {
+      if (repoAnalysis.hasTsConfig) {
+        bonusPointsTotal += 10;
+        logs.push("Bonus Awarded: TypeScript configured (+10 pts)");
+      }
+      if (repoAnalysis.hasTailwind) {
+        bonusPointsTotal += 8;
+        logs.push("Bonus Awarded: Tailwind CSS (+8 pts)");
       }
     }
 
     const unscaledScore = sumCategoryScore + bonusPointsTotal - deductionsTotal;
-    const finalScore = status === "fail" ? 0 : Math.max(0, Math.min(100, Math.round(unscaledScore)));
+    const finalScore = status === "fail" ? Math.min(25, Math.max(0, Math.round(unscaledScore))) : Math.max(0, Math.min(100, Math.round(unscaledScore)));
 
-    logs.push(`FAIE Final Deterministic Score: ${finalScore}/100.`);
+    logs.push(`FAIE Final Deterministic Score: ${finalScore}/100. Status: ${status.toUpperCase()}`);
 
     return {
       finalScore,

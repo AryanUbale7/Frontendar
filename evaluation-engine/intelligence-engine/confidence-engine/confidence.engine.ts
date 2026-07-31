@@ -27,7 +27,7 @@ export interface DetailedConfidenceResult {
 export class ConfidenceEngine {
   private thresholdPercent: number;
 
-  constructor(thresholdPercent: number = 75) {
+  constructor(thresholdPercent: number = 70) {
     this.thresholdPercent = thresholdPercent;
   }
 
@@ -43,10 +43,10 @@ export class ConfidenceEngine {
       routes: 0.20,
       components: 0.15,
       ui: 0.20,
-      api: 0.20,
+      api: 0.10,
       packages: 0.10,
-      codeAST: 0.15,
-      protectedRoutes: 0.15,
+      codeAST: 0.10,
+      protectedRoutes: 0.05,
       envVars: 0.05,
       config: 0.05,
     };
@@ -54,37 +54,33 @@ export class ConfidenceEngine {
     const rejectedClaims: string[] = [];
     let evidenceCount = 0;
     let earnedRatio = 0;
-    let totalMaxRatio = 0;
 
-    // Cross validation check:
-    // If README claims feature BUT no code, routes, UI, or packages exist -> REJECT README CLAIM
     const hasSupportingCode = signals.folderStructureMatch || signals.routeMatch || signals.componentMatch || signals.uiDetection || signals.apiRouteMatch || signals.codeASTMatch;
 
     if (signals.readmeMention && !hasSupportingCode) {
       rejectedClaims.push(`Rejected README claim: '${featureName}' documentation claim lacks supporting codebase, route, or UI evidence.`);
     }
 
-    const checkSignal = (signal: boolean, weightKey: keyof typeof weights, name: string) => {
-      totalMaxRatio += weights[weightKey];
+    const checkSignal = (signal: boolean, weightKey: keyof typeof weights) => {
       if (signal && (weightKey !== "readme" || hasSupportingCode)) {
         earnedRatio += weights[weightKey];
         evidenceCount++;
       }
     };
 
-    checkSignal(signals.readmeMention, "readme", "README Documentation");
-    checkSignal(signals.folderStructureMatch, "folder", "Folder Structure");
-    checkSignal(signals.routeMatch, "routes", "Route Detection");
-    checkSignal(signals.componentMatch, "components", "Component Definition");
-    checkSignal(signals.uiDetection, "ui", "UI Element");
-    checkSignal(signals.apiRouteMatch, "api", "API Handler");
-    checkSignal(signals.packageDependencyMatch, "packages", "Package Dependency");
-    checkSignal(signals.codeASTMatch, "codeAST", "Source Code AST");
-    checkSignal(signals.protectedRouteMatch, "protectedRoutes", "Protected Middleware");
-    checkSignal(signals.envVarMatch, "envVars", "Environment Variables");
-    checkSignal(signals.configMatch, "config", "ConfigFile");
+    checkSignal(signals.readmeMention, "readme");
+    checkSignal(signals.folderStructureMatch, "folder");
+    checkSignal(signals.routeMatch, "routes");
+    checkSignal(signals.componentMatch, "components");
+    checkSignal(signals.uiDetection, "ui");
+    checkSignal(signals.apiRouteMatch, "api");
+    checkSignal(signals.packageDependencyMatch, "packages");
+    checkSignal(signals.codeASTMatch, "codeAST");
+    checkSignal(signals.protectedRouteMatch, "protectedRoutes");
+    checkSignal(signals.envVarMatch, "envVars");
+    checkSignal(signals.configMatch, "config");
 
-    const confidencePercent = Math.min(100, Math.round((earnedRatio / totalMaxRatio) * 100));
+    const confidencePercent = Math.min(100, Math.round(earnedRatio * 100));
 
     let implementationStatus: "Implemented" | "Partially Implemented" | "Not Implemented" = "Not Implemented";
     let weightedScore = 0;

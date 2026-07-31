@@ -11,6 +11,7 @@ export const DEFAULT_ALIAS_DICTIONARY: Record<string, string[]> = {
     "session",
     "token",
     "auth",
+    "authentication",
     "authcontext",
     "nextauth",
     "clerk",
@@ -43,7 +44,22 @@ export const DEFAULT_ALIAS_DICTIONARY: Record<string, string[]> = {
     "stats",
     "metrics",
     "summary",
-    "workspace"
+    "workspace",
+    "responsive dashboard",
+    "dashboard ui"
+  ],
+  "responsive dashboard": [
+    "analytics",
+    "overview",
+    "home",
+    "control panel",
+    "admin",
+    "stats",
+    "metrics",
+    "summary",
+    "workspace",
+    "dashboard",
+    "responsive dashboard"
   ],
   charts: [
     "graph",
