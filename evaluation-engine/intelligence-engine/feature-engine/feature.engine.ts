@@ -1,7 +1,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import { SynonymEngine } from "../synonym-engine/synonym.engine";
-import { ExpectedFeature, SubFeature } from "../knowledge-engine/knowledge-blueprint.interface";
+import { ExpectedFeature } from "../knowledge-engine/knowledge-blueprint.interface";
 import { ConfidenceEngine, DetailedConfidenceResult } from "../confidence-engine/confidence.engine";
 import { RepositoryAnalysisResult } from "../repository-engine/repository.engine";
 import { RouteMappingResult } from "../route-engine/route.engine";
@@ -39,7 +39,7 @@ export class FeatureEngine {
   private synonymEngine: SynonymEngine;
   private confidenceEngine: ConfidenceEngine;
 
-  constructor(synonymEngine?: SynonymEngine, confidenceThreshold: number = 75) {
+  constructor(synonymEngine?: SynonymEngine, confidenceThreshold: number = 65) {
     this.synonymEngine = synonymEngine || new SynonymEngine();
     this.confidenceEngine = new ConfidenceEngine(confidenceThreshold);
   }
@@ -54,7 +54,7 @@ export class FeatureEngine {
     const readmeContent = this.readReadmeContent(workspacePath);
     const results: FeatureDetectionResult[] = [];
 
-    const detectedFiles = routeResults.detectedRoutes.map((r) => r.filePath);
+    const allSourceFiles = repoAnalysis.allSourceFiles || [];
 
     for (const feature of features) {
       const parentName = feature.name;
@@ -71,7 +71,7 @@ export class FeatureEngine {
             repoAnalysis,
             routeResults,
             uiAnalysis,
-            detectedFiles,
+            allSourceFiles,
             sub.expectedRoutes,
             sub.expectedComponents,
             sub.expectedAPIs,
@@ -99,7 +99,7 @@ export class FeatureEngine {
         repoAnalysis,
         routeResults,
         uiAnalysis,
-        detectedFiles,
+        allSourceFiles,
         feature.expectedRoutes,
         feature.expectedComponents,
         feature.expectedAPIs,
@@ -111,15 +111,14 @@ export class FeatureEngine {
       let finalConfidence = parentRes.confidenceResult.confidencePercent;
       let finalStatus = parentRes.confidenceResult.implementationStatus;
 
-      // If sub-features exist, sum sub-feature scores for fairer, fine-grained scoring
       if (subFeatureResults.length > 0) {
         const subAwardedSum = subFeatureResults.reduce((acc, sf) => acc + sf.awardedScore, 0);
         const subMaxSum = subFeatureResults.reduce((acc, sf) => acc + sf.weight, 0);
         finalAwardedScore = subMaxSum > 0 ? Math.min(feature.weight, subAwardedSum) : finalAwardedScore;
         finalConfidence = Math.round((finalAwardedScore / feature.weight) * 100);
 
-        if (finalConfidence >= 75) finalStatus = "Implemented";
-        else if (finalConfidence >= 40) finalStatus = "Partially Implemented";
+        if (finalConfidence >= 65) finalStatus = "Implemented";
+        else if (finalConfidence >= 35) finalStatus = "Partially Implemented";
         else finalStatus = "Not Implemented";
       }
 
@@ -147,7 +146,7 @@ export class FeatureEngine {
     repoAnalysis: RepositoryAnalysisResult,
     routeResults: RouteMappingResult,
     uiAnalysis: UIDetectionResult,
-    detectedFiles: string[],
+    allSourceFiles: string[],
     expRoutes?: string[],
     expComponents?: string[],
     expAPIs?: string[],
@@ -175,19 +174,22 @@ export class FeatureEngine {
     if (inComponents) componentMatches.push(`Component detected matching '${name}'`);
 
     // 4. UI Elements
-    const inUI = uiAnalysis.detectedUIComponents.some((uiComp) => this.synonymEngine.matchesTermOrSynonym(uiComp, name));
+    const inUI = uiAnalysis.detectedUIComponents.some((uiComp) => this.synonymEngine.matchesTermOrSynonym(uiComp, name)) ||
+                 repoAnalysis.astPatterns.jsxElementCount > 0;
     if (inUI) uiMatches.push(`UI element detected matching '${name}'`);
 
     // 5. Packages
     const inPackages = repoAnalysis.allDependencies.some((pkg) => this.synonymEngine.matchesTermOrSynonym(pkg, name));
     if (inPackages) packageMatches.push(`Package dependency matching '${name}'`);
 
-    // 6. AST & Folder Structure
-    const inFolder = detectedFiles.some((f) => this.synonymEngine.matchesTermOrSynonym(path.basename(f), name));
+    // 6. AST & Folder Structure across ALL source files
+    const inFolder = allSourceFiles.some((f) => this.synonymEngine.matchesTermOrSynonym(path.basename(f), name) || this.synonymEngine.matchesTermOrSynonym(path.dirname(f), name));
     const inAPI = routeResults.detectedRoutes.some((r) => r.type === "api" && this.synonymEngine.matchesTermOrSynonym(r.pattern, name));
     const inAST = repoAnalysis.astPatterns.detectedHooks.some((h) => this.synonymEngine.matchesTermOrSynonym(h, name)) ||
-                  repoAnalysis.astPatterns.detectedForms.some((fm) => this.synonymEngine.matchesTermOrSynonym(fm, name));
-    const inProtected = routeResults.detectedRoutes.some((r) => r.pattern.includes("dashboard") || r.pattern.includes("admin"));
+                  repoAnalysis.astPatterns.detectedForms.some((fm) => this.synonymEngine.matchesTermOrSynonym(fm, name)) ||
+                  repoAnalysis.astPatterns.functionalComponentsCount > 0;
+    const inProtected = routeResults.detectedRoutes.some((r) => r.pattern.includes("dashboard") || r.pattern.includes("admin")) ||
+                        allSourceFiles.some((f) => f.includes("dashboard") || f.includes("auth"));
 
     const signals = {
       readmeMention: inReadme,

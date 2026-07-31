@@ -11,6 +11,8 @@ export interface ASTPatternAnalysis {
   detectedChartLibs: string[];
   detectedAPICallPatterns: string[];
   detectedDBModels: string[];
+  functionalComponentsCount: number;
+  jsxElementCount: number;
 }
 
 export interface RepositoryAnalysisResult {
@@ -19,6 +21,7 @@ export interface RepositoryAnalysisResult {
   dependencies: Record<string, string>;
   devDependencies: Record<string, string>;
   allDependencies: string[];
+  allSourceFiles: string[];
   detectedLanguages: {
     typescriptPercent: number;
     javascriptPercent: number;
@@ -81,9 +84,10 @@ export class RepositoryEngine {
       detectedChartLibs: [],
       detectedAPICallPatterns: [],
       detectedDBModels: [],
+      functionalComponentsCount: 0,
+      jsxElementCount: 0,
     };
 
-    // Analyze packages
     if (allDepsKeys.includes("zustand")) astPatterns.stateManagement.push("Zustand");
     if (allDepsKeys.includes("redux") || allDepsKeys.includes("@reduxjs/toolkit")) astPatterns.stateManagement.push("Redux");
     if (allDepsKeys.includes("recharts")) astPatterns.detectedChartLibs.push("Recharts");
@@ -104,7 +108,7 @@ export class RepositoryEngine {
       if (ext === ".html" || ext === ".htm") htmlFiles++;
 
       if (
-        (ext === ".tsx" || ext === ".jsx" || ext === ".vue") &&
+        [".tsx", ".jsx", ".vue", ".ts", ".js"].includes(ext) &&
         base.charAt(0) === base.charAt(0).toUpperCase() &&
         base !== "Page" &&
         base !== "Layout"
@@ -114,20 +118,34 @@ export class RepositoryEngine {
         }
       }
 
-      // AST text pattern inspection
-      if ([".ts", ".tsx", ".js", ".jsx"].includes(ext)) {
+      if ([".ts", ".tsx", ".js", ".jsx", ".vue"].includes(ext)) {
         try {
           const content = fs.readFileSync(file, "utf-8");
 
-          if (content.includes("useAuth") && !astPatterns.detectedHooks.includes("useAuth")) astPatterns.detectedHooks.push("useAuth");
-          if (content.includes("useState") && !astPatterns.detectedHooks.includes("useState")) astPatterns.detectedHooks.push("useState");
-          if (content.includes("useForm") && !astPatterns.detectedHooks.includes("useForm")) astPatterns.detectedHooks.push("useForm");
+          // Hook detection
+          const hookMatches = content.match(/use[A-Z][a-zA-Z0-9]*/g);
+          if (hookMatches) {
+            hookMatches.forEach((h) => {
+              if (!astPatterns.detectedHooks.includes(h)) astPatterns.detectedHooks.push(h);
+            });
+          }
 
-          if (content.includes("createContext") || content.includes("AuthContext")) {
+          // Functional component detection
+          if (content.includes("export default function") || content.includes("const ") || content.includes("class ")) {
+            astPatterns.functionalComponentsCount++;
+          }
+
+          // JSX UI Elements
+          const jsxMatches = content.match(/<[A-Za-z][A-Za-z0-9]*/g);
+          if (jsxMatches) {
+            astPatterns.jsxElementCount += jsxMatches.length;
+          }
+
+          if (content.includes("createContext") || content.includes("AuthContext") || content.includes("useContext")) {
             if (!astPatterns.detectedContexts.includes("React Context")) astPatterns.detectedContexts.push("React Context");
           }
 
-          if (content.includes("<form") || content.includes("useForm")) {
+          if (content.includes("<form") || content.includes("useForm") || content.includes("<input")) {
             if (!astPatterns.detectedForms.includes("HTML/React Forms")) astPatterns.detectedForms.push("HTML/React Forms");
           }
 
@@ -146,6 +164,7 @@ export class RepositoryEngine {
       dependencies,
       devDependencies,
       allDependencies: allDepsKeys,
+      allSourceFiles: allFiles,
       detectedLanguages: {
         typescriptPercent: Math.round((tsFiles / totalLangFiles) * 100),
         javascriptPercent: Math.round((jsFiles / totalLangFiles) * 100),
@@ -166,25 +185,27 @@ export class RepositoryEngine {
 
   private scanAllFiles(dir: string, fileList: string[] = []): string[] {
     if (!fs.existsSync(dir)) return [];
-    const files = fs.readdirSync(dir);
+    try {
+      const files = fs.readdirSync(dir);
 
-    for (const file of files) {
-      const filePath = path.join(dir, file);
-      if (fs.statSync(filePath).isDirectory()) {
-        if (
-          file !== ".git" &&
-          file !== "node_modules" &&
-          file !== ".next" &&
-          file !== "dist" &&
-          file !== "build" &&
-          file !== "out"
-        ) {
-          this.scanAllFiles(filePath, fileList);
+      for (const file of files) {
+        const filePath = path.join(dir, file);
+        if (fs.statSync(filePath).isDirectory()) {
+          if (
+            file !== ".git" &&
+            file !== "node_modules" &&
+            file !== ".next" &&
+            file !== "dist" &&
+            file !== "build" &&
+            file !== "out"
+          ) {
+            this.scanAllFiles(filePath, fileList);
+          }
+        } else {
+          fileList.push(filePath);
         }
-      } else {
-        fileList.push(filePath);
       }
-    }
+    } catch {}
     return fileList;
   }
 }

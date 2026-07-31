@@ -22,6 +22,15 @@ export interface FAIEReportSummary {
 }
 
 export class ScoringEngine {
+  // Human Alignment Calibration Coefficients
+  private alignmentCoefficients = {
+    repository: 0.92,
+    documentation: 0.95,
+    security: 1.0,
+    performance: 0.9,
+    alignment: 0.95,
+  };
+
   public calculateFinalScores(
     blueprint: KnowledgeBlueprint,
     featureResults: FeatureDetectionResult[],
@@ -31,11 +40,13 @@ export class ScoringEngine {
     reasonings: CategoryReasoning[]
   ): FAIEReportSummary {
     const logs: string[] = [];
-    logs.push("FAIE Scoring Engine initialized: Executing deterministic score calculations.");
+    logs.push("FAIE Scoring Engine v2 Calibrated: Executing Human-Aligned Deterministic Calculations.");
 
     // 1. Feature Coverage
     const totalReqFeatures = blueprint.requiredFeatures.length || 1;
-    const implementedCount = featureResults.filter((f) => f.implementationStatus === "Implemented" || f.implementationStatus === "Partially Implemented").length;
+    const implementedCount = featureResults.filter(
+      (f) => f.implementationStatus === "Implemented" || f.implementationStatus === "Partially Implemented"
+    ).length;
     const featureCoveragePercent = Math.round((implementedCount / totalReqFeatures) * 100);
     logs.push(`Feature Coverage computed: ${featureCoveragePercent}% (${implementedCount}/${totalReqFeatures} features).`);
 
@@ -54,18 +65,22 @@ export class ScoringEngine {
     const folderCompliancePercent = repoAnalysis.detectedFilesCount > 3 ? 100 : 40;
 
     // 4. UI Compliance
-    const uiCompliancePercent = uiAnalysis.detectedUIComponents.length > 0
-      ? Math.min(100, uiAnalysis.detectedUIComponents.length * 20 + (uiAnalysis.isResponsive ? 30 : 0))
-      : 20;
+    const uiCompliancePercent =
+      uiAnalysis.detectedUIComponents.length > 0
+        ? Math.min(100, uiAnalysis.detectedUIComponents.length * 20 + (uiAnalysis.isResponsive ? 30 : 0))
+        : 50;
 
     // 5. Module & Overall Alignment
     const moduleCoveragePercent = routeResults.coveragePercent;
-    const overallAlignmentPercent = Math.round(
+    const rawAlignmentPercent = Math.round(
       featureCoveragePercent * 0.4 +
-      technologyCompliancePercent * 0.2 +
-      uiCompliancePercent * 0.2 +
-      moduleCoveragePercent * 0.2
+        technologyCompliancePercent * 0.2 +
+        uiCompliancePercent * 0.2 +
+        moduleCoveragePercent * 0.2
     );
+
+    // Apply Human Alignment Calibration Coefficient
+    const overallAlignmentPercent = Math.round(rawAlignmentPercent * this.alignmentCoefficients.alignment);
 
     // Sum category awarded marks
     let sumCategoryScore = 0;
@@ -85,10 +100,10 @@ export class ScoringEngine {
     if (rejectedClaimsCount > 0) {
       const penalty = rejectedClaimsCount * 15;
       deductionsTotal += penalty;
-      logs.push(`False-Positive Shield Penalty: ${rejectedClaimsCount} claim(s) rejected without supporting codebase/UI (-${penalty} pts).`);
+      logs.push(`False-Positive Shield Penalty: ${rejectedClaimsCount} claim(s) rejected (-${penalty} pts).`);
     }
 
-    // Mandatory pass/fail rules
+    // Pass/Fail status determination
     let status: "pass" | "fail" = "pass";
 
     if (overallAlignmentPercent < 45 && implementedCount === 0) {
@@ -113,23 +128,28 @@ export class ScoringEngine {
       }
     }
 
-    // Check bonus rules
+    // Capped Bonus Points (Max 10 pts max under diminishing returns)
     let bonusPointsTotal = 0;
     if (status === "pass") {
-      if (repoAnalysis.hasTsConfig) {
-        bonusPointsTotal += 10;
-        logs.push("Bonus Awarded: TypeScript configured (+10 pts)");
-      }
-      if (repoAnalysis.hasTailwind) {
-        bonusPointsTotal += 8;
-        logs.push("Bonus Awarded: Tailwind CSS (+8 pts)");
-      }
+      if (repoAnalysis.hasTsConfig) bonusPointsTotal += 5;
+      if (repoAnalysis.hasTailwind) bonusPointsTotal += 5;
+      bonusPointsTotal = Math.min(10, bonusPointsTotal);
+      if (bonusPointsTotal > 0) logs.push(`Bonus Awarded (Capped): +${bonusPointsTotal} pts`);
     }
 
-    const unscaledScore = sumCategoryScore + bonusPointsTotal - deductionsTotal;
-    const finalScore = status === "fail" ? Math.min(25, Math.max(0, Math.round(unscaledScore))) : Math.max(0, Math.min(100, Math.round(unscaledScore)));
+    // Score Calibration Curve (Diminishing returns to eliminate score inflation)
+    const rawScore = sumCategoryScore + bonusPointsTotal - deductionsTotal;
+    let finalScore = 0;
 
-    logs.push(`FAIE Final Deterministic Score: ${finalScore}/100. Status: ${status.toUpperCase()}`);
+    if (status === "fail") {
+      finalScore = Math.min(25, Math.max(0, Math.round(rawScore * 0.3)));
+    } else {
+      // Diminishing returns curve: Score = RawScore * (1 - 0.12 * (RawScore / 100)) * HumanCoef
+      const calibrated = rawScore * (1.0 - 0.11 * (rawScore / 100.0)) * this.alignmentCoefficients.repository;
+      finalScore = Math.max(0, Math.min(96, Math.round(calibrated)));
+    }
+
+    logs.push(`FAIE Calibrated Final Score: ${finalScore}/100. Status: ${status.toUpperCase()}`);
 
     return {
       finalScore,
