@@ -31,11 +31,9 @@ export class RouteEngine {
       this.scanNextPagesRouter(pagesDir, pagesDir, detected);
     }
 
-    // 3. React Router or Static HTML Router
-    const srcDir = path.join(workspacePath, "src");
-    if (fs.existsSync(srcDir)) {
-      this.scanReactRoutes(srcDir, detected);
-    }
+    // 3. React / Vue / Angular / Static HTML Router
+    const srcDir = fs.existsSync(path.join(workspacePath, "src")) ? path.join(workspacePath, "src") : workspacePath;
+    this.scanOtherFrameworkRoutes(srcDir, detected);
 
     // Deduplicate patterns
     const uniqueDetected: DetectedRoute[] = [];
@@ -86,15 +84,11 @@ export class RouteEngine {
       const stat = fs.statSync(fullPath);
 
       if (stat.isDirectory()) {
-        if (item !== "api" && !item.startsWith("(")) {
-          this.scanNextAppRouter(fullPath, baseDir, results);
-        } else {
-          this.scanNextAppRouter(fullPath, baseDir, results);
-        }
+        this.scanNextAppRouter(fullPath, baseDir, results);
       } else {
         if (item === "page.tsx" || item === "page.jsx" || item === "page.js") {
           let routePath = path.relative(baseDir, currentDir).replace(/\\/g, "/");
-          routePath = routePath.replace(/\([^)]+\)\/?/g, ""); // strip route groups (dashboard)
+          routePath = routePath.replace(/\([^)]+\)\/?/g, "");
           const pattern = "/" + (routePath === "" ? "" : routePath);
           results.push({
             pattern,
@@ -142,21 +136,37 @@ export class RouteEngine {
     }
   }
 
-  private scanReactRoutes(dir: string, results: DetectedRoute[]): void {
+  private scanOtherFrameworkRoutes(dir: string, results: DetectedRoute[]): void {
     const files = this.getAllFiles(dir);
     for (const file of files) {
-      if (file.endsWith(".tsx") || file.endsWith(".jsx") || file.endsWith(".js")) {
+      const ext = path.extname(file).toLowerCase();
+      if ([".tsx", ".jsx", ".js", ".ts", ".vue", ".html"].includes(ext)) {
         try {
           const content = fs.readFileSync(file, "utf-8");
-          const routeRegex = /<Route\s+[^>]*path=["']([^"']+)["']/g;
+
+          // React Router
+          const reactRouteRegex = /<Route\s+[^>]*path=["']([^"']+)["']/g;
           let match;
-          while ((match = routeRegex.exec(content)) !== null) {
-            results.push({
-              pattern: match[1],
-              type: "page",
-              routerType: "React Router",
-              filePath: file,
-            });
+          while ((match = reactRouteRegex.exec(content)) !== null) {
+            results.push({ pattern: match[1], type: "page", routerType: "React Router", filePath: file });
+          }
+
+          // Vue Router
+          const vueRouteRegex = /path:\s*["']([^"']+)["']/g;
+          while ((match = vueRouteRegex.exec(content)) !== null) {
+            results.push({ pattern: match[1], type: "page", routerType: "Vue Router", filePath: file });
+          }
+
+          // Angular Routes
+          const angularRouteRegex = /path:\s*["']([^"']+)["']/g;
+          while ((match = angularRouteRegex.exec(content)) !== null) {
+            results.push({ pattern: match[1], type: "page", routerType: "Angular Routes", filePath: file });
+          }
+
+          // Static HTML files
+          if (ext === ".html") {
+            const fileName = path.basename(file, ".html");
+            results.push({ pattern: "/" + (fileName === "index" ? "" : fileName), type: "page", routerType: "Static HTML", filePath: file });
           }
         } catch {}
       }
@@ -165,17 +175,19 @@ export class RouteEngine {
 
   private getAllFiles(dir: string, fileList: string[] = []): string[] {
     if (!fs.existsSync(dir)) return [];
-    const files = fs.readdirSync(dir);
-    for (const file of files) {
-      const filePath = path.join(dir, file);
-      if (fs.statSync(filePath).isDirectory()) {
-        if (file !== "node_modules" && file !== ".git") {
-          this.getAllFiles(filePath, fileList);
+    try {
+      const files = fs.readdirSync(dir);
+      for (const file of files) {
+        const filePath = path.join(dir, file);
+        if (fs.statSync(filePath).isDirectory()) {
+          if (file !== "node_modules" && file !== ".git" && file !== "dist" && file !== "build") {
+            this.getAllFiles(filePath, fileList);
+          }
+        } else {
+          fileList.push(filePath);
         }
-      } else {
-        fileList.push(filePath);
       }
-    }
+    } catch {}
     return fileList;
   }
 }
