@@ -2,10 +2,10 @@
   "name": "frontendarena-evaluation-engine",
   "version": "1.0.0",
   "description": "Evaluation engine for Frontend Arena dynamic blueprints",
-  "main": "dist/server.js",
+  "main": "dist/backend/src/server.js",
   "scripts": {
-    "build": "prisma generate && tsc",
-    "start": "node dist/server.js",
+    "build": "prisma generate && tsc && node -e \"require('fs').writeFileSync('dist/server.js', \\\"module.exports = require('./backend/src/server.js');\\\")\"",
+    "start": "node dist/backend/src/server.js",
     "dev": "ts-node src/server.ts"
   },
   "dependencies": {
