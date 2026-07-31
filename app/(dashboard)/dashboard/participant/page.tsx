@@ -72,14 +72,6 @@ export default function ParticipantDashboardPage() {
           <div className="absolute top-4 right-8 text-white/10 font-heading font-black text-6xl select-none">
             FRONTEND ARENA
           </div>
-          <div className="relative z-10 h-full flex flex-col justify-end p-6">
-            <div className="flex items-center gap-2">
-              <span className="flex h-2 w-2 rounded-full bg-[#22C55E] animate-pulse" />
-              <span className="text-[10px] font-bold text-[#22C55E] uppercase tracking-widest">
-                Evaluation Engine Online
-              </span>
-            </div>
-          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
@@ -187,10 +179,6 @@ export default function ParticipantDashboardPage() {
                 <p className="text-xs text-[#475569]">
                   Access all hackathons you have registered for.
                 </p>
-              </div>
-
-              <div className="p-3 rounded-xl bg-[#FFF2F7] border border-[#FFCCD5] text-xs text-[#A30046] flex items-center justify-between">
-                <span>This is your Primary Dashboard. Change it <a href="#" className="font-bold underline text-[#FF006E]">Here</a></span>
               </div>
 
               {initiatives.length > 0 ? (
