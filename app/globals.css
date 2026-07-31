@@ -3,32 +3,34 @@
 @config "../tailwind.config.ts";
 
 :root {
-  --color-primary: #FF006E;
-  --color-secondary: #FFD60A;
-  --color-accent: #FFD60A;
-  --color-background: #F8FAFC;
+  --color-primary: #2563EB;
+  --color-secondary: #6366F1;
+  --color-accent: #8B5CF6;
+  --color-highlight: #F97316;
+  --color-background: #FCFCFD;
   --color-card: #FFFFFF;
   --color-heading: #0F172A;
-  --color-body: #475569;
+  --color-body: #64748B;
   --color-border: #E2E8F0;
   --color-success: #22C55E;
-  --color-warning: #FFD60A;
+  --color-warning: #F59E0B;
   --color-error: #EF4444;
-  --gradient-primary: linear-gradient(135deg, #FF006E, #FFD60A);
+  --gradient-hero: linear-gradient(135deg, #2563EB, #6366F1, #8B5CF6, #F97316);
   --radius-default: 16px;
 }
 
 @theme {
-  --color-primary: #FF006E;
-  --color-secondary: #FFD60A;
-  --color-accent: #FFD60A;
-  --color-background: #F8FAFC;
+  --color-primary: #2563EB;
+  --color-secondary: #6366F1;
+  --color-accent: #8B5CF6;
+  --color-highlight: #F97316;
+  --color-background: #FCFCFD;
   --color-card: #FFFFFF;
   --color-heading: #0F172A;
-  --color-body: #475569;
+  --color-body: #64748B;
   --color-border: #E2E8F0;
   --color-success: #22C55E;
-  --color-warning: #FFD60A;
+  --color-warning: #F59E0B;
   --color-error: #EF4444;
   --font-heading: var(--font-sora);
   --font-body: var(--font-inter);
@@ -42,6 +44,7 @@ body {
   font-family: var(--font-inter), system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
 }
 
 /* Base typography utilities */
@@ -51,8 +54,42 @@ h1, h2, h3, h4, h5, h6 {
   letter-spacing: -0.02em;
 }
 
-code, pre, kbd {
+code, pre, kbd, .font-mono {
   font-family: var(--font-jetbrains-mono), monospace;
+}
+
+/* Animated gradient text for specific words */
+@keyframes gradient-shift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.animate-hero-gradient-text {
+  background-image: linear-gradient(135deg, #2563EB 0%, #6366F1 33%, #8B5CF6 66%, #F97316 100%);
+  background-size: 250% 250%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  animation: gradient-shift 7s ease infinite;
+}
+
+/* Background Pattern Utilities */
+.bg-grid-pattern {
+  background-image: linear-gradient(to right, rgba(226, 232, 240, 0.4) 1px, transparent 1px),
+                    linear-gradient(to bottom, rgba(226, 232, 240, 0.4) 1px, transparent 1px);
+  background-size: 3.5rem 3.5rem;
+}
+
+.bg-dot-pattern {
+  background-image: radial-gradient(rgba(148, 163, 184, 0.25) 1.2px, transparent 1.2px);
+  background-size: 1.5rem 1.5rem;
 }
 
 /* Custom scrollbars */
@@ -71,11 +108,11 @@ code, pre, kbd {
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #FF006E;
+  background: #2563EB;
 }
 
 /* Focus outline baseline for accessibility */
 *:focus-visible {
-  outline: 2px solid #FF006E;
+  outline: 2px solid #2563EB;
   outline-offset: 2px;
 }

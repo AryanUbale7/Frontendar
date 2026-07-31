@@ -1,10 +1,9 @@
 export const LANDING_NAV_LINKS = [
   { label: "Home", href: "#hero" },
-  { label: "About", href: "#who-we-are" },
-  { label: "What We Organize", href: "#what-we-organize" },
-  { label: "Why Join", href: "#why-join" },
   { label: "Hackathons", href: "#featured-hackathons" },
-  { label: "Community", href: "#community-impact" },
+  { label: "Leaderboards", href: "#leaderboards" },
+  { label: "Resources", href: "#resources" },
+  { label: "About", href: "#who-we-are" },
 ];
 
 export const COMMUNITY_STATS = [
