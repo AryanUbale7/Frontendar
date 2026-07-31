@@ -30,6 +30,7 @@ import { EmptyState } from "@/components/design-system/EmptyState";
 export default function ProfilePage() {
   const { user, updateUserProfile } = useUser();
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+  const coverInputRef = React.useRef<HTMLInputElement>(null);
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -42,6 +43,24 @@ export default function ProfilePage() {
       reader.onloadend = () => {
         const base64Image = reader.result as string;
         updateUserProfile({ avatarUrl: base64Image });
+        setSavedSuccess(true);
+        setTimeout(() => setSavedSuccess(false), 3000);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleCoverUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 8 * 1024 * 1024) {
+        alert("Cover photo size should be less than 8MB");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64Image = reader.result as string;
+        updateUserProfile({ coverUrl: base64Image });
         setSavedSuccess(true);
         setTimeout(() => setSavedSuccess(false), 3000);
       };
@@ -124,13 +143,33 @@ export default function ProfilePage() {
       )}
 
       {/* Top Cover Banner */}
-      <div className="relative h-44 w-full rounded-2xl bg-gradient-to-r from-[#0F172A] via-[#1E1B4B] to-[#312E81] shadow-sm overflow-hidden">
+      <div
+        onClick={() => coverInputRef.current?.click()}
+        className="relative h-44 w-full rounded-2xl bg-gradient-to-r from-[#0F172A] via-[#1E1B4B] to-[#312E81] shadow-sm overflow-hidden cursor-pointer group"
+      >
+        {user?.coverUrl ? (
+          <img src={user.coverUrl} alt="Cover Photo" className="h-full w-full object-cover" />
+        ) : (
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,0,110,0.25),transparent_50%)]" />
+        )}
         <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            coverInputRef.current?.click();
+          }}
           aria-label="Edit cover photo"
-          className="absolute top-4 right-4 flex h-9 w-9 items-center justify-center rounded-full bg-white/80 backdrop-blur-sm text-[#0F172A] hover:bg-white shadow-xs transition-all"
+          className="absolute top-4 right-4 flex h-9 w-9 items-center justify-center rounded-full bg-white/80 backdrop-blur-sm text-[#0F172A] hover:bg-white shadow-xs transition-all z-10"
         >
           <Pencil className="h-4 w-4" />
         </button>
+        <input
+          type="file"
+          ref={coverInputRef}
+          onChange={handleCoverUpload}
+          accept="image/*"
+          className="hidden"
+        />
       </div>
 
       {/* Main 2-Column Layout */}

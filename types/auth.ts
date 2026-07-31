@@ -8,6 +8,7 @@ export interface UserProfile {
   fullName: string;
   role: UserRole;
   avatarUrl?: string;
+  coverUrl?: string;
   organizationName?: string;
   collegeName?: string;
   githubHandle?: string;
