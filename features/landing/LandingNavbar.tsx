@@ -3,9 +3,25 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { Menu, X, LayoutDashboard, ArrowUpRight, Sparkles } from "lucide-react";
-import { LANDING_NAV_LINKS } from "@/constants/landing-data";
+import {
+  Home,
+  Trophy,
+  BarChart3,
+  BookOpen,
+  Info,
+  LayoutDashboard,
+  Menu,
+  X,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
+
+const NAV_ITEMS = [
+  { label: "Home", href: "#hero", icon: Home },
+  { label: "Hackathons", href: "#featured-hackathons", icon: Trophy },
+  { label: "Leaderboards", href: "#leaderboards", icon: BarChart3 },
+  { label: "Resources", href: "#resources", icon: BookOpen },
+  { label: "About", href: "#who-we-are", icon: Info },
+];
 
 export function LandingNavbar() {
   const [scrolled, setScrolled] = useState(false);
@@ -21,62 +37,49 @@ export function LandingNavbar() {
   }, []);
 
   return (
-    <header className="fixed top-4 left-0 right-0 z-50 px-4 md:px-6 pointer-events-none flex justify-center">
+    <header className="fixed top-4 left-0 right-0 z-50 px-4 md:px-8 pointer-events-none flex justify-center">
       <motion.div
         initial={{ y: -20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.5, ease: "easeOut" }}
         className={cn(
-          "pointer-events-auto w-full max-w-6xl rounded-full transition-all duration-300",
-          "bg-white/80 backdrop-blur-xl border border-[#E2E8F0]/80 shadow-[0_8px_30px_rgb(0,0,0,0.06)]",
-          scrolled
-            ? "bg-white/90 backdrop-blur-2xl border-[#E2E8F0] shadow-[0_12px_40px_rgba(37,99,235,0.08)] py-2.5 px-4 md:px-6"
-            : "py-3 px-4 md:px-6"
+          "pointer-events-auto w-full max-w-7xl rounded-2xl transition-all duration-300",
+          "bg-white/90 backdrop-blur-xl border border-[#E2E8F0] shadow-[0_4px_25px_rgba(0,0,0,0.04)]",
+          scrolled ? "shadow-[0_10px_35px_rgba(37,99,235,0.08)] py-2.5 px-4 md:px-6" : "py-3 px-4 md:px-6"
         )}
       >
         <div className="flex items-center justify-between">
           {/* Brand Logo */}
-          <Link href="#hero" className="flex items-center gap-3 group">
-            <div className="relative flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-tr from-[#2563EB] via-[#6366F1] to-[#8B5CF6] p-0.5 shadow-md shadow-[#2563EB]/20 group-hover:scale-105 transition-transform duration-300">
-              <div className="flex h-full w-full items-center justify-center rounded-[14px] bg-white text-[#2563EB] font-heading font-black text-lg">
-                F
-              </div>
+          <Link href="#hero" className="flex items-center gap-2.5 group">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#4F46E5] text-white font-heading font-black text-lg shadow-sm group-hover:scale-105 transition-transform">
+              <svg className="w-5 h-5 fill-current" viewBox="0 0 24 24">
+                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+              </svg>
             </div>
-            <div className="flex flex-col">
-              <span className="font-heading text-base font-bold tracking-tight text-[#0F172A] flex items-center gap-1.5">
-                Frontend Arena
-                <span className="inline-block w-1.5 h-1.5 rounded-full bg-[#22C55E] animate-pulse" />
-              </span>
-              <span className="text-[11px] font-medium text-[#64748B] tracking-wide">
-                Enterprise Hackathons
-              </span>
-            </div>
+            <span className="font-heading text-lg font-bold text-[#0F172A] tracking-tight">
+              Frontend Arena
+            </span>
           </Link>
 
-          {/* Desktop Center Navigation Links */}
-          <nav className="hidden md:flex items-center gap-1 bg-[#F8FAFC] border border-[#E2E8F0]/60 p-1.5 rounded-full shadow-inner">
-            {LANDING_NAV_LINKS.map((link) => {
-              const isActive = activeTab === link.label;
+          {/* Center Navigation Bar */}
+          <nav className="hidden md:flex items-center gap-1 bg-[#F8FAFC] border border-[#E2E8F0]/80 p-1 rounded-2xl">
+            {NAV_ITEMS.map((item) => {
+              const Icon = item.icon;
+              const isActive = activeTab === item.label;
               return (
                 <a
-                  key={link.label}
-                  href={link.href}
-                  onClick={() => setActiveTab(link.label)}
+                  key={item.label}
+                  href={item.href}
+                  onClick={() => setActiveTab(item.label)}
                   className={cn(
-                    "relative px-4 py-1.5 text-xs font-semibold rounded-full transition-all duration-200",
+                    "relative flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl transition-all duration-200",
                     isActive
-                      ? "text-[#2563EB]"
-                      : "text-[#64748B] hover:text-[#0F172A] hover:bg-white/60"
+                      ? "text-[#4F46E5] bg-[#EEF2FF] shadow-xs"
+                      : "text-[#64748B] hover:text-[#0F172A] hover:bg-white/80"
                   )}
                 >
-                  {isActive && (
-                    <motion.div
-                      layoutId="activeNavIndicator"
-                      className="absolute inset-0 bg-white rounded-full shadow-sm border border-[#E2E8F0]/60"
-                      transition={{ type: "spring", stiffness: 380, damping: 30 }}
-                    />
-                  )}
-                  <span className="relative z-10">{link.label}</span>
+                  <Icon className="h-3.5 w-3.5" />
+                  <span>{item.label}</span>
                 </a>
               );
             })}
@@ -84,30 +87,22 @@ export function LandingNavbar() {
 
           {/* Right Action CTA */}
           <div className="hidden sm:flex items-center gap-3">
-            <Link
-              href="/sign-in"
-              className="text-xs font-semibold text-[#64748B] hover:text-[#0F172A] px-3 py-2 transition-colors"
-            >
-              Sign In
-            </Link>
-            <motion.div whileHover={{ scale: 1.03, y: -1 }} whileTap={{ scale: 0.98 }}>
+            <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
               <Link
                 href="/dashboard"
-                className="relative inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-xs font-bold text-white shadow-md shadow-[#2563EB]/25 overflow-hidden group bg-gradient-to-r from-[#2563EB] via-[#6366F1] to-[#8B5CF6]"
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-[#4F46E5] hover:bg-[#4338CA] shadow-md shadow-[#4F46E5]/20 transition-all"
               >
-                <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
-                <LayoutDashboard className="h-3.5 w-3.5 relative z-10" />
-                <span className="relative z-10 font-heading">Dashboard</span>
-                <ArrowUpRight className="h-3.5 w-3.5 relative z-10 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                <LayoutDashboard className="h-4 w-4" />
+                <span className="font-heading">Dashboard</span>
               </Link>
             </motion.div>
           </div>
 
-          {/* Mobile Menu Toggle Button */}
-          <div className="flex md:hidden items-center gap-2">
+          {/* Mobile Menu Button */}
+          <div className="flex md:hidden items-center">
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="p-2 rounded-full text-[#0F172A] hover:bg-[#F1F5F9] transition-colors"
+              className="p-2 rounded-xl text-[#0F172A] hover:bg-[#F1F5F9] transition-colors"
               aria-label="Toggle navigation menu"
             >
               {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
@@ -116,48 +111,44 @@ export function LandingNavbar() {
         </div>
       </motion.div>
 
-      {/* Mobile Glass Drawer Dropdown */}
+      {/* Mobile Drawer Dropdown */}
       <AnimatePresence>
         {mobileMenuOpen && (
           <motion.div
-            initial={{ opacity: 0, y: -10, scale: 0.98 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -10, scale: 0.98 }}
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.2 }}
-            className="pointer-events-auto absolute top-20 left-4 right-4 md:hidden rounded-3xl bg-white/95 backdrop-blur-2xl border border-[#E2E8F0] p-6 shadow-2xl space-y-4"
+            className="pointer-events-auto absolute top-20 left-4 right-4 md:hidden rounded-2xl bg-white border border-[#E2E8F0] p-5 shadow-xl space-y-3"
           >
-            <div className="flex flex-col space-y-2">
-              {LANDING_NAV_LINKS.map((link) => (
-                <a
-                  key={link.label}
-                  href={link.href}
-                  onClick={() => {
-                    setActiveTab(link.label);
-                    setMobileMenuOpen(false);
-                  }}
-                  className="flex items-center justify-between py-2.5 px-4 text-sm font-semibold text-[#0F172A] rounded-xl hover:bg-[#F8FAFC] transition-colors"
-                >
-                  <span>{link.label}</span>
-                  <ArrowUpRight className="h-4 w-4 text-[#64748B]" />
-                </a>
-              ))}
+            <div className="flex flex-col space-y-1">
+              {NAV_ITEMS.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <a
+                    key={item.label}
+                    href={item.href}
+                    onClick={() => {
+                      setActiveTab(item.label);
+                      setMobileMenuOpen(false);
+                    }}
+                    className="flex items-center gap-3 py-2.5 px-4 text-sm font-semibold text-[#0F172A] rounded-xl hover:bg-[#F8FAFC]"
+                  >
+                    <Icon className="h-4 w-4 text-[#4F46E5]" />
+                    <span>{item.label}</span>
+                  </a>
+                );
+              })}
             </div>
 
-            <div className="pt-4 border-t border-[#E2E8F0] flex flex-col gap-3">
-              <Link
-                href="/sign-in"
-                onClick={() => setMobileMenuOpen(false)}
-                className="w-full text-center py-2.5 text-xs font-semibold text-[#64748B] hover:text-[#0F172A] rounded-xl border border-[#E2E8F0]"
-              >
-                Sign In
-              </Link>
+            <div className="pt-3 border-t border-[#E2E8F0]">
               <Link
                 href="/dashboard"
                 onClick={() => setMobileMenuOpen(false)}
-                className="w-full flex items-center justify-center gap-2 py-3 rounded-full text-xs font-bold text-white bg-gradient-to-r from-[#2563EB] via-[#6366F1] to-[#8B5CF6] shadow-md"
+                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-xs font-bold text-white bg-[#4F46E5]"
               >
                 <LayoutDashboard className="h-4 w-4" />
-                <span>Go to Dashboard</span>
+                <span>Dashboard</span>
               </Link>
             </div>
           </motion.div>
