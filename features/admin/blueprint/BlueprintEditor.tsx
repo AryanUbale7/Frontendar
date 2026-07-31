@@ -704,7 +704,7 @@ export function BlueprintEditor({ hackathonId, onClose }: { hackathonId?: string
     { title: "Responsive Layouts", desc: "Select target responsive display ratios." },
     { title: "Security Rules", desc: "Secrets detection and vulnerability limits." },
     { title: "Innovation Rules", desc: "Weights for creativity, unique details." },
-    { title: "AI Judge Prompt", desc: "Rich text editor instructions for Gemini AI." },
+    { title: "FAIE Engine Config", desc: "Configure alias dictionary, expected routes, and FAIE rules." },
     { title: "Category Scoring", desc: "Define weights and marks per category." },
     { title: "Auto Pass/Fail Rules", desc: "Configure penalties and failure triggers." },
     { title: "Bonus Config", desc: "Award extra points for standout designs." },
@@ -1336,19 +1336,33 @@ export function BlueprintEditor({ hackathonId, onClose }: { hackathonId?: string
                 </div>
               )}
 
-              {/* SECTION 10: AI Evaluation Prompt */}
+              {/* SECTION 10: FAIE Knowledge Engine Config */}
               {activeSection === 9 && (
-                <div className="space-y-2">
-                  <label className="text-xs font-bold uppercase tracking-wider text-[#0F172A] flex justify-between">
-                    <span>Instructions for AI Virtual Judge</span>
-                    <Badge variant="outline">Rich Text Editor</Badge>
-                  </label>
-                  <textarea
-                    value={aiPrompt}
-                    onChange={(e) => setAiPrompt(e.target.value)}
-                    placeholder="Write detailed prompt guidelines..."
-                    className="flex min-h-[220px] w-full rounded-[12px] border border-[#E2E8F0] px-3 py-2 text-xs focus:ring-1 focus:ring-[#FF006E] focus:outline-none font-code leading-relaxed"
-                  />
+                <div className="space-y-4">
+                  <div className="space-y-1 border-b border-[#F1F5F9] pb-2">
+                    <h4 className="text-xs font-bold text-[#0F172A] flex items-center justify-between">
+                      <span>Frontend Arena Intelligence Engine (FAIE) Configuration</span>
+                      <Badge variant="solid" className="bg-[#FF006E] text-white">FAIE v2.0</Badge>
+                    </h4>
+                    <p className="text-[11px] text-[#475569]">
+                      Deterministic, rule-backed Knowledge Engine configuration. Zero LLM hallucinations.
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold uppercase tracking-wider text-[#0F172A]">
+                      Alias & Synonym Dictionary (JSON Format)
+                    </label>
+                    <textarea
+                      value={aiPrompt}
+                      onChange={(e) => setAiPrompt(e.target.value)}
+                      placeholder='{"authentication": ["login", "signin", "signup", "oauth", "jwt"], "dashboard": ["analytics", "overview"]}'
+                      className="flex min-h-[160px] w-full rounded-[12px] border border-[#E2E8F0] px-3 py-2 text-xs focus:ring-1 focus:ring-[#FF006E] focus:outline-none font-code leading-relaxed"
+                    />
+                    <p className="text-[10px] text-[#64748B]">
+                      Map expected terms to custom alias keywords for exact deterministic matching across source code, README, and route files.
+                    </p>
+                  </div>
                 </div>
               )}
 
