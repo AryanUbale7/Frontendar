@@ -69,9 +69,24 @@ export async function proxyRequest(
 
           if (response.status !== 401) {
             const buffer = await response.arrayBuffer();
+            const responseHeaders = new Headers(response.headers);
+            
+            // Do NOT blindly forward backend compression/content-length/transfer-encoding headers
+            responseHeaders.delete("content-encoding");
+            responseHeaders.delete("content-length");
+            responseHeaders.delete("transfer-encoding");
+            // Also clean up hop-by-hop headers
+            responseHeaders.delete("connection");
+            responseHeaders.delete("keep-alive");
+            responseHeaders.delete("proxy-authenticate");
+            responseHeaders.delete("proxy-authorization");
+            responseHeaders.delete("te");
+            responseHeaders.delete("trailer");
+            responseHeaders.delete("upgrade");
+
             const nextResponse = new NextResponse(buffer, {
               status: response.status,
-              headers: response.headers,
+              headers: responseHeaders,
             });
             nextResponse.cookies.set(ACCESS_TOKEN_COOKIE, accessToken, {
               path: "/",
