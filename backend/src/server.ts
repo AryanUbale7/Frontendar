@@ -6,6 +6,7 @@ import { prisma } from "./config/db";
 import { authRouter } from "./routes/auth";
 import { verifyToken, optionalAuth, requireRole, AuthenticatedRequest } from "./middleware/auth";
 import { createEvaluationQueue, EvaluationQueueDriver } from "./engine/queue";
+import { startEvaluationWorker, EvaluationWorkerHandle } from "./worker";
 import { hashPassword } from "./engine/password";
 import { resolveLifecycleStatus, lifecycleToPersisted, canAcceptSubmissions, canAcceptRegistrations, LifecycleStatus } from "./engine/lifecycle";
 
@@ -13,6 +14,7 @@ const app = express();
 const PORT = process.env.PORT || 4000;
 
 let evaluationQueue: EvaluationQueueDriver;
+let combinedWorkerHandle: EvaluationWorkerHandle | null = null;
 
 app.use(cors());
 app.use(express.json({ limit: "50mb" }));
@@ -869,6 +871,26 @@ async function boot(): Promise<void> {
   evaluationQueue = await createEvaluationQueue();
   console.log(`[Queue] Evaluation queue driver active: ${evaluationQueue.name}`);
 
+  // Combined deployment mode (low-cost/testing): start EXACTLY ONE BullMQ
+  // evaluation worker inside this same web process. Uses the SAME Redis queue
+  // (EVALUATION_QUEUE_DRIVER=redis is enforced) and the SAME Phase 3
+  // processor. Concurrency defaults to 1 unless EVALUATION_WORKER_CONCURRENCY
+  // is set. The independent `npm run worker` process remains fully supported.
+  if (process.env.RUN_EVALUATION_WORKER_IN_WEB === "true") {
+    if ((process.env.EVALUATION_QUEUE_DRIVER || "redis").toLowerCase() !== "redis") {
+      throw new Error(
+        "RUN_EVALUATION_WORKER_IN_WEB=true requires EVALUATION_QUEUE_DRIVER=redis. " +
+          "The in-memory queue must never be used in production, and combined mode " +
+          "must consume jobs from the same durable Redis queue the web enqueues into."
+      );
+    }
+    combinedWorkerHandle = await startEvaluationWorker({ combinedMode: true });
+    console.log(
+      `[Server] Combined mode active — exactly one evaluation worker running in the web process ` +
+        `(duplicate-worker prevention: worker created only when RUN_EVALUATION_WORKER_IN_WEB=true, and only once).`
+    );
+  }
+
   const server = app.listen(PORT, async () => {
     console.log(`Frontend Arena Evaluation Engine running on port ${PORT}`);
     try {
@@ -878,10 +900,22 @@ async function boot(): Promise<void> {
     }
   });
 
-  // Graceful shutdown: stop accepting new work, close queue + DB connections.
+  // Graceful shutdown order (combined mode): close the BullMQ worker first
+  // (stops accepting new jobs and finishes/safely releases active ones), then
+  // stop the HTTP server (stop accepting new requests), then close the
+  // queue/Redis connections, then disconnect Prisma.
   const shutdown = (signal: string) => {
     console.log(`[Server] ${signal} received — shutting down gracefully...`);
     server.close(async () => {
+      if (combinedWorkerHandle) {
+        try {
+          await combinedWorkerHandle.close();
+          console.log("[Server] Combined evaluation worker closed.");
+        } catch (err: any) {
+          console.error(`[Server] Error closing combined evaluation worker: ${err.message}`);
+        }
+        combinedWorkerHandle = null;
+      }
       try {
         await evaluationQueue.close();
       } catch (err: any) {
