@@ -41,6 +41,13 @@ export class RedisEvaluationQueueDriver implements EvaluationQueueDriver {
         removeOnFail: { age: 7 * 24 * 3600, count: 2000 },
       },
     });
+
+    // Handle ioredis/BullMQ "error" events post-boot cleanly (message only —
+    // never the connection string/credentials) so a Redis outage after startup
+    // logs a clear error instead of crashing with an unhandled "error" event.
+    this.queue.on("error", (err) => {
+      console.error(`[Queue] Redis/BullMQ error: ${err.message}`);
+    });
   }
 
   async enqueue(data: EvaluationJobData): Promise<{ jobId: string }> {

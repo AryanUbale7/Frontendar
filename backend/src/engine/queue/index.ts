@@ -17,21 +17,22 @@ import { EvaluationJobData, EvaluationQueueDriver, QueueMetrics, SanitizedJobInf
 export type { EvaluationJobData, EvaluationQueueDriver, QueueMetrics, SanitizedJobInfo };
 
 async function verifyRedisAvailable(): Promise<void> {
-  const { connection } = parseRedisConnection();
-  const probe = new Redis(connection.port ?? 6379, connection.host ?? "127.0.0.1", {
-    lazyConnect: true,
-    username: connection.username,
-    password: connection.password,
-    tls: connection.tls,
+  const { connection, display } = parseRedisConnection();
+  // Attach a no-op "error" listener BEFORE connect(): ioredis emits an "error"
+  // event on connection failure. With lazyConnect + a listener, the failure is
+  // surfaced via the connect()/ping() rejection below instead of an unhandled
+  // `[ioredis] Unhandled error event` crash. The real error is still included
+  // in the thrown message so genuine failures are never hidden.
+  const probe = new Redis({ ...connection, lazyConnect: true });
+  probe.on("error", () => {
+    /* handled via the connect()/ping() rejection below */
   });
   try {
     await probe.connect();
     await probe.ping();
   } catch (err) {
-    const host = (connection.host as string) || "127.0.0.1";
-    const port = (connection.port as number) || 6379;
     throw new Error(
-      `Redis is unavailable at ${host}:${port} but EVALUATION_QUEUE_DRIVER=redis is configured. ` +
+      `Redis is unavailable at ${display} but EVALUATION_QUEUE_DRIVER=redis is configured. ` +
         `Start Redis (or fix REDIS_URL/REDIS_HOST/REDIS_PORT) before booting. ` +
         `For local development only you may set EVALUATION_QUEUE_DRIVER=memory — this is NEVER allowed in production. ` +
         `Details: ${(err as Error).message}`
