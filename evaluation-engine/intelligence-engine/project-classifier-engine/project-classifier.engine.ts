@@ -85,7 +85,7 @@ export class ProjectClassifierEngine {
     // --- 3. Dashboard Indicators ---
     routePaths.forEach((r) => { if (r.includes("dashboard") || r.includes("analytics") || r.includes("metrics")) addScore("Dashboard", 15, `Route: ${r}`, "matchedRoutes"); });
     components.forEach((c) => {
-      if (c.includes("chart") || c.includes("statcard") || c.includes("kpi") || c.includes("datatable") || c.includes("metrics")) {
+      if (c.includes("dashboard") || c.includes("chart") || c.includes("statcard") || c.includes("kpi") || c.includes("datatable") || c.includes("metrics")) {
         addScore("Dashboard", 20, `Component: ${c}`, "matchedComponents");
       }
     });
@@ -295,14 +295,23 @@ export class ProjectClassifierEngine {
       }
     });
 
-    // If default blueprint was provided with an explicit title that matches a problem statement, check for user override
+    // If default blueprint was provided with an explicit title that matches a problem statement, check for user override.
+    // The override only applies when the repo shows real evidence — an empty or unrelated repo must not
+    // be auto-classified as the challenge type (that would fabricate Problem Alignment marks).
     if (defaultBlueprint && defaultBlueprint.problemStatement && defaultBlueprint.problemStatement.title) {
       const titleLower = defaultBlueprint.problemStatement.title.toLowerCase();
+      const hasRepoEvidence =
+        repoAnalysis.detectedFilesCount > 0 ||
+        routeResults.detectedRoutes.length > 0 ||
+        repoAnalysis.detectedComponents.length > 0;
       (Object.keys(PROJECT_BLUEPRINTS) as ProjectType[]).forEach((type) => {
         if (titleLower.includes(type.toLowerCase())) {
-          highestType = type;
-          highestScore = Math.max(highestScore, 50);
-          addScore(type, 50, `Blueprint explicit title match: "${defaultBlueprint.problemStatement.title}"`, "readmeKeywords");
+          const hasTypeSignals = evidenceScores[type].score > 0;
+          if (hasRepoEvidence && hasTypeSignals) {
+            highestType = type;
+            highestScore = Math.max(highestScore, 50);
+            addScore(type, 50, `Blueprint explicit title match: "${defaultBlueprint.problemStatement.title}"`, "readmeKeywords");
+          }
         }
       });
     }

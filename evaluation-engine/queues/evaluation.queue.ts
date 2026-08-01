@@ -1,5 +1,5 @@
-import { RealRedisBullQueue } from "../../backend/src/engine/redis-queue.system";
-import type { QueueJobPayload } from "../../backend/src/engine/redis-queue.system";
+import { InMemoryEvaluationQueue } from "../../backend/src/engine/in-memory-queue.system";
+import type { QueueJobPayload } from "../../backend/src/engine/in-memory-queue.system";
 
-export { RealRedisBullQueue as EvaluationQueue };
+export { InMemoryEvaluationQueue as EvaluationQueue };
 export type { QueueJobPayload as EvaluationJob };

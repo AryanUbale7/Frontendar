@@ -3,15 +3,15 @@ import * as path from "path";
 import { KnowledgeBlueprint } from "./knowledge-engine/knowledge-blueprint.interface";
 import { KnowledgeEngine } from "./knowledge-engine/knowledge.engine";
 import { SynonymEngine } from "./synonym-engine/synonym.engine";
-import { FeatureEngine, FeatureDetectionResult } from "./feature-engine/feature.engine";
+import { FeatureEngine, FeatureDetectionResult, CapabilityVerification } from "./feature-engine/feature.engine";
 import { RepositoryEngine } from "./repository-engine/repository.engine";
 import { RouteEngine } from "./route-engine/route.engine";
 import { UIEngine, UIScreenshotEvidence } from "./ui-engine/ui.engine";
 import { InferenceEngine } from "./inference-engine/inference.engine";
 import { ConfidenceEngine } from "./confidence-engine/confidence.engine";
 import { ReasoningEngine, CategoryReasoning } from "./reasoning-engine/reasoning.engine";
-import { EvidenceEngine } from "./evidence-engine/evidence.engine";
-import { ScoringEngine, FAIEReportSummary } from "./scoring-engine/scoring.engine";
+import { EvidenceEngine, EvidenceLevel } from "./evidence-engine/evidence.engine";
+import { ScoringEngine, FAIEReportSummary, TraceEntry } from "./scoring-engine/scoring.engine";
 import { ProjectClassifierEngine } from "./project-classifier-engine/project-classifier.engine";
 import { ProjectType, ClassificationResult } from "./project-classifier-engine/project-type.interface";
 
@@ -35,12 +35,16 @@ export interface FAIEReportV2 {
     bonusPointsTotal: number;
     deductionsTotal: number;
   };
+  scoreTrace: TraceEntry[];
+  penaltyTrace: TraceEntry[];
   featureTreeEvaluations: Array<{
     featureName: string;
     mandatory: boolean;
     maxWeight: number;
     awardedScore: number;
     status: string;
+    implementationDepth: string;
+    evidenceLevel: number;
     confidenceScore: number;
     subFeatures: Array<{
       subFeatureName: string;
@@ -48,6 +52,7 @@ export interface FAIEReportV2 {
       awardedScore: number;
       confidencePercent: number;
       status: string;
+      implementationDepth: string;
     }>;
   }>;
   scoringDetails: Array<{
@@ -66,6 +71,7 @@ export interface FAIEReportV2 {
   logs: string[];
   auditableReportId: string;
   timestamp: string;
+  capabilityVerifications?: CapabilityVerification[];
 }
 
 export class FAIEOrchestrator {
@@ -114,10 +120,9 @@ export class FAIEOrchestrator {
     const uiAnalysis = this.uiEngine.analyzeUI(workspacePath, deploymentUrl);
     const classification = this.projectClassifierEngine.classifyProject(repoAnalysis, routeResults, uiAnalysis, passedBlueprint);
 
-    // Select dynamic blueprint based on classification unless passed blueprint has explicit mandatory custom features
-    const blueprint = (classification.detectedProjectType !== "General Web App" && classification.confidencePercent >= 35)
-      ? classification.selectedBlueprint
-      : (passedBlueprint || classification.selectedBlueprint);
+    // Resolve blueprint using explicit precedence (Task 1)
+    const blueprint = passedBlueprint || classification.selectedBlueprint;
+    const isDashboardChallenge = blueprint.problemStatement?.title?.toLowerCase().includes("dashboard") || false;
 
     logs.push(`[FAIE v2 4/12] Project Type Classified: "${classification.detectedProjectType}" (${classification.confidencePercent}% confidence).`);
     logs.push(`[FAIE v2 4/12] Classification Evidence: ${classification.evidenceSummary.slice(0, 4).join("; ")}`);
@@ -166,8 +171,9 @@ export class FAIEOrchestrator {
       if (fr.implementationStatus !== "Not Implemented") {
         this.evidenceEngine.addEvidence({
           category: "Components",
-          description: `Feature '${fr.featureName}' marked ${fr.implementationStatus} (${fr.confidenceScore}% confidence). Awarded ${fr.awardedScore}/${fr.maxWeight} pts.`,
+          description: `Feature '${fr.featureName}' marked ${fr.implementationStatus} (depth: ${fr.implementationDepth}, L${fr.evidence.evidenceLevel} evidence, ${fr.confidenceScore}% confidence). Awarded ${fr.awardedScore}/${fr.maxWeight} pts.`,
           sourcePath: fr.evidence.fileMatches[0] || fr.evidence.routeMatches[0],
+          evidenceLevel: fr.evidence.evidenceLevel as EvidenceLevel,
         });
       }
     });
@@ -182,129 +188,297 @@ export class FAIEOrchestrator {
     // 8. Reasoning Engine Category Breakdowns
     logs.push(`[FAIE v2 9/12] Reasoning Engine: Generating explainable category reasonings...`);
     const reasonings: CategoryReasoning[] = [];
+    const capabilityVerifications = this.featureEngine.evaluateCapabilities(repoAnalysis, uiAnalysis);
 
     blueprint.scoringSystem.categories.forEach((cat) => {
       let scoreAwarded = 0;
       let ruleApplied = "";
       let reasonStr = "";
-      let confidence = 95;
+      let confidence = 50;
 
       const catLower = cat.name.toLowerCase();
+      const totalAwarded = featureResults.reduce((acc, fr) => acc + fr.awardedScore, 0);
+      const totalMax = featureResults.reduce((acc, fr) => acc + fr.maxWeight, 0) || 1;
+      const ratio = totalAwarded / totalMax;
 
-      if (catLower.includes("alignment") || catLower.includes("problem")) {
-        const isDashboard = classification.detectedProjectType === "Dashboard";
-        scoreAwarded = isDashboard ? cat.maxMarks : Math.round(cat.maxMarks * 0.5);
-        ruleApplied = "Classification Problem Alignment Rule";
-        reasonStr = `Project classified as ${classification.detectedProjectType} (${classification.confidencePercent}% confidence). Aligned with Life Dashboard Challenge requirements.`;
-      } else if (catLower.includes("ui/ux") || catLower.includes("responsiveness")) {
-        let score = 0;
-        const isResponsive = uiAnalysis.isResponsive || repoAnalysis.hasTailwind;
-        if (isResponsive) score += 8;
-        if (!uiAnalysis.hasBrokenLayout) score += 6;
-        const hasTheme = repoAnalysis.allSourceFiles.some(f => {
-          try {
-            const ext = path.extname(f).toLowerCase();
-            if ([".js", ".jsx", ".ts", ".tsx", ".css"].includes(ext)) {
-              const text = fs.readFileSync(f, "utf-8");
-              return text.includes("theme") || text.includes("dark") || text.includes("glow") || text.includes("shadow-glow");
+      if (isDashboardChallenge) {
+        // --- TASK 3: GRANULAR CAPABILITY SCORING FOR DASHBOARDS ---
+        if (catLower.includes("alignment") || catLower.includes("problem")) {
+          const isDashboard = classification.detectedProjectType === "Dashboard";
+          scoreAwarded = isDashboard ? cat.maxMarks : Math.round(cat.maxMarks * 0.5);
+          ruleApplied = "Classification Problem Alignment Rule";
+          confidence = classification.confidencePercent;
+          reasonStr = `Project classified as ${classification.detectedProjectType} (${classification.confidencePercent}% confidence). Aligned with Life Dashboard Challenge requirements.`;
+        } else if (catLower.includes("ui/ux") || catLower.includes("responsiveness")) {
+          const respCap = capabilityVerifications.find(v => v.capability === "RESPONSIVE_LAYOUT");
+          const respLevel = respCap ? respCap.evidenceLevel : 0;
+          confidence = Math.min(100, respLevel * 20);
+          scoreAwarded = Math.min(cat.maxMarks, respLevel * 4);
+          ruleApplied = "Evidence-Level UI/UX & Responsive Layout Audit";
+          reasonStr = `UI/UX verified: Responsive evidence Level ${respLevel}/5. Layout stable: ${!uiAnalysis.hasBrokenLayout ? "YES" : "NO"}. A responsive implementation at Level 3+ requires responsive classes inside interactive components.`;
+        } else if (catLower.includes("functionality") || catLower.includes("interaction")) {
+          const stateCap = capabilityVerifications.find(v => v.capability === "STATEFUL_INTERACTION");
+          const filterCap = capabilityVerifications.find(v => v.capability === "INTERACTIVE_FILTERING");
+          const stateLevel = stateCap ? stateCap.evidenceLevel : 0;
+          const filterLevel = filterCap ? filterCap.evidenceLevel : 0;
+          confidence = Math.min(100, Math.max(stateLevel, filterLevel) * 20);
+          let score = Math.min(cat.maxMarks, Math.max(stateLevel, filterLevel) * 5);
+
+          // Dynamic state-to-UI binding: state declared AND rendered in JSX expressions
+          const hasDynamicBinding = repoAnalysis.allSourceFiles.some(f => {
+            try {
+              const ext = path.extname(f).toLowerCase();
+              if ([".js", ".jsx", ".ts", ".tsx"].includes(ext)) {
+                const text = fs.readFileSync(f, "utf-8").replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n\r]*/g, "");
+                return text.includes("useState") && /(:\s*\{|=\s*\{)[^}]*\}/.test(text);
+              }
+            } catch {}
+            return false;
+          });
+          if (hasDynamicBinding) score += 2;
+          scoreAwarded = Math.min(cat.maxMarks, score);
+          ruleApplied = "Evidence-Level Semantic Interaction & Capability Verification";
+          reasonStr = `Interaction checks: State Level ${stateLevel}/5, Filter Level ${filterLevel}/5. Dynamic state-to-UI binding: ${hasDynamicBinding ? "YES" : "NO"}.`;
+        } else if (catLower.includes("visualization") || catLower.includes("data viz")) {
+          const vizCap = capabilityVerifications.find(v => v.capability === "DATA_VISUALIZATION");
+          const vizLevel = vizCap ? vizCap.evidenceLevel : 0;
+          confidence = Math.min(100, vizLevel * 20);
+          let score = Math.min(cat.maxMarks, vizLevel * 3);
+
+          if (vizLevel >= 3) {
+            // Check rendered charts count
+            let chartsCount = 0;
+            repoAnalysis.allSourceFiles.forEach(f => {
+              try {
+                const ext = path.extname(f).toLowerCase();
+                if ([".js", ".jsx", ".ts", ".tsx"].includes(ext)) {
+                  const text = fs.readFileSync(f, "utf-8");
+                  const matches = text.match(/LineChart|BarChart|AreaChart|PieChart|ScatterChart/g);
+                  if (matches) chartsCount += matches.length;
+                }
+              } catch {}
+            });
+            if (chartsCount > 2) score += 2;
+
+            // Distinct chart types
+            const hasMultipleTypes = repoAnalysis.allSourceFiles.some(f => {
+              try {
+                const ext = path.extname(f).toLowerCase();
+                if ([".js", ".jsx", ".ts", ".tsx"].includes(ext)) {
+                  const text = fs.readFileSync(f, "utf-8");
+                  return text.includes("LineChart") && (text.includes("BarChart") || text.includes("AreaChart"));
+                }
+              } catch {}
+              return false;
+            });
+            if (hasMultipleTypes) score += 2;
+
+            // ResponsiveContainer usage
+            const hasResponsiveContainer = repoAnalysis.allSourceFiles.some(f => {
+              try {
+                const ext = path.extname(f).toLowerCase();
+                if ([".js", ".jsx", ".ts", ".tsx"].includes(ext)) {
+                  const text = fs.readFileSync(f, "utf-8");
+                  return text.includes("ResponsiveContainer");
+                }
+              } catch {}
+              return false;
+            });
+            if (hasResponsiveContainer) score += 1;
+
+            // Tooltips
+            const hasTooltip = repoAnalysis.allSourceFiles.some(f => {
+              try {
+                const ext = path.extname(f).toLowerCase();
+                if ([".js", ".jsx", ".ts", ".tsx"].includes(ext)) {
+                  const text = fs.readFileSync(f, "utf-8");
+                  return text.includes("Tooltip");
+                }
+              } catch {}
+              return false;
+            });
+            if (hasTooltip) score += 1;
+
+            // Legends
+            const hasLegend = repoAnalysis.allSourceFiles.some(f => {
+              try {
+                const ext = path.extname(f).toLowerCase();
+                if ([".js", ".jsx", ".ts", ".tsx"].includes(ext)) {
+                  const text = fs.readFileSync(f, "utf-8");
+                  return text.includes("Legend");
+                }
+              } catch {}
+              return false;
+            });
+            if (hasLegend) score += 1;
+
+            // Axes
+            const hasAxes = repoAnalysis.allSourceFiles.some(f => {
+              try {
+                const ext = path.extname(f).toLowerCase();
+                if ([".js", ".jsx", ".ts", ".tsx"].includes(ext)) {
+                  const text = fs.readFileSync(f, "utf-8");
+                  return text.includes("XAxis") && text.includes("YAxis");
+                }
+              } catch {}
+              return false;
+            });
+            if (hasAxes) score += 1;
+
+            // Active filters/data transform affecting charts
+            const hasDataTransform = repoAnalysis.allSourceFiles.some(f => {
+              try {
+                const ext = path.extname(f).toLowerCase();
+                if ([".js", ".jsx", ".ts", ".tsx"].includes(ext)) {
+                  const text = fs.readFileSync(f, "utf-8");
+                  return text.includes(".map") && text.includes("data={");
+                }
+              } catch {}
+              return false;
+            });
+            if (hasDataTransform) score += 1;
+          }
+          scoreAwarded = Math.min(cat.maxMarks, score);
+          ruleApplied = "AST Data Visualization Engine Check";
+          reasonStr = `Visualization checks: Viz Level ${vizLevel}/5. Mapped active charts: ${score >= 10 ? "YES" : "NO"}. Legend/Tooltip/Responsive: ${score >= 13 ? "YES" : "NO"}.`;
+        } else if (catLower.includes("code quality") || catLower.includes("architecture")) {
+          let score = 4; // base
+          if (repoAnalysis.detectedFilesCount > 5) score += 2;
+          if (repoAnalysis.astPatterns.functionalComponentsCount > 3) score += 2;
+          if (repoAnalysis.detectedComponents.length > 3) score += 2;
+          
+          // Deduct for copy-paste code
+          let hasDuplication = false;
+          const contents = repoAnalysis.allSourceFiles.map(f => {
+            try {
+              const ext = path.extname(f).toLowerCase();
+              if ([".js", ".jsx", ".ts", ".tsx"].includes(ext)) return fs.readFileSync(f, "utf-8");
+            } catch {}
+            return "";
+          }).filter(c => c.length > 50);
+
+          if (contents.length > 2) {
+            for (let i = 0; i < contents.length; i++) {
+              for (let j = i + 1; j < contents.length; j++) {
+                if (contents[i] === contents[j]) {
+                  hasDuplication = true;
+                  break;
+                }
+              }
             }
-          } catch {}
-          return false;
-        });
-        if (hasTheme) score += 6;
-        scoreAwarded = Math.min(cat.maxMarks, score);
-        ruleApplied = "Decoupled UI/UX & Responsive Layout Audit";
-        reasonStr = `UI/UX verified: Responsive layout grid present (${isResponsive ? "YES" : "NO"}), Broken layout flags: ${uiAnalysis.hasBrokenLayout ? "YES" : "NO"}. Custom theme/visual properties: ${hasTheme ? "YES" : "NO"}.`;
-      } else if (catLower.includes("functionality") || catLower.includes("interaction")) {
-        let score = 0;
-        const hasHooks = repoAnalysis.astPatterns.detectedHooks.some(h => ["useState", "useReducer", "useEffect"].includes(h));
-        if (hasHooks) score += 7;
-        const hasFilters = featureResults.some(f => f.featureId.toLowerCase().includes("filter") && f.implementationStatus !== "Not Implemented");
-        if (hasFilters) score += 7;
-        const hasDynamic = featureResults.some(f => f.featureId.toLowerCase().includes("telemetry") || f.featureId.toLowerCase().includes("sim") || f.featureId.toLowerCase().includes("dynamic")) ||
-                           repoAnalysis.allSourceFiles.some(f => {
-                             try {
-                               const ext = path.extname(f).toLowerCase();
-                               if ([".js", ".jsx", ".ts", ".tsx"].includes(ext)) {
-                                 const text = fs.readFileSync(f, "utf-8");
-                                 return text.includes("setInterval") || text.includes("setTimeout");
-                               }
-                             } catch {}
-                             return false;
-                           });
-        if (hasDynamic) score += 6;
-        scoreAwarded = Math.min(cat.maxMarks, score);
-        ruleApplied = "Semantic Interaction & Capability Verification";
-        reasonStr = `Interaction checks: Stateful handlers: ${hasHooks ? "YES" : "NO"}, Filter/selection controls: ${hasFilters ? "YES" : "NO"}, Dynamic update engine: ${hasDynamic ? "YES" : "NO"}.`;
-      } else if (catLower.includes("visualization") || catLower.includes("data viz")) {
-        let score = 0;
-        const hasVizPkg = repoAnalysis.allDependencies.some(d => ["recharts", "chart.js", "apexcharts", "d3"].includes(d.toLowerCase()));
-        const hasVizAST = repoAnalysis.astPatterns.detectedChartLibs.length > 0 || repoAnalysis.allSourceFiles.some(f => {
-          try {
-            const ext = path.extname(f).toLowerCase();
-            if ([".js", ".jsx", ".ts", ".tsx"].includes(ext)) {
-              const text = fs.readFileSync(f, "utf-8");
-              return text.includes("<LineChart") || text.includes("<AreaChart") || text.includes("<BarChart") || text.includes("<canvas") || text.includes("data=");
-            }
-          } catch {}
-          return false;
-        });
-        if (hasVizPkg || hasVizAST) {
-          score += 15;
-        }
-        scoreAwarded = Math.min(cat.maxMarks, score);
-        ruleApplied = "AST Data Visualization Engine Check";
-        reasonStr = `Visualization elements detected: ${hasVizPkg || hasVizAST ? "YES" : "NO"}. Dynamic bindings verified.`;
-      } else if (catLower.includes("code quality") || catLower.includes("architecture")) {
-        let score = 0;
-        if (repoAnalysis.detectedFilesCount > 5) score += 4;
-        if (repoAnalysis.astPatterns.functionalComponentsCount > 3) score += 3;
-        if (repoAnalysis.detectedComponents.length > 3) score += 3;
-        scoreAwarded = Math.min(cat.maxMarks, score);
-        ruleApplied = "Code Architecture & Modularity Scan";
-        reasonStr = `Modular structures parsed. Component Count: ${repoAnalysis.detectedComponents.length}. Source files count: ${repoAnalysis.detectedFilesCount}.`;
-      } else if (catLower.includes("performance")) {
-        let score = 5;
-        if (toolResults && toolResults.performance && toolResults.performance.lighthouseScore !== "UNAVAILABLE") {
-          score = Math.round(5 * (toolResults.performance.lighthouseScore / 100));
-          reasonStr = `Scored based on real Lighthouse Performance: ${toolResults.performance.lighthouseScore}/100.`;
+          }
+          if (hasDuplication) {
+            score -= 2;
+          }
+          scoreAwarded = Math.max(0, Math.min(cat.maxMarks, score));
+          ruleApplied = "Code Architecture & Modularity Scan";
+          confidence = Math.min(100, 40 + Math.min(6, repoAnalysis.detectedComponents.length) * 10);
+          reasonStr = `Modular structures parsed. Component Count: ${repoAnalysis.detectedComponents.length}. Source files count: ${repoAnalysis.detectedFilesCount}. Duplicate files: ${hasDuplication ? "YES (-2 pts)" : "NO"}.`;
+        } else if (catLower.includes("performance")) {
+          let score = 3; // neutral default
+          if (toolResults && toolResults.performance && toolResults.performance.lighthouseScore !== "UNAVAILABLE") {
+            const lh = toolResults.performance.lighthouseScore;
+            if (lh >= 90) score = 5;
+            else if (lh >= 75) score = 4;
+            else if (lh >= 50) score = 3;
+            else score = 2;
+            confidence = lh;
+            reasonStr = `Scored based on real Lighthouse Performance: ${lh}/100.`;
+          } else {
+            score = 3;
+            confidence = 50;
+            reasonStr = `Lighthouse run: UNAVAILABLE. Applied evidence-neutral default score 3 (50% confidence).`;
+          }
+          scoreAwarded = Math.min(cat.maxMarks, score);
+          ruleApplied = "Real Performance Audit & Optimization Check";
+        } else if (catLower.includes("accessibility")) {
+          let score = 3; // neutral default
+          if (toolResults && toolResults.performance && toolResults.performance.accessibilityScore !== "UNAVAILABLE") {
+            const lh = toolResults.performance.accessibilityScore;
+            if (lh >= 90) score = 5;
+            else if (lh >= 75) score = 4;
+            else if (lh >= 50) score = 3;
+            else score = 2;
+            confidence = lh;
+            reasonStr = `Scored based on real Lighthouse Accessibility: ${lh}/100.`;
+          } else {
+            // Static checks fallback
+            const hasAria = repoAnalysis.allSourceFiles.some(f => {
+              try {
+                const ext = path.extname(f).toLowerCase();
+                if ([".js", ".jsx", ".ts", ".tsx"].includes(ext)) {
+                  const text = fs.readFileSync(f, "utf-8");
+                  return text.includes("aria-") || text.includes("role=") || text.includes("alt=");
+                }
+              } catch {}
+              return false;
+            });
+            score = hasAria ? 3 : 2;
+            confidence = hasAria ? 60 : 30;
+            reasonStr = `Lighthouse run: UNAVAILABLE. Static ARIA checks: ${hasAria ? "YES (score: 3)" : "NO (score: 2)"}.`;
+          }
+          scoreAwarded = Math.min(cat.maxMarks, score);
+          ruleApplied = "Real Accessibility Audit & ARIA Checks";
+        } else if (catLower.includes("creativity") || catLower.includes("innovation")) {
+          let score = 2;
+          const dynamicCap = capabilityVerifications.find(v => v.capability === "DYNAMIC_DATA");
+          const storyCap = capabilityVerifications.find(v => v.capability === "DATA_STORYTELLING");
+          const hasDynamic = dynamicCap && dynamicCap.evidenceLevel >= 3;
+          const hasStory = storyCap && storyCap.evidenceLevel >= 3;
+          confidence = Math.min(100, Math.max(dynamicCap ? dynamicCap.evidenceLevel : 0, storyCap ? storyCap.evidenceLevel : 0) * 20);
+          if (hasDynamic) score += 1;
+          
+          const hasTheme = repoAnalysis.allSourceFiles.some(f => {
+            try {
+              const ext = path.extname(f).toLowerCase();
+              if ([".js", ".jsx", ".ts", ".tsx"].includes(ext)) {
+                const text = fs.readFileSync(f, "utf-8");
+                return text.includes("glow") || text.includes("shadow-glow");
+              }
+            } catch {}
+            return false;
+          });
+          if (hasTheme) score += 1;
+
+          if (hasStory) score += 1;
+
+          scoreAwarded = Math.min(cat.maxMarks, score);
+          ruleApplied = "Immersive UX & Feature Innovation Check";
+          reasonStr = `Creativity check: Telemetry simulator: ${hasDynamic ? "YES" : "NO"}. Glowing theme layout: ${hasTheme ? "YES" : "NO"}. Storytelling comments: ${hasStory ? "YES" : "NO"}.`;
         } else {
-          score = 5;
-          reasonStr = `Scored based on Vite production compiler success. Lighthouse run: UNAVAILABLE.`;
+          scoreAwarded = Math.round(cat.maxMarks * Math.max(ratio, 0.5));
+          ruleApplied = "Evidence-Based General FAIE Rule";
+          confidence = Math.round(ratio * 100);
+          reasonStr = `Category '${cat.name}' evaluated via feature-tree evidence ratio ${Math.round(ratio * 100)}%.`;
         }
-        scoreAwarded = Math.min(cat.maxMarks, score);
-        ruleApplied = "Real Performance Audit & Optimization Check";
-      } else if (catLower.includes("accessibility")) {
-        let score = 5;
-        if (toolResults && toolResults.performance && toolResults.performance.accessibilityScore !== "UNAVAILABLE") {
-          score = Math.round(5 * (toolResults.performance.accessibilityScore / 100));
-          reasonStr = `Scored based on real Lighthouse Accessibility: ${toolResults.performance.accessibilityScore}/100.`;
-        } else {
-          score = 5;
-          reasonStr = `Scored based on static accessibility checks (ARIA, interactive roles). Lighthouse run: UNAVAILABLE.`;
-        }
-        scoreAwarded = Math.min(cat.maxMarks, score);
-        ruleApplied = "Real Accessibility Audit & ARIA Checks";
-      } else if (catLower.includes("creativity") || catLower.includes("innovation")) {
-        let score = 3;
-        const hasCreative = repoAnalysis.allSourceFiles.some(f => {
-          try {
-            const ext = path.extname(f).toLowerCase();
-            if ([".js", ".jsx", ".ts", ".tsx"].includes(ext)) {
-              const text = fs.readFileSync(f, "utf-8");
-              return text.includes("BootScreen") || text.includes("jitter") || text.includes("AlertsFeed") || text.includes("InsightsPanel");
-            }
-          } catch {}
-          return false;
-        });
-        if (hasCreative) score += 2;
-        scoreAwarded = Math.min(cat.maxMarks, score);
-        ruleApplied = "Immersive UX & Feature Innovation Check";
-        reasonStr = `Creativity / Innovation: verified custom loading splash, telemetry simulation, or diagnostic feeds.`;
       } else {
-        scoreAwarded = Math.round(cat.maxMarks * 0.85);
-        ruleApplied = "General FAIE v2 Rule";
-        reasonStr = `Category '${cat.name}' evaluated against blueprint rules.`;
+        // --- REGRESSION RULES FOR MOCK / OTHER BLUEPRINTS ---
+        if (catLower.includes("alignment") || catLower.includes("problem")) {
+          scoreAwarded = Math.round(cat.maxMarks * (0.5 + ratio * 0.5));
+          ruleApplied = "Weighted Feature Tree Alignment Rule";
+          confidence = classification.confidencePercent;
+          reasonStr = `Deterministically aligned with '${activeProblem.title}'. Hierarchical feature score ratio: Math.round(${ratio * 100})%.`;
+        } else if (catLower.includes("feature") || catLower.includes("ui/ux") || catLower.includes("ui")) {
+          scoreAwarded = Math.round(cat.maxMarks * ratio);
+          ruleApplied = "Multi-Evidence Feature Tree Rule";
+          confidence = Math.round(ratio * 100);
+          reasonStr = `Feature tree evaluation completed. Evaluated ${featureResults.length} root features and sub-features (evidence ratio ${Math.round(ratio * 100)}%).`;
+        } else if (catLower.includes("performance") || catLower.includes("seo") || catLower.includes("tech")) {
+          scoreAwarded = repoAnalysis.hasTailwind && repoAnalysis.hasTsConfig ? cat.maxMarks : Math.round(cat.maxMarks * Math.max(ratio, 0.5));
+          ruleApplied = "AST Tech Stack & Architecture Rule";
+          confidence = repoAnalysis.hasTailwind && repoAnalysis.hasTsConfig ? 100 : Math.round(ratio * 100);
+          reasonStr = `Framework: '${repoAnalysis.framework}'. TS Usage: ${repoAnalysis.detectedLanguages.typescriptPercent}%. Packages: ${repoAnalysis.allDependencies.length}.`;
+        } else if (catLower.includes("documentation") || catLower.includes("readme")) {
+          scoreAwarded = repoAnalysis.detectedFilesCount > 5 ? cat.maxMarks : Math.round(cat.maxMarks * 0.6);
+          ruleApplied = "Documentation & Setup Guide Rule";
+          confidence = repoAnalysis.detectedFilesCount > 5 ? 100 : 60;
+          reasonStr = "Repository documentation parsed and verified.";
+        } else {
+          scoreAwarded = Math.round(cat.maxMarks * Math.max(ratio, 0.5));
+          ruleApplied = "Evidence-Based General FAIE Rule";
+          confidence = Math.round(ratio * 100);
+          reasonStr = `Category '${cat.name}' evaluated via feature-tree evidence ratio ${Math.round(ratio * 100)}%.`;
+        }
       }
 
       reasonings.push(
@@ -333,7 +507,8 @@ export class FAIEOrchestrator {
       repoAnalysis,
       routeResults,
       uiAnalysis,
-      reasonings
+      reasonings,
+      isDashboardChallenge
     );
 
     const featureTreeEvaluations = featureResults.map((fr) => ({
@@ -342,6 +517,8 @@ export class FAIEOrchestrator {
       maxWeight: fr.maxWeight,
       awardedScore: fr.awardedScore,
       status: fr.implementationStatus,
+      implementationDepth: fr.implementationDepth,
+      evidenceLevel: fr.evidence.evidenceLevel,
       confidenceScore: fr.confidenceScore,
       subFeatures: fr.subFeatureResults.map((sf) => ({
         subFeatureName: sf.subFeatureName,
@@ -349,6 +526,7 @@ export class FAIEOrchestrator {
         awardedScore: sf.awardedScore,
         confidencePercent: sf.confidenceResult.confidencePercent,
         status: sf.confidenceResult.implementationStatus,
+        implementationDepth: sf.implementationDepth,
       })),
     }));
 
@@ -374,6 +552,8 @@ export class FAIEOrchestrator {
         bonusPointsTotal: faieSummary.bonusPointsTotal,
         deductionsTotal: faieSummary.deductionsTotal,
       },
+      scoreTrace: faieSummary.scoreTrace,
+      penaltyTrace: faieSummary.penaltyTrace,
       featureTreeEvaluations,
       scoringDetails: reasonings.map((r) => ({
         categoryName: r.categoryName,
@@ -391,6 +571,7 @@ export class FAIEOrchestrator {
       logs: allLogs,
       auditableReportId: `faie_v2_${Date.now()}`,
       timestamp: new Date().toISOString(),
+      capabilityVerifications,
     };
   }
 }

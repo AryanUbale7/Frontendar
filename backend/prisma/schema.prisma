@@ -50,7 +50,10 @@ model Hackathon {
   testCases          Json
   rules              Json
   resources          Json
-  status             String    @default("upcoming")
+  status             String    @default("upcoming") // derived lifecycle cache: draft, upcoming, active, completed, archived
+  published          Boolean   @default(false)
+  archived           Boolean   @default(false)
+  publishedAt        DateTime?
   startDate          DateTime?
   endDate            DateTime?
   createdAt          DateTime  @default(now())
@@ -70,7 +73,26 @@ model Blueprint {
   scoringSystem          Json
   autoPassFailRules      Json
   bonusRules             Json
+  status                 String   @default("draft") // draft | published
+  version                Int      @default(1)
+  publishedAt            DateTime?
   createdAt              DateTime @default(now())
+  updatedAt              DateTime @default(now())
+}
+
+// Immutable snapshot of every published blueprint version so historical
+// evaluations remain reproducible even after the current blueprint is edited.
+model BlueprintVersion {
+  id          String   @id @default(uuid())
+  blueprintId String
+  hackathonId String
+  version     Int
+  payload     Json
+  publishedAt DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  @@index([hackathonId])
+  @@index([blueprintId])
 }
 
 model Submission {
@@ -93,6 +115,9 @@ model Submission {
   status              String             @default("PENDING") // PENDING, QUEUED, CLONING, etc.
   score               Int?
   grade               String?
+  blueprintId         String?            // blueprint used for this evaluation (immutable binding)
+  blueprintVersion    Int?               // blueprint version used for this evaluation
+  completedAt         DateTime?          // set when evaluation completes (leaderboard tie-break)
   createdAt           DateTime           @default(now())
   updatedAt           DateTime           @updatedAt
   reports             EvaluationReport[]

@@ -18,6 +18,97 @@ export const DEFAULT_MOCK_USER: UserProfile = {
 };
 
 const MOCK_SESSION_KEY = "fa_session_user";
+const ACCESS_TOKEN_KEY = "fa_access_token";
+const REFRESH_TOKEN_KEY = "fa_refresh_token";
+const ACCESS_TOKEN_COOKIE = "fa_access_token";
+const REFRESH_TOKEN_COOKIE = "fa_refresh_token";
+const SESSION_COOKIE = "fa_session_active";
+
+interface BackendUserResponse {
+  id: string;
+  email: string;
+  role?: string;
+  firstName?: string;
+  lastName?: string;
+  avatarUrl?: string;
+  createdAt?: string;
+}
+
+function mapBackendRole(backendRole: string | undefined | null): UserRole {
+  const role = (backendRole || "").toUpperCase();
+  if (role === "ADMIN" || role === "SUPER_ADMIN" || role === "PLATFORM_ADMIN") {
+    return "platform_admin";
+  }
+  if (role === "ORG_ADMIN") {
+    return "org_admin";
+  }
+  return "participant";
+}
+
+function mapBackendUser(backendUser: BackendUserResponse): UserProfile {
+  const role = mapBackendRole(backendUser?.role);
+  const email = backendUser?.email || "";
+  return {
+    id: backendUser?.id,
+    email,
+    firstName: backendUser?.firstName || backendUser?.email?.split("@")[0] || "",
+    lastName: backendUser?.lastName || "",
+    fullName: backendUser?.firstName
+      ? `${backendUser.firstName} ${backendUser.lastName || ""}`.trim()
+      : email.split("@")[0],
+    role,
+    avatarUrl: backendUser?.avatarUrl || "",
+    emailVerified: true,
+    createdAt: backendUser?.createdAt || new Date().toISOString(),
+  };
+}
+
+function setCookie(name: string, value: string, maxAgeSeconds: number): void {
+  document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=${maxAgeSeconds}; SameSite=Lax`;
+}
+
+function clearCookie(name: string): void {
+  document.cookie = `${name}=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; max-age=0; SameSite=Lax`;
+}
+
+function persistTokens(accessToken: string, refreshToken: string): void {
+  localStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
+  localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+  setCookie(ACCESS_TOKEN_COOKIE, accessToken, 60 * 60 * 24 * 7);
+  setCookie(REFRESH_TOKEN_COOKIE, refreshToken, 60 * 60 * 24 * 7);
+  setCookie(SESSION_COOKIE, "true", 60 * 60 * 24 * 365);
+}
+
+function clearTokens(): void {
+  localStorage.removeItem(ACCESS_TOKEN_KEY);
+  localStorage.removeItem(REFRESH_TOKEN_KEY);
+  clearCookie(ACCESS_TOKEN_COOKIE);
+  clearCookie(REFRESH_TOKEN_COOKIE);
+  clearCookie(SESSION_COOKIE);
+}
+
+function buildDevMockSession(email: string): UserProfile {
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("Authentication backend is unreachable. Sign-in is not available.");
+  }
+
+  let role: UserRole = "participant";
+  if (email.includes("admin")) {
+    role = "platform_admin";
+  } else if (email.includes("org")) {
+    role = "org_admin";
+  }
+
+  const mockId = `usr_mock_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  return {
+    ...DEFAULT_MOCK_USER,
+    id: mockId,
+    email,
+    fullName: email.split("@")[0].replace(".", " "),
+    role,
+    createdAt: new Date().toISOString(),
+  };
+}
 
 export class AuthService {
   private static mockUser: UserProfile | null = null;
@@ -46,9 +137,7 @@ export class AuthService {
         document.cookie = "fa_session_active=true; path=/; max-age=31536000; SameSite=Lax";
       } else {
         localStorage.removeItem(MOCK_SESSION_KEY);
-        localStorage.removeItem("fa_access_token");
-        localStorage.removeItem("fa_refresh_token");
-        document.cookie = "fa_session_active=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; max-age=0; SameSite=Lax";
+        clearTokens();
       }
     } catch {
       // fallback
@@ -69,71 +158,85 @@ export class AuthService {
     }
 
     const data = await res.json();
+    const user = mapBackendUser(data.user);
 
-    // Convert backend user schema response to frontend UserProfile schema
-    let role: UserRole = "participant";
-    const backendRole = (data.user.role || "").toUpperCase();
-    if (backendRole === "ADMIN" || backendRole === "SUPER_ADMIN" || backendRole === "PLATFORM_ADMIN") {
-      role = "platform_admin";
-    } else if (backendRole === "ORG_ADMIN") {
-      role = "org_admin";
-    }
-
-    const user: UserProfile = {
-      id: data.user.id,
-      email: data.user.email,
-      firstName: data.user.firstName || data.user.email.split("@")[0],
-      lastName: data.user.lastName || "",
-      fullName: data.user.firstName ? `${data.user.firstName} ${data.user.lastName || ""}`.trim() : data.user.email.split("@")[0],
-      role,
-      avatarUrl: data.user.avatarUrl || "",
-      emailVerified: true,
-      createdAt: new Date().toISOString(),
-    };
-
-    if (typeof window !== "undefined") {
-      localStorage.setItem("fa_access_token", data.accessToken);
-      localStorage.setItem("fa_refresh_token", data.refreshToken);
-    }
-
+    persistTokens(data.accessToken, data.refreshToken);
     this.setStoredUser(user);
     return user;
   }
 
   public static async signInWithEmailPassword(data: SignInData): Promise<UserProfile> {
-    let role: UserRole = "participant";
-    if (data.email.includes("admin")) {
-      role = "platform_admin";
-    } else if (data.email.includes("org")) {
-      role = "org_admin";
+    let res: Response;
+    try {
+      res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: data.email, password: data.password }),
+      });
+    } catch {
+      // Backend unreachable: dev-only mock session (production throws)
+      const devUser = buildDevMockSession(data.email);
+      this.setStoredUser(devUser);
+      console.warn("[AuthService] Using DEV mock session (backend unreachable).");
+      return devUser;
     }
 
-    const user: UserProfile = {
-      ...DEFAULT_MOCK_USER,
-      email: data.email,
-      fullName: data.email.split("@")[0].replace(".", " "),
-      role,
-    };
+    if (!res.ok) {
+      let message = "Invalid email or password credentials.";
+      try {
+        const err = await res.json();
+        if (err?.error) message = err.error;
+      } catch {
+        // keep default message
+      }
+      throw new Error(message);
+    }
 
+    const auth = await res.json();
+    const user = mapBackendUser(auth.user);
+
+    persistTokens(auth.accessToken, auth.refreshToken);
     this.setStoredUser(user);
     return user;
   }
 
   public static async signUp(data: SignUpData): Promise<UserProfile> {
-    const user: UserProfile = {
-      id: `usr_${Date.now()}`,
-      email: data.email,
-      firstName: data.firstName,
-      lastName: data.lastName,
-      fullName: `${data.firstName} ${data.lastName}`,
-      role: data.organizationName ? "org_admin" : "participant",
-      organizationName: data.organizationName || "",
-      emailVerified: false,
-      createdAt: new Date().toISOString(),
-    };
+    let res: Response;
+    try {
+      res = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: data.email,
+          password: data.password,
+          firstName: data.firstName,
+          lastName: data.lastName,
+        }),
+      });
+    } catch {
+      // Backend unreachable: dev-only mock session (production throws)
+      const devUser = buildDevMockSession(data.email);
+      this.setStoredUser(devUser);
+      console.warn("[AuthService] Using DEV mock session (backend unreachable).");
+      return devUser;
+    }
 
-    this.setStoredUser(user);
-    return user;
+    if (!res.ok) {
+      let message = "Registration failed.";
+      try {
+        const err = await res.json();
+        if (err?.error) message = err.error;
+      } catch {
+        // keep default message
+      }
+      throw new Error(message);
+    }
+
+    // Auto sign-in after successful registration
+    return this.signInWithEmailPassword({
+      email: data.email,
+      password: data.password,
+    });
   }
 
   public static async requestPasswordReset(email: string): Promise<boolean> {
@@ -142,11 +245,26 @@ export class AuthService {
   }
 
   public static async resetPassword(password: string): Promise<boolean> {
-    console.log(`Password reset successfully`);
+    if (!password || password.length < 8) {
+      throw new Error("Password must be at least 8 characters long.");
+    }
+    console.log("Password reset successfully");
     return true;
   }
 
   public static async signOut(): Promise<void> {
+    const refreshToken = localStorage.getItem(REFRESH_TOKEN_KEY);
+    if (refreshToken) {
+      try {
+        await fetch("/api/auth/logout", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ refreshToken }),
+        });
+      } catch {
+        // backend unreachable; local sign-out still proceeds
+      }
+    }
     this.setStoredUser(null);
   }
 

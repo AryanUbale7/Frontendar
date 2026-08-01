@@ -25,11 +25,13 @@ export interface RealWorldBenchmarkComparison {
   faieDetectedFeaturesCount: number;
   featureDetectionAccuracyPercent: number;
   tuningRecommendations: string[];
+  isFallback: boolean;
 }
 
 export interface RealWorldValidationReport {
   timestamp: string;
   totalRealWorldReposEvaluated: number;
+  fallbackRepoCount: number;
   matchesCount: number;
   overallAccuracyRatePercent: number;
   averageDifference: number;
@@ -110,7 +112,7 @@ export class RealWorldValidationSuite {
     const absDiffs: number[] = [];
 
     for (const repoMeta of repos) {
-      const repoDir = this.collector.cloneRepository(repoMeta.repoUrl);
+      const { dir: repoDir, isFallback } = this.collector.cloneRepository(repoMeta.repoUrl);
 
       try {
         const report = await this.orchestrator.evaluate(repoDir, repoMeta.repoUrl, defaultBlueprint);
@@ -119,11 +121,13 @@ export class RealWorldValidationSuite {
 
         const signedDiff = faieScore - repoMeta.humanScore;
         const absDiff = Math.abs(signedDiff);
-        totalSignedDiff += signedDiff;
-        totalAbsDiff += absDiff;
-        absDiffs.push(absDiff);
+        if (!isFallback) {
+          totalSignedDiff += signedDiff;
+          totalAbsDiff += absDiff;
+          absDiffs.push(absDiff);
+        }
 
-        const statusMatch = faieStatus === repoMeta.humanStatus;
+        const statusMatch = !isFallback && faieStatus === repoMeta.humanStatus;
         if (statusMatch) matchesCount++;
 
         if (faieStatus === "pass" && repoMeta.humanStatus === "pass") tp++;
@@ -149,14 +153,14 @@ export class RealWorldValidationSuite {
 
         comparisons.push({
           id: repoMeta.id,
-          name: repoMeta.name,
+          name: `${isFallback ? "[CLONE-FAILED] " : ""}${repoMeta.name}`,
           repoUrl: repoMeta.repoUrl,
           framework: repoMeta.framework,
           category: repoMeta.category,
           humanScore: repoMeta.humanScore,
           faieScore,
-          scoreDifference: absDiff,
-          signedDifference: signedDiff,
+          scoreDifference: isFallback ? 0 : absDiff,
+          signedDifference: isFallback ? 0 : signedDiff,
           humanStatus: repoMeta.humanStatus,
           faieStatus,
           statusMatch,
@@ -164,16 +168,19 @@ export class RealWorldValidationSuite {
           faieDetectedFeaturesCount: faieDetectedFeatures,
           featureDetectionAccuracyPercent: featureAcc,
           tuningRecommendations,
+          isFallback,
         });
       } finally {
         this.collector.cleanupRepository(repoDir);
       }
     }
 
-    const totalCount = repos.length;
-    const overallAccuracyRatePercent = Math.round((matchesCount / totalCount) * 100);
-    const averageDifference = Math.round((totalSignedDiff / totalCount) * 10) / 10;
-    const meanAbsoluteError = Math.round((totalAbsDiff / totalCount) * 10) / 10;
+    const realComparisons = comparisons.filter((c) => !c.isFallback);
+    const fallbackCount = comparisons.length - realComparisons.length;
+    const totalCount = realComparisons.length;
+    const overallAccuracyRatePercent = totalCount > 0 ? Math.round((matchesCount / totalCount) * 100) : 100;
+    const averageDifference = totalCount > 0 ? Math.round((totalSignedDiff / totalCount) * 10) / 10 : 0;
+    const meanAbsoluteError = totalCount > 0 ? Math.round((totalAbsDiff / totalCount) * 10) / 10 : 0;
 
     // Median Error
     absDiffs.sort((a, b) => a - b);
@@ -200,9 +207,9 @@ export class RealWorldValidationSuite {
         ? Math.round((2 * precisionPercent * recallPercent) / (precisionPercent + recallPercent))
         : 100;
 
-    // Framework accuracy breakdown
+    // Framework accuracy breakdown (real clones only)
     const fwMap = new Map<string, RealWorldBenchmarkComparison[]>();
-    comparisons.forEach((c) => {
+    realComparisons.forEach((c) => {
       if (!fwMap.has(c.framework)) fwMap.set(c.framework, []);
       fwMap.get(c.framework)!.push(c);
     });
@@ -219,9 +226,9 @@ export class RealWorldValidationSuite {
       };
     });
 
-    // Category accuracy breakdown
+    // Category accuracy breakdown (real clones only)
     const catMap = new Map<string, RealWorldBenchmarkComparison[]>();
-    comparisons.forEach((c) => {
+    realComparisons.forEach((c) => {
       if (!catMap.has(c.category)) catMap.set(c.category, []);
       catMap.get(c.category)!.push(c);
     });
@@ -239,7 +246,7 @@ export class RealWorldValidationSuite {
     });
 
     const featureDetectionAccuracyPercent = Math.round(
-      comparisons.reduce((sum, c) => sum + c.featureDetectionAccuracyPercent, 0) / totalCount
+      realComparisons.reduce((sum, c) => sum + c.featureDetectionAccuracyPercent, 0) / Math.max(totalCount, 1)
     );
 
     const systemTuningRecommendations: string[] = [];
@@ -255,6 +262,7 @@ export class RealWorldValidationSuite {
     return {
       timestamp: new Date().toISOString(),
       totalRealWorldReposEvaluated: totalCount,
+      fallbackRepoCount: fallbackCount,
       matchesCount,
       overallAccuracyRatePercent,
       averageDifference,

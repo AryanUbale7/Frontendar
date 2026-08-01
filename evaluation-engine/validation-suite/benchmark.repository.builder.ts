@@ -38,8 +38,8 @@ export class BenchmarkRepositoryBuilder {
         category: "Perfect Project",
         framework: fw,
         description: `Flawless ${fw} implementation with full authentication, dashboard, clean TypeScript, responsive layout & docs.`,
-        expectedScore: 80,
-        expectedGrade: "PASSED",
+        expectedScore: 100,
+        expectedGrade: "EXCELLENT",
         expectedStatus: "pass",
         expectedFeatureCoverage: 100,
         expectedRejectedClaimsCount: 0,
@@ -53,7 +53,7 @@ export class BenchmarkRepositoryBuilder {
         category: "Good Project",
         framework: fw,
         description: `Solid ${fw} app with minor lint warnings but good feature coverage.`,
-        expectedScore: 80,
+        expectedScore: 95,
         expectedGrade: "PASSED",
         expectedStatus: "pass",
         expectedFeatureCoverage: 80,
@@ -68,7 +68,7 @@ export class BenchmarkRepositoryBuilder {
         category: "Average Project",
         framework: fw,
         description: `Basic ${fw} app with partial UI components and basic docs.`,
-        expectedScore: 74,
+        expectedScore: 78,
         expectedGrade: "PASSED",
         expectedStatus: "pass",
         expectedFeatureCoverage: 80,
@@ -83,7 +83,7 @@ export class BenchmarkRepositoryBuilder {
         category: "Poor Project",
         framework: fw,
         description: `Low quality ${fw} project missing mandatory features.`,
-        expectedScore: 16,
+        expectedScore: 8,
         expectedGrade: "FAILED",
         expectedStatus: "fail",
         expectedFeatureCoverage: 0,
@@ -98,7 +98,7 @@ export class BenchmarkRepositoryBuilder {
         category: "Fake README",
         framework: fw,
         description: `README boasts advanced features but zero code/routes exist in ${fw} workspace.`,
-        expectedScore: 7,
+        expectedScore: 4,
         expectedGrade: "FAILED",
         expectedStatus: "fail",
         expectedFeatureCoverage: 0,
@@ -113,7 +113,7 @@ export class BenchmarkRepositoryBuilder {
         category: "Hardcoded Secrets",
         framework: fw,
         description: `Contains hardcoded API key secret in ${fw} configuration.`,
-        expectedScore: 16,
+        expectedScore: 8,
         expectedGrade: "FAILED",
         expectedStatus: "fail",
         expectedFeatureCoverage: 0,
@@ -128,7 +128,7 @@ export class BenchmarkRepositoryBuilder {
         category: "Missing Documentation",
         framework: fw,
         description: `Code exists for ${fw} but README file is missing.`,
-        expectedScore: 16,
+        expectedScore: 8,
         expectedGrade: "FAILED",
         expectedStatus: "fail",
         expectedFeatureCoverage: 0,
@@ -143,7 +143,7 @@ export class BenchmarkRepositoryBuilder {
         category: "Wrong Tech Stack",
         framework: fw,
         description: `Uses restricted dependencies (e.g. jQuery) violating tech stack rules.`,
-        expectedScore: 16,
+        expectedScore: 8,
         expectedGrade: "FAILED",
         expectedStatus: "fail",
         expectedFeatureCoverage: 0,
@@ -158,7 +158,7 @@ export class BenchmarkRepositoryBuilder {
         category: "Responsive Failures",
         framework: fw,
         description: `Fixed pixel widths causing mobile layout overflow in ${fw}.`,
-        expectedScore: 16,
+        expectedScore: 8,
         expectedGrade: "FAILED",
         expectedStatus: "fail",
         expectedFeatureCoverage: 0,
@@ -173,7 +173,7 @@ export class BenchmarkRepositoryBuilder {
         category: "Broken Build",
         framework: fw,
         description: `Syntax errors in ${fw} source files causing compiler build crash.`,
-        expectedScore: 16,
+        expectedScore: 8,
         expectedGrade: "FAILED",
         expectedStatus: "fail",
         expectedFeatureCoverage: 0,
@@ -229,7 +229,7 @@ export class BenchmarkRepositoryBuilder {
     );
     fs.writeFileSync(
       path.join(appDir, "dashboard", "page.tsx"),
-      "export default function Dashboard() { return <nav>Navbar</nav>; }"
+      "import { useState } from 'react'; export default function Dashboard() { const [filter, setFilter] = useState('all'); return <nav className=\"md:grid grid-cols-3\"><div className=\"card\">Val: 10</div><button onClick={() => setFilter('day')}>Filter</button></nav>; }"
     );
   }
 
@@ -253,7 +253,10 @@ export class BenchmarkRepositoryBuilder {
     fs.mkdirSync(path.join(appDir, "dashboard"), { recursive: true });
 
     fs.writeFileSync(path.join(appDir, "auth", "page.tsx"), "export default function Auth() { return <form><button>Submit</button></form>; }");
-    fs.writeFileSync(path.join(appDir, "dashboard", "page.tsx"), "export default function Dashboard() { return <div>Analytics</div>; }");
+    fs.writeFileSync(
+      path.join(appDir, "dashboard", "page.tsx"),
+      "export default function Dashboard() { return <div className=\"md:grid grid-cols-2\"><div className=\"card\">Analytics</div></div>; }"
+    );
   }
 
   private setupAverageApp(dir: string, fw: string): void {
@@ -273,7 +276,10 @@ export class BenchmarkRepositoryBuilder {
     fs.mkdirSync(path.join(appDir, "dashboard"), { recursive: true });
 
     fs.writeFileSync(path.join(appDir, "auth", "page.jsx"), "export default function Auth() { return <form><button>Login</button></form>; }");
-    fs.writeFileSync(path.join(appDir, "dashboard", "page.jsx"), "export default function Dashboard() { return <div>Analytics</div>; }");
+    fs.writeFileSync(
+      path.join(appDir, "dashboard", "page.jsx"),
+      "export default function Dashboard() { return <div className=\"card\">Analytics</div>; }"
+    );
   }
 
   private setupPoorApp(dir: string, fw: string): void {

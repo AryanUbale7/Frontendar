@@ -300,9 +300,9 @@ export function BlueprintEditor({ hackathonId, onClose }: { hackathonId?: string
 
     let bpData: any = null;
 
-    // 1. Try fetching from Backend API
+    // 1. Try fetching from Backend API (admin view: include drafts)
     try {
-      const res = await fetch(`/api/blueprint?hackathonId=${h.id}`);
+      const res = await fetch(`/api/blueprint?hackathonId=${h.id}&includeDraft=true`);
       if (res.ok) {
         bpData = await res.json();
       }
@@ -468,21 +468,37 @@ export function BlueprintEditor({ hackathonId, onClose }: { hackathonId?: string
       setVersion((v) => v + 1);
     }
 
-    // Save to Backend API
+    // Save to Backend API (server is the source of truth for draft/publish state)
     try {
-      await fetch("/api/blueprint", {
+      const res = await fetch("/api/blueprint", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           hackathonId: selectedHackathonId,
+          action: status,
           blueprint: payload
         })
       });
+
+      if (res.ok) {
+        const result = await res.json();
+        if (result.status === "published") {
+          setBlueprintStatus("published");
+          setVersion(result.version || version + 1);
+        } else {
+          setBlueprintStatus("draft");
+          setVersion(result.version || version);
+        }
+        localStorage.setItem(`fa_blueprint_${selectedHackathonId}`, JSON.stringify(payload));
+        showToast(result.message || `Blueprint saved as ${status.toUpperCase()} successfully!`);
+      } else {
+        const err = await res.json().catch(() => ({ error: "Unknown error." }));
+        alert(`Failed to save blueprint: ${err.error || "Backend rejected the request."}`);
+      }
     } catch (e) {
       console.warn("Backend API offline. Saved to localStorage only.");
+      showToast(`Blueprint saved as ${status.toUpperCase()} successfully! (local only)`);
     }
-
-    showToast(`Blueprint saved as ${status.toUpperCase()} successfully!`);
   };
 
   // Export JSON file

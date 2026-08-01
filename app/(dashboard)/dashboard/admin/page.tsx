@@ -30,6 +30,10 @@ import {
   PlayCircle,
   ChevronLeft,
   Edit3,
+  RefreshCw,
+  Rocket,
+  Archive,
+  X,
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -40,7 +44,7 @@ import { RequireRole } from "@/components/auth/RequireRole";
 import { EmptyState } from "@/components/design-system/EmptyState";
 import { useUIStore } from "@/store/uiStore";
 import { BlueprintEditor } from "@/features/admin/blueprint/BlueprintEditor";
-import { resolveHackathonLifecycle } from "@/lib/utils";
+import { EvaluationReport } from "@/components/design-system/EvaluationReport";
 
 interface Round {
   name: string;
@@ -81,7 +85,12 @@ interface Hackathon {
   testCases: TestCase[];
   rules: string[];
   resources: Resource[];
-  status: "upcoming" | "active" | "completed";
+  status: string;
+  lifecycle?: string;
+  published?: boolean;
+  archived?: boolean;
+  startDate?: string | null;
+  endDate?: string | null;
 }
 
 export default function PlatformAdminDashboardPage() {
@@ -137,6 +146,7 @@ export default function PlatformAdminDashboardPage() {
 
   const [adminSubmissions, setAdminSubmissions] = useState<any[]>([]);
   const [loadingAdminSubmissions, setLoadingAdminSubmissions] = useState(false);
+  const [selectedSubmissionForReport, setSelectedSubmissionForReport] = useState<any | null>(null);
   const [adminLeaderboard, setAdminLeaderboard] = useState<any[]>([]);
   const [loadingAdminLeaderboard, setLoadingAdminLeaderboard] = useState(false);
 
@@ -305,6 +315,56 @@ export default function PlatformAdminDashboardPage() {
     }
   };
 
+  const refreshHackathons = async () => {
+    try {
+      const res = await fetch("/api/hackathons");
+      if (res.ok) {
+        const list = await res.json();
+        if (Array.isArray(list)) setHackathons(list);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handlePublishHackathon = async (id: string, name: string) => {
+    if (!confirm(`Publish "${name}"? It will become publicly visible and start its lifecycle.`)) {
+      return;
+    }
+    try {
+      const res = await fetch(`/api/hackathons/${id}/publish`, { method: "POST" });
+      if (res.ok) {
+        const data = await res.json();
+        showToast(data.message || "Hackathon published.");
+        await refreshHackathons();
+      } else {
+        const err = await res.json();
+        alert(err.error || "Failed to publish hackathon.");
+      }
+    } catch (e) {
+      alert("Error publishing hackathon: " + (e instanceof Error ? e.message : "Unknown error"));
+    }
+  };
+
+  const handleArchiveHackathon = async (id: string, name: string) => {
+    if (!confirm(`Archive "${name}"? Archived hackathons are hidden from participants and reject submissions.`)) {
+      return;
+    }
+    try {
+      const res = await fetch(`/api/hackathons/${id}/archive`, { method: "POST" });
+      if (res.ok) {
+        const data = await res.json();
+        showToast(data.message || "Hackathon archived.");
+        await refreshHackathons();
+      } else {
+        const err = await res.json();
+        alert(err.error || "Failed to archive hackathon.");
+      }
+    } catch (e) {
+      alert("Error archiving hackathon: " + (e instanceof Error ? e.message : "Unknown error"));
+    }
+  };
+
   // Hackathon Form States
   const [hackathonName, setHackathonName] = useState("");
   const [hackathonTagline, setHackathonTagline] = useState("");
@@ -454,7 +514,9 @@ export default function PlatformAdminDashboardPage() {
       testCases: testCases.filter((tc) => tc.input || tc.output),
       rules: rules.filter((rule) => rule.trim()),
       resources: resources.filter((res) => res.title && res.url),
-      status: "upcoming",
+      status: "draft",
+      published: false,
+      archived: false,
     };
 
     if (editingHackathonId) {
@@ -950,7 +1012,18 @@ export default function PlatformAdminDashboardPage() {
                 )}
 
                 {activePortalTab === "submissions" && (
-                  <Card className="p-6 bg-white border-[#E2E8F0] shadow-sm rounded-2xl animate-in fade-in duration-200">
+                  <Card className="p-6 bg-white border-[#E2E8F0] shadow-sm rounded-2xl animate-in fade-in duration-200 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-bold text-slate-800">Challenge Submissions Logs</h3>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => fetchAdminSubmissions(activeManageHackathonId || undefined)}
+                        leftIcon={<RefreshCw className={`h-3 w-3 ${loadingAdminSubmissions ? "animate-spin" : ""}`} />}
+                      >
+                        Refresh Submissions
+                      </Button>
+                    </div>
                     {loadingAdminSubmissions ? (
                       <div className="flex justify-center p-8">
                         <RefreshCw className="h-6 w-6 animate-spin text-[#FF006E]" />
@@ -966,6 +1039,7 @@ export default function PlatformAdminDashboardPage() {
                               <th className="p-3">Deployment</th>
                               <th className="p-3">Status</th>
                               <th className="p-3">Score</th>
+                              <th className="p-3">Actions</th>
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-slate-100">
@@ -1000,6 +1074,18 @@ export default function PlatformAdminDashboardPage() {
                                   </Badge>
                                 </td>
                                 <td className="p-3 font-bold text-[#FF006E]">{sub.score !== null ? `${sub.score}/100` : "Pending"}</td>
+                                <td className="p-3">
+                                  {sub.reports && sub.reports.length > 0 ? (
+                                    <button
+                                      onClick={() => setSelectedSubmissionForReport(sub)}
+                                      className="text-[#FF006E] hover:underline font-bold"
+                                    >
+                                      View Audit Report
+                                    </button>
+                                  ) : (
+                                    <span className="text-slate-400 italic">No Report</span>
+                                  )}
+                                </td>
                               </tr>
                             ))}
                           </tbody>
@@ -1679,7 +1765,7 @@ export default function PlatformAdminDashboardPage() {
                           <div className="absolute inset-0 bg-black/15" />
                            <div className="relative z-10">
                             <span className="px-2 py-0.5 rounded-md bg-black/50 text-[9px] font-bold text-[#FFD60A] uppercase border border-[#FFD60A]/20">
-                              {resolveHackathonLifecycle(hackathon).replace("_", " ")}
+                              {hackathon.lifecycle || "DRAFT"}
                             </span>
                             <h3 className="font-heading text-base font-bold truncate mt-1">
                               {hackathon.name}
@@ -1738,21 +1824,21 @@ export default function PlatformAdminDashboardPage() {
                         {/* Footer details link */}
                         <CardFooter className="p-3 bg-[#F8FAFC]/50 border-t border-[#F1F5F9] flex justify-between items-center text-xs">
                           {(() => {
-                            const currentStatus = resolveHackathonLifecycle(hackathon);
-                            let statusText = "Upcoming";
-                            let statusColor = "text-amber-600";
-                            if (currentStatus === "REGISTRATION_OPEN") {
-                              statusText = "Registration Open";
-                              statusColor = "text-[#FF006E]";
-                            } else if (currentStatus === "LIVE") {
-                              statusText = "Live";
+                            const currentStatus = (hackathon.lifecycle || "DRAFT") as string;
+                            let statusText = "Draft";
+                            let statusColor = "text-slate-500";
+                            if (currentStatus === "UPCOMING") {
+                              statusText = "Upcoming";
+                              statusColor = "text-amber-600";
+                            } else if (currentStatus === "ACTIVE") {
+                              statusText = "Active";
                               statusColor = "text-emerald-600";
-                            } else if (currentStatus === "EVALUATING") {
-                              statusText = "Evaluating";
-                              statusColor = "text-blue-600";
                             } else if (currentStatus === "COMPLETED") {
                               statusText = "Completed";
                               statusColor = "text-slate-600";
+                            } else if (currentStatus === "ARCHIVED") {
+                              statusText = "Archived";
+                              statusColor = "text-rose-600";
                             }
                             return (
                               <span className={`${statusColor} font-bold flex items-center gap-1`}>
@@ -1761,6 +1847,27 @@ export default function PlatformAdminDashboardPage() {
                             );
                           })()}
                           <div className="flex items-center gap-3">
+                            {!hackathon.published && (
+                              <button
+                                type="button"
+                                onClick={() => handlePublishHackathon(hackathon.id, hackathon.name)}
+                                className="text-[#16A34A] hover:text-[#15803D] flex items-center gap-0.5 font-bold"
+                              >
+                                <Rocket className="h-3.5 w-3.5" />
+                                <span>Publish</span>
+                              </button>
+                            )}
+                            {hackathon.published && !hackathon.archived && (
+                              <button
+                                type="button"
+                                onClick={() => handleArchiveHackathon(hackathon.id, hackathon.name)}
+                                className="text-[#D97706] hover:text-[#B45309] flex items-center gap-0.5 font-bold"
+                                title="Archive Hackathon"
+                              >
+                                <Archive className="h-3.5 w-3.5" />
+                                <span>Archive</span>
+                              </button>
+                            )}
                             <button
                               type="button"
                               onClick={() => handleEditHackathon(hackathon)}
@@ -1836,7 +1943,18 @@ export default function PlatformAdminDashboardPage() {
               </p>
             </div>
 
-            <Card className="p-6">
+            <Card className="p-6 space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-sm font-bold text-slate-800">Active Submissions Feed</h3>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => fetchAdminSubmissions()}
+                  leftIcon={<RefreshCw className={`h-3 w-3 ${loadingAdminSubmissions ? "animate-spin" : ""}`} />}
+                >
+                  Refresh Submissions
+                </Button>
+              </div>
               {loadingAdminSubmissions ? (
                 <div className="flex justify-center p-8">
                   <RefreshCw className="h-6 w-6 animate-spin text-[#FF006E]" />
@@ -1852,6 +1970,7 @@ export default function PlatformAdminDashboardPage() {
                         <th className="p-3">Repository</th>
                         <th className="p-3">Status</th>
                         <th className="p-3">Score</th>
+                        <th className="p-3">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
@@ -1878,6 +1997,18 @@ export default function PlatformAdminDashboardPage() {
                             </Badge>
                           </td>
                           <td className="p-3 font-bold text-[#FF006E]">{sub.score !== null ? `${sub.score}/100` : "Pending"}</td>
+                          <td className="p-3">
+                            {sub.reports && sub.reports.length > 0 ? (
+                              <button
+                                onClick={() => setSelectedSubmissionForReport(sub)}
+                                className="text-[#FF006E] hover:underline font-bold"
+                              >
+                                View Audit Report
+                              </button>
+                            ) : (
+                              <span className="text-slate-400 italic">No Report</span>
+                            )}
+                          </td>
                         </tr>
                       ))}
                     </tbody>
@@ -2206,6 +2337,27 @@ export default function PlatformAdminDashboardPage() {
       <AnimatePresence mode="wait">
         {renderTabContent()}
       </AnimatePresence>
+
+      {selectedSubmissionForReport && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs overflow-y-auto">
+          <div className="relative w-full max-w-5xl max-h-[90vh] bg-white rounded-2xl shadow-xl overflow-y-auto border border-[#E2E8F0] animate-in fade-in zoom-in-95 duration-200">
+            <button
+              onClick={() => setSelectedSubmissionForReport(null)}
+              className="absolute top-4 right-4 z-50 p-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-full transition-all"
+              title="Close Report"
+            >
+              <X className="h-5 w-5" />
+            </button>
+            {selectedSubmissionForReport.reports && selectedSubmissionForReport.reports.length > 0 ? (
+              <EvaluationReport report={selectedSubmissionForReport.reports[0].payload} />
+            ) : (
+              <div className="p-12 text-center">
+                <p className="text-sm text-slate-500 italic">No evaluation report available for this submission.</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </RequireRole>
   );
 }

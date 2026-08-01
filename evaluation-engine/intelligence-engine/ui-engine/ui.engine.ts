@@ -60,6 +60,7 @@ export class UIEngine {
     let hasPagination = false;
     let hasDarkModeToggle = false;
     let isResponsive = false;
+    let hasBrokenLayout = false;
 
     const files = this.getAllSourceFiles(workspacePath);
 
@@ -67,6 +68,9 @@ export class UIEngine {
       try {
         const content = fs.readFileSync(file, "utf-8");
         const lower = content.toLowerCase();
+        const ext = path.extname(file).toLowerCase();
+        const codeOnly = this.stripComments(content);
+        const codeLower = codeOnly.toLowerCase();
 
         if (lower.includes("<nav") || lower.includes("navbar") || lower.includes("navigation")) {
           hasNavigation = true;
@@ -78,7 +82,14 @@ export class UIEngine {
           if (!detectedUIComponents.includes("Interactive Buttons")) detectedUIComponents.push("Interactive Buttons");
         }
 
-        if (lower.includes("<form") || lower.includes("<input") || lower.includes("useform") || lower.includes("form")) {
+        if (
+          lower.includes("<form") ||
+          lower.includes("onsubmit") ||
+          lower.includes("useform") ||
+          lower.includes("type=\"text\"") ||
+          lower.includes("type=\"email\"") ||
+          lower.includes("type=\"password\"")
+        ) {
           hasForms = true;
           if (!detectedUIComponents.includes("Input Forms")) detectedUIComponents.push("Input Forms");
         }
@@ -88,7 +99,18 @@ export class UIEngine {
           if (!detectedUIComponents.includes("Dashboard UI")) detectedUIComponents.push("Dashboard UI");
         }
 
-        if (lower.includes("recharts") || lower.includes("chart") || lower.includes("<canvas") || lower.includes("svg")) {
+        if (
+          lower.includes("recharts") ||
+          lower.includes("chart.js") ||
+          lower.includes("apexcharts") ||
+          lower.includes("<linechart") ||
+          lower.includes("<barchart") ||
+          lower.includes("<areachart") ||
+          lower.includes("<piechart") ||
+          lower.includes("<scatterchart") ||
+          lower.includes("<canvas") ||
+          lower.includes("responsivecontainer")
+        ) {
           hasCharts = true;
           if (!detectedUIComponents.includes("Analytics Charts")) detectedUIComponents.push("Analytics Charts");
         }
@@ -118,6 +140,16 @@ export class UIEngine {
           if (!detectedUIComponents.includes("Authentication UI")) detectedUIComponents.push("Authentication UI");
         }
 
+        if (
+          lower.includes("404") ||
+          lower.includes("not-found") ||
+          lower.includes("notfound") ||
+          lower.includes("error boundary")
+        ) {
+          hasErrorPages = true;
+          if (!detectedUIComponents.includes("Error Pages")) detectedUIComponents.push("Error Pages");
+        }
+
         if (lower.includes("<table") || lower.includes("datatable") || lower.includes("th>")) {
           hasTables = true;
           if (!detectedUIComponents.includes("Data Tables")) detectedUIComponents.push("Data Tables");
@@ -143,31 +175,24 @@ export class UIEngine {
           if (!detectedUIComponents.includes("Dark Mode Switcher")) detectedUIComponents.push("Dark Mode Switcher");
         }
 
-        if (lower.includes("md:") || lower.includes("lg:") || lower.includes("@media") || lower.includes("sm:")) {
+        // Responsive detection ignores comments: commented-out classes are NOT evidence
+        if (codeLower.includes("md:") || codeLower.includes("lg:") || codeLower.includes("sm:") || codeLower.includes("@media")) {
           isResponsive = true;
+        }
+
+        // Static layout-break detection: fixed widths beyond any viewport are broken layouts
+        if ([".css", ".scss", ".less"].includes(ext)) {
+          const fixedWidth = content.match(/\b(?:width|min-width)\s*:\s*(\d{4,})px/i);
+          if (fixedWidth && parseInt(fixedWidth[1], 10) >= 1500) {
+            hasBrokenLayout = true;
+            brokenLinks.push(`Fixed oversized width (${fixedWidth[1]}px) detected in ${path.basename(file)}`);
+          }
         }
       } catch {}
     }
 
     if (deploymentUrl) {
-      evidenceLogs.push(`Playwright Headless UI Navigation Audit dispatched to: ${deploymentUrl}`);
-      evidenceLogs.push("Playwright navigated across views: /login, /dashboard, /profile, /settings.");
-      evidenceLogs.push("Viewport Breakpoint Audit: Verified mobile (375px), tablet (768px), and desktop (1440px).");
-
-      screenshots.push({
-        viewName: "Dashboard Overview",
-        url: `${deploymentUrl}/dashboard`,
-        viewport: "1440x900",
-        screenshotPath: `screenshots/dashboard_desktop_${Date.now()}.png`,
-        detectedSelectors: ["nav.navbar", "div.card", "canvas.chart"],
-      });
-      screenshots.push({
-        viewName: "Authentication Page",
-        url: `${deploymentUrl}/login`,
-        viewport: "375x812",
-        screenshotPath: `screenshots/login_mobile_${Date.now()}.png`,
-        detectedSelectors: ["form#login-form", "input[type=email]"],
-      });
+      evidenceLogs.push(`Live browser (Playwright) verification requested for ${deploymentUrl} but this engine stage is static-only; UI evidence below is derived from source analysis, not a running browser.`);
     } else {
       evidenceLogs.push("Static AST DOM & Layout Scanner completed across source files.");
     }
@@ -192,13 +217,19 @@ export class UIEngine {
       hasPagination,
       hasDarkModeToggle,
       isResponsive,
-      hasBrokenLayout: false,
+      hasBrokenLayout,
       consoleErrors,
       brokenLinks,
       detectedUIComponents,
       screenshots,
       evidenceLogs,
     };
+  }
+
+  private stripComments(content: string): string {
+    let out = content.replace(/\/\*[\s\S]*?\*\//g, "");
+    out = out.replace(/(^|[;{>\s])\/\/[^\n]*/g, "$1");
+    return out;
   }
 
   private getAllSourceFiles(dir: string, fileList: string[] = []): string[] {
@@ -212,7 +243,7 @@ export class UIEngine {
         }
       } else {
         const ext = path.extname(filePath).toLowerCase();
-        if ([".tsx", ".jsx", ".ts", ".js", ".html", ".css"].includes(ext)) {
+        if ([".tsx", ".jsx", ".ts", ".js", ".html", ".css", ".scss", ".less"].includes(ext)) {
           fileList.push(filePath);
         }
       }

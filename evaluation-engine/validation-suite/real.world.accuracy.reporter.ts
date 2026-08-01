@@ -9,7 +9,7 @@ export class RealWorldAccuracyReporter {
     lines.push("           REAL-WORLD GITHUB OPEN-SOURCE ACCURACY & HUMAN COMPARISON           ");
     lines.push("=========================================================================");
     lines.push(`Timestamp: ${report.timestamp}`);
-    lines.push(`Real GitHub Repositories Cloned & Evaluated: ${report.totalRealWorldReposEvaluated}`);
+    lines.push(`Real GitHub Repositories Cloned & Evaluated: ${report.totalRealWorldReposEvaluated}${report.fallbackRepoCount > 0 ? ` (${report.fallbackRepoCount} clone-failures excluded from metrics)` : ""}`);
     lines.push(`Overall Accuracy Rate vs Human Judge: ${report.overallAccuracyRatePercent}% (${report.matchesCount}/${report.totalRealWorldReposEvaluated} matches)`);
     lines.push(`Average Difference: ${report.averageDifference > 0 ? "+" : ""}${report.averageDifference} pts`);
     lines.push(`Mean Absolute Error (MAE): ${report.meanAbsoluteError} pts`);
@@ -24,8 +24,8 @@ export class RealWorldAccuracyReporter {
     lines.push("Repository Name".padEnd(45, " ") + " | Human | FAIE | Diff | Status");
     lines.push("-".repeat(80));
     report.benchmarkDetails.forEach((bm) => {
-      const statusStr = bm.statusMatch ? "MATCH" : "MISMATCH";
-      const diffStr = (bm.signedDifference > 0 ? "+" : "") + bm.signedDifference + " pts";
+      const statusStr = bm.isFallback ? "EXCLUDED" : bm.statusMatch ? "MATCH" : "MISMATCH";
+      const diffStr = bm.isFallback ? "-" : (bm.signedDifference > 0 ? "+" : "") + bm.signedDifference + " pts";
       lines.push(
         `${bm.name.slice(0, 44).padEnd(45, " ")} | ${String(bm.humanScore).padStart(5, " ")} | ${String(bm.faieScore).padStart(4, " ")} | ${diffStr.padStart(8, " ")} | ${statusStr}`
       );

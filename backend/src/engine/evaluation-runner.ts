@@ -1,0 +1,126 @@
+import { evaluateSubmission, Blueprint } from "./evaluator";
+import { prisma } from "../config/db";
+import { EvaluationJobData } from "./queue/types";
+
+export const PASS_GRADE_THRESHOLD = 75;
+
+const MAX_REPORT_LOG_ENTRIES = 200;
+const MAX_REPORT_LOG_LINE_LENGTH = 2000;
+
+/**
+ * Resolve the blueprint for a job from the database — the authoritative source.
+ *
+ * Priority:
+ *   1. BlueprintVersion snapshot bound at enqueue time (hackathonId + version) —
+ *      evaluation always runs against the exact published content the
+ *      participant submitted against.
+ *   2. The current Blueprint row (blueprintId) if no snapshot exists.
+ *   3. Legacy in-memory payload (integration tests / memory driver).
+ */
+async function resolveBlueprintForJob(data: EvaluationJobData): Promise<Blueprint | null> {
+  if (data.hackathonId && data.blueprintVersion) {
+    const snapshot = await prisma.blueprintVersion.findFirst({
+      where: { hackathonId: data.hackathonId, version: data.blueprintVersion },
+      orderBy: { version: "desc" },
+    });
+    if (snapshot) {
+      return snapshot.payload as unknown as Blueprint;
+    }
+  }
+
+  if (data.hackathonId && data.blueprintId) {
+    const bp = await prisma.blueprint.findUnique({ where: { id: data.blueprintId } });
+    if (bp) {
+      return bp as unknown as Blueprint;
+    }
+  }
+
+  if (data.blueprint) {
+    return data.blueprint as Blueprint;
+  }
+
+  return null;
+}
+
+/**
+ * Runs a single evaluation job and persists the authoritative result.
+ *
+ * Idempotency: a submission that is already COMPLETED with a persisted report
+ * is never re-evaluated — the existing report is returned instead. Combined
+ * with the stable BullMQ jobId (`<submissionId>:v<version>`) this guarantees
+ * one authoritative persisted result even if the same job is processed twice
+ * (e.g. after a worker crash / stalled-job recovery).
+ */
+export async function runEvaluationJob(jobData: EvaluationJobData): Promise<any> {
+  const { submissionId, repoUrl } = jobData;
+
+  if (submissionId) {
+    const existing = await prisma.submission.findUnique({ where: { id: submissionId } });
+    if (!existing) {
+      throw new Error(`Submission ${submissionId} not found — cannot evaluate.`);
+    }
+
+    // Idempotency guard: already completed with a persisted report → return it.
+    if (existing.status === "COMPLETED") {
+      const report = await prisma.evaluationReport.findUnique({ where: { submissionId } });
+      if (report) {
+        return report.payload;
+      }
+    }
+
+    await prisma.submission.update({
+      where: { id: submissionId },
+      data: { status: "EVALUATING" },
+    });
+  }
+
+  try {
+    const blueprint = await resolveBlueprintForJob(jobData);
+    if (!blueprint) {
+      throw new Error("No blueprint available for this evaluation job.");
+    }
+
+    const report = await evaluateSubmission(repoUrl, blueprint);
+
+    // Log/output size cap: keep the report bounded regardless of repo behaviour.
+    if (Array.isArray(report.logs)) {
+      report.logs = report.logs
+        .slice(-MAX_REPORT_LOG_ENTRIES)
+        .map((l) => (typeof l === "string" && l.length > MAX_REPORT_LOG_LINE_LENGTH ? l.slice(0, MAX_REPORT_LOG_LINE_LENGTH) + "…" : l));
+    }
+
+    if (submissionId) {
+      await prisma.submission.update({
+        where: { id: submissionId },
+        data: {
+          status: "COMPLETED",
+          score: Math.round(report.scoreSummary.finalScore),
+          grade: report.scoreSummary.finalScore >= PASS_GRADE_THRESHOLD ? "PASSED" : "FAILED",
+          completedAt: new Date(),
+          ...(jobData.blueprintId ? { blueprintId: jobData.blueprintId } : {}),
+          ...(jobData.blueprintVersion ? { blueprintVersion: jobData.blueprintVersion } : {})
+        }
+      });
+
+      await prisma.evaluationReport.upsert({
+        where: { submissionId },
+        update: { payload: report as any },
+        create: { submissionId, payload: report as any }
+      });
+    }
+
+    return report;
+  } catch (err: any) {
+    if (submissionId) {
+      await prisma.submission.update({
+        where: { id: submissionId },
+        data: {
+          status: "FAILED",
+          score: 0,
+          grade: "FAILED"
+        }
+      }).catch(() => {});
+    }
+    throw err;
+  }
+}

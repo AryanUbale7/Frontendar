@@ -48,8 +48,8 @@ export class GitHubRepositoryCollector {
       // 2. React Repositories
       {
         id: "gh_react_todomvc",
-        name: "tastejs/todomvc-react (React TodoMVC)",
-        repoUrl: "https://github.com/tastejs/todomvc-app-css.git",
+        name: "blacksonic/todomvc-react (React TodoMVC)",
+        repoUrl: "https://github.com/blacksonic/todomvc-react.git",
         framework: "React",
         category: "Todo App",
         description: "Standard benchmark React TodoMVC application.",
@@ -115,7 +115,7 @@ export class GitHubRepositoryCollector {
     ];
   }
 
-  public cloneRepository(repoUrl: string): string {
+  public cloneRepository(repoUrl: string): { dir: string; isFallback: boolean } {
     const tempDir = path.join(os.tmpdir(), `faie_gh_real_${Date.now()}_${Math.random().toString(36).substring(7)}`);
     if (!fs.existsSync(tempDir)) {
       fs.mkdirSync(tempDir, { recursive: true });
@@ -124,9 +124,13 @@ export class GitHubRepositoryCollector {
     try {
       execSync(`git clone --depth 1 ${repoUrl} "${tempDir}"`, {
         stdio: "ignore",
-        timeout: 5000,
+        timeout: 60000,
       });
+      return { dir: tempDir, isFallback: false };
     } catch {
+      // Clone failure (offline / repo moved): emit a minimal placeholder so the
+      // caller can still exercise the pipeline, but flag it so the report never
+      // counts a fabricated repo as a real-world result.
       fs.writeFileSync(
         path.join(tempDir, "README.md"),
         `# Real World Open Source App\n\nFeatures:\n- Authentication login signup auth\n- Responsive Dashboard analytics nav navbar charts`
@@ -157,9 +161,8 @@ export class GitHubRepositoryCollector {
       const cssDir = path.join(tempDir, "css");
       fs.mkdirSync(cssDir, { recursive: true });
       fs.writeFileSync(path.join(cssDir, "main.css"), "@media (max-width: 768px) { nav { display: block; } }");
+      return { dir: tempDir, isFallback: true };
     }
-
-    return tempDir;
   }
 
   public cleanupRepository(dirPath: string): void {

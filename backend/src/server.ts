@@ -1,31 +1,18 @@
+import "dotenv/config";
 import express, { Request, Response } from "express";
 import cors from "cors";
-import { evaluateSubmission } from "./engine/evaluator";
+import { Prisma } from "@prisma/client";
 import { prisma } from "./config/db";
 import { authRouter } from "./routes/auth";
-import { verifyToken, AuthenticatedRequest } from "./middleware/auth";
-import { RealRedisBullQueue } from "./engine/redis-queue.system";
+import { verifyToken, optionalAuth, requireRole, AuthenticatedRequest } from "./middleware/auth";
+import { createEvaluationQueue, EvaluationQueueDriver } from "./engine/queue";
+import { hashPassword } from "./engine/password";
+import { resolveLifecycleStatus, lifecycleToPersisted, canAcceptSubmissions, canAcceptRegistrations, LifecycleStatus } from "./engine/lifecycle";
 
 const app = express();
 const PORT = process.env.PORT || 4000;
 
-const evaluationQueue = new RealRedisBullQueue();
-
-evaluationQueue.on("queued", (job) => {
-  console.log(`[Queue] Job ${job.jobId} enqueued for repository: ${job.repoUrl}`);
-});
-
-evaluationQueue.on("active", (job) => {
-  console.log(`[Queue] Job ${job.jobId} is now active (processing)`);
-});
-
-evaluationQueue.on("completed", (job) => {
-  console.log(`[Queue] Job ${job.jobId} completed successfully!`);
-});
-
-evaluationQueue.on("failed", (job) => {
-  console.log(`[Queue] Job ${job.jobId} failed: ${job.errorLog}`);
-});
+let evaluationQueue: EvaluationQueueDriver;
 
 app.use(cors());
 app.use(express.json({ limit: "50mb" }));
@@ -40,12 +27,33 @@ app.get("/health", (req: Request, res: Response) => {
 });
 
 // Fetch blueprint for a hackathon from PostgreSQL
+// Public: returns the PUBLISHED blueprint only (drafts are never exposed).
+// Admin: pass ?includeDraft=true to load the current row regardless of status.
 app.get("/api/blueprints/:hackathonId", async (req: Request, res: Response) => {
   const { hackathonId } = req.params;
+  const includeDraft = req.query.includeDraft === "true";
+
   try {
+    if (includeDraft) {
+      // Drafts may only be read by admins.
+      const authHeader = req.headers.authorization;
+      if (!authHeader || !authHeader.startsWith("Bearer ")) {
+        return res.status(401).json({ error: "Access denied. Token missing." });
+      }
+      verifyToken(req as AuthenticatedRequest, res, () => {});
+      if (res.headersSent) return;
+      const actor = (req as AuthenticatedRequest).user;
+      if (!actor || (actor.role !== "ADMIN" && actor.role !== "SUPER_ADMIN")) {
+        return res.status(403).json({ error: "Unauthorized access role permissions." });
+      }
+    }
+
     const bp = await prisma.blueprint.findUnique({ where: { hackathonId } });
     if (!bp) {
       return res.status(404).json({ error: "No blueprint configured for this hackathon." });
+    }
+    if (!includeDraft && bp.status !== "published") {
+      return res.status(404).json({ error: "No published blueprint for this hackathon." });
     }
     res.json(bp);
   } catch (err: any) {
@@ -53,52 +61,148 @@ app.get("/api/blueprints/:hackathonId", async (req: Request, res: Response) => {
   }
 });
 
-// Save or update blueprint for a hackathon in PostgreSQL
-app.post("/api/blueprints", async (req: Request, res: Response) => {
-  const { hackathonId, blueprint } = req.body;
+// Save draft or publish a blueprint (admin only; identity from JWT, never body)
+app.post("/api/blueprints", verifyToken, requireRole(["ADMIN", "SUPER_ADMIN"]), async (req: AuthenticatedRequest, res: Response) => {
+  const { hackathonId, blueprint, action } = req.body;
   if (!hackathonId || !blueprint) {
     return res.status(400).json({ error: "Missing hackathonId or blueprint details." });
   }
 
+  const publishAction = action === "publish" || blueprint?.status === "published";
+
   try {
-    await prisma.blueprint.upsert({
-      where: { hackathonId },
-      update: {
-        problemStatement: blueprint.problemStatement || {},
-        requiredFeatures: blueprint.requiredFeatures || [],
-        techStackRules: blueprint.techStackRules || {},
-        submissionRequirements: blueprint.submissionRequirements || {},
-        codeQualityRules: blueprint.codeQualityRules || {},
-        performanceRules: blueprint.performanceRules || {},
-        securityRules: blueprint.securityRules || {},
-        scoringSystem: blueprint.scoringSystem || {},
-        autoPassFailRules: blueprint.autoPassFailRules || [],
-        bonusRules: blueprint.bonusRules || []
-      },
-      create: {
-        hackathonId,
-        problemStatement: blueprint.problemStatement || {},
-        problemStatements: blueprint.problemStatements || [],
-        requiredFeatures: blueprint.requiredFeatures || [],
-        techStackRules: blueprint.techStackRules || {},
-        submissionRequirements: blueprint.submissionRequirements || {},
-        codeQualityRules: blueprint.codeQualityRules || {},
-        performanceRules: blueprint.performanceRules || {},
-        securityRules: blueprint.securityRules || {},
-        scoringSystem: blueprint.scoringSystem || {},
-        autoPassFailRules: blueprint.autoPassFailRules || [],
-        bonusRules: blueprint.bonusRules || []
+    const hackathon = await prisma.hackathon.findUnique({ where: { id: hackathonId } });
+    if (!hackathon) {
+      return res.status(404).json({ error: "Hackathon not found for this blueprint." });
+    }
+
+    const existing = await prisma.blueprint.findUnique({ where: { hackathonId } });
+
+    const content = {
+      problemStatement: blueprint.problemStatement || {},
+      problemStatements: blueprint.problemStatements || [],
+      requiredFeatures: blueprint.requiredFeatures || [],
+      techStackRules: blueprint.techStackRules || {},
+      submissionRequirements: blueprint.submissionRequirements || {},
+      codeQualityRules: blueprint.codeQualityRules || {},
+      performanceRules: blueprint.performanceRules || {},
+      securityRules: blueprint.securityRules || {},
+      scoringSystem: blueprint.scoringSystem || {},
+      autoPassFailRules: blueprint.autoPassFailRules || [],
+      bonusRules: blueprint.bonusRules || []
+    };
+
+    if (existing) {
+      let newVersion = existing.version;
+      let snapshotVersion: number | null = null;
+
+      if (publishAction) {
+        const maxHistory = await prisma.blueprintVersion.aggregate({
+          where: { blueprintId: existing.id },
+          _max: { version: true },
+        });
+        const hasHistory = (maxHistory._max.version ?? 0) > 0;
+
+        // version = published generation. First publication = v1.
+        if (!hasHistory) {
+          newVersion = existing.status === "published" ? existing.version + 1 : 1;
+        } else {
+          newVersion = (maxHistory._max.version ?? 0) + 1;
+        }
+
+        // Snapshot the content that is becoming "published version X" unless it
+        // is already the published row (already represented in history).
+        if (existing.status !== "published") {
+          snapshotVersion = newVersion;
+        }
       }
+
+      if (snapshotVersion !== null) {
+        await prisma.blueprintVersion.create({
+          data: {
+            blueprintId: existing.id,
+            hackathonId,
+            version: snapshotVersion,
+            payload: existing as unknown as Prisma.InputJsonValue,
+            publishedAt: new Date(),
+          },
+        });
+      }
+
+      const updated = await prisma.blueprint.update({
+        where: { id: existing.id },
+        data: {
+          ...content,
+          status: publishAction ? "published" : "draft",
+          version: publishAction ? newVersion : existing.version,
+          publishedAt: publishAction ? new Date() : existing.publishedAt,
+          updatedAt: new Date(),
+        },
+      });
+
+      return res.json({
+        message: publishAction ? "Blueprint published successfully!" : "Blueprint draft saved successfully!",
+        blueprintId: updated.id,
+        hackathonId,
+        status: updated.status,
+        version: updated.version,
+        publishedAt: updated.publishedAt,
+      });
+    }
+
+    const created = await prisma.blueprint.create({
+      data: {
+        hackathonId,
+        ...content,
+        status: publishAction ? "published" : "draft",
+        version: 1,
+        publishedAt: publishAction ? new Date() : null,
+      },
     });
 
-    res.json({ message: "Blueprint configured successfully!", hackathonId });
+    if (publishAction) {
+      await prisma.blueprintVersion.create({
+        data: {
+          blueprintId: created.id,
+          hackathonId,
+          version: 1,
+          payload: created as unknown as Prisma.InputJsonValue,
+          publishedAt: created.publishedAt || new Date(),
+        },
+      });
+    }
+
+    res.json({
+      message: publishAction ? "Blueprint published successfully!" : "Blueprint draft saved successfully!",
+      blueprintId: created.id,
+      hackathonId,
+      status: created.status,
+      version: created.version,
+      publishedAt: created.publishedAt,
+    });
   } catch (err: any) {
     res.status(500).json({ error: "Failed to configure blueprint: " + err.message });
   }
 });
 
-// Trigger dynamic evaluation
-app.post("/api/evaluate", async (req: Request, res: Response) => {
+// Delete a blueprint and its version history (admin only)
+app.delete("/api/blueprints/:hackathonId", verifyToken, requireRole(["ADMIN", "SUPER_ADMIN"]), async (req: Request, res: Response) => {
+  const { hackathonId } = req.params;
+  try {
+    const bp = await prisma.blueprint.findUnique({ where: { hackathonId } });
+    if (!bp) {
+      return res.status(404).json({ error: "No blueprint configured for this hackathon." });
+    }
+    await prisma.blueprintVersion.deleteMany({ where: { blueprintId: bp.id } }).catch(() => {});
+    await prisma.blueprint.delete({ where: { hackathonId } });
+    res.json({ message: "Blueprint deleted successfully", hackathonId });
+  } catch (err: any) {
+    res.status(500).json({ error: "Failed to delete blueprint: " + err.message });
+  }
+});
+
+// Trigger dynamic evaluation (non-blocking: enqueues and returns immediately)
+app.post("/api/evaluate", optionalAuth, async (req: AuthenticatedRequest, res: Response) => {
   const {
     repoUrl,
     deploymentUrl,
@@ -120,19 +224,55 @@ app.post("/api/evaluate", async (req: Request, res: Response) => {
     return res.status(400).json({ error: "Missing repository URL." });
   }
 
-  // 1. Resolve dynamic blueprint from database or fallback
-  let blueprint = req.body.blueprint;
-  if (hackathonId) {
-    try {
-      const dbBlueprint = await prisma.blueprint.findUnique({ where: { hackathonId } });
-      if (dbBlueprint) {
-        blueprint = dbBlueprint;
-      } else {
-        console.warn(`[Evaluate] No blueprint found in database for hackathonId ${hackathonId}. Using fallback/passed blueprint.`);
-      }
-    } catch (dbErr: any) {
-      console.error(`[Evaluate] Error fetching blueprint from database: ${dbErr.message}`);
+  // The authenticated user's identity is authoritative when a JWT is present
+  let effectiveUserId = userId;
+  if (req.user) {
+    if (userId && req.user.role === "PARTICIPANT" && userId !== req.user.id) {
+      return res.status(403).json({ error: "Cannot submit on behalf of another user." });
     }
+    effectiveUserId = req.user.id;
+  }
+
+  // 1. Resolve lifecycle + published blueprint from the database (authoritative).
+  //    The client-supplied blueprint is NEVER trusted for hackathon submissions.
+  let blueprint = req.body.blueprint;
+  let blueprintId: string | null = null;
+  let blueprintVersion: number | null = null;
+
+  if (hackathonId) {
+    const hackathon = await prisma.hackathon.findUnique({ where: { id: hackathonId } });
+    if (!hackathon) {
+      return res.status(404).json({ error: "Hackathon not found." });
+    }
+
+    const lifecycle: LifecycleStatus = resolveLifecycleStatus(hackathon);
+    if (lifecycle === "DRAFT") {
+      return res.status(409).json({ error: "Hackathon is not published yet. Submissions are disabled." });
+    }
+    if (lifecycle === "UPCOMING") {
+      return res.status(409).json({ error: "Submissions are not open yet. The hackathon window has not started." });
+    }
+    if (lifecycle === "COMPLETED") {
+      return res.status(409).json({ error: "Hackathon has ended. New submissions are disabled." });
+    }
+    if (lifecycle === "ARCHIVED") {
+      return res.status(409).json({ error: "Hackathon is archived. Submissions are disabled." });
+    }
+    if (!canAcceptSubmissions(hackathon)) {
+      return res.status(409).json({ error: "Submissions are disabled for this hackathon." });
+    }
+
+    // Deterministic precedence: published blueprint for the submission's hackathon.
+    const dbBlueprint = await prisma.blueprint.findFirst({
+      where: { hackathonId, status: "published" },
+      orderBy: { version: "desc" }
+    });
+    if (!dbBlueprint) {
+      return res.status(400).json({ error: "No published blueprint configured for this hackathon. Evaluation cannot run." });
+    }
+    blueprint = dbBlueprint;
+    blueprintId = dbBlueprint.id;
+    blueprintVersion = dbBlueprint.version;
   }
 
   if (!blueprint) {
@@ -142,9 +282,9 @@ app.post("/api/evaluate", async (req: Request, res: Response) => {
   // 2. Persist/update Submission in PostgreSQL under QUEUED status
   let submission: any;
   try {
-    if (hackathonId && userId) {
+    if (hackathonId && effectiveUserId) {
       const existing = await prisma.submission.findFirst({
-        where: { hackathonId, userId }
+        where: { hackathonId, userId: effectiveUserId }
       });
 
       if (existing) {
@@ -166,6 +306,9 @@ app.post("/api/evaluate", async (req: Request, res: Response) => {
             status: "QUEUED",
             score: null,
             grade: null,
+            blueprintId,
+            blueprintVersion,
+            completedAt: null,
             version: existing.version + 1
           }
         });
@@ -173,7 +316,7 @@ app.post("/api/evaluate", async (req: Request, res: Response) => {
         submission = await prisma.submission.create({
           data: {
             hackathonId,
-            userId,
+            userId: effectiveUserId,
             repoUrl,
             deploymentUrl: deploymentUrl || null,
             projectName: projectName || "Untitled Project",
@@ -187,6 +330,8 @@ app.post("/api/evaluate", async (req: Request, res: Response) => {
             architectureDiagram: architectureDiagram || null,
             teamContributions: teamContributions || [],
             status: "QUEUED",
+            blueprintId,
+            blueprintVersion,
             version: 1
           }
         });
@@ -196,77 +341,70 @@ app.post("/api/evaluate", async (req: Request, res: Response) => {
     console.error(`[Evaluate] Database error saving submission: ${dbErr.message}`);
   }
 
-  // 3. Queue the evaluation job
-  const job = await evaluationQueue.addJob(repoUrl, deploymentUrl || undefined, blueprint, userId);
+  if (!submission) {
+    return res.status(500).json({ error: "Failed to persist submission. Evaluation was not queued." });
+  }
 
-  // 4. Update status to EVALUATING and run evaluation
+  // 3. Enqueue the evaluation job and return promptly (202).
+  //    Durable driver (BullMQ/Redis or explicit in-memory dev fallback) —
+  //    the HTTP request NEVER waits for clone/install/build/Lighthouse/FAIE.
+  const job = await evaluationQueue.enqueue({
+    submissionId: submission.id,
+    repoUrl,
+    deploymentUrl: deploymentUrl || undefined,
+    userId: effectiveUserId,
+    hackathonId: hackathonId || "",
+    blueprintId: blueprintId || undefined,
+    blueprintVersion: blueprintVersion || undefined,
+    version: submission.version,
+  });
+
+  console.log(`[Evaluate] Enqueued FAIE evaluation job ${job.jobId} (driver=${evaluationQueue.name}) for repository: ${repoUrl}`);
+
+  res.status(202).json({
+    jobId: job.jobId,
+    submissionId: submission.id,
+    status: "QUEUED",
+    message: "Evaluation queued. Results will be available via the submissions endpoint once complete."
+  });
+});
+
+// Queue observability (admin only): counts + recent jobs. Never exposes
+// secrets or environment variables — only job identity, timing and failure reason.
+app.get("/api/queue/metrics", verifyToken, requireRole(["ADMIN", "SUPER_ADMIN"]), async (req: Request, res: Response) => {
   try {
-    if (submission) {
-      await prisma.submission.update({
-        where: { id: submission.id },
-        data: { status: "EVALUATING" }
-      });
-      // Fire event to transition in queue system too
-      evaluationQueue.processQueue();
-    }
-
-    console.log(`[Evaluate] Launching FAIE evaluation for repository: ${repoUrl}`);
-    const report = await evaluateSubmission(repoUrl, blueprint);
-
-    // Update queue to completed
-    evaluationQueue.completeJob(job.jobId, report);
-
-    // 5. Update submission to COMPLETED with scores
-    if (submission) {
-      await prisma.submission.update({
-        where: { id: submission.id },
-        data: {
-          status: "COMPLETED",
-          score: report.scoreSummary.finalScore,
-          grade: report.scoreSummary.finalScore >= 75 ? "PASSED" : "FAILED"
-        }
-      });
-
-      await prisma.evaluationReport.upsert({
-        where: { submissionId: submission.id },
-        update: { payload: report as any },
-        create: { submissionId: submission.id, payload: report as any }
-      });
-    }
-
-    res.json(report);
-  } catch (error: any) {
-    // 6. Update submission to FAILED
-    if (submission) {
-      await prisma.submission.update({
-        where: { id: submission.id },
-        data: {
-          status: "FAILED",
-          score: 0,
-          grade: "FAILED"
-        }
-      });
-    }
-
-    evaluationQueue.failJob(job.jobId, error.message);
-    res.status(500).json({ error: "Evaluation engine failed: " + error.message });
+    const metrics = await evaluationQueue.getMetrics();
+    res.json(metrics);
+  } catch (err: any) {
+    res.status(500).json({ error: "Failed to read queue metrics: " + err.message });
   }
 });
 
-// Fetch all hackathons from PostgreSQL
-app.get("/api/hackathons", async (req: Request, res: Response) => {
+// Fetch all hackathons from PostgreSQL (lifecycle computed server-side)
+// Public callers only see published, non-archived hackathons (UPCOMING/ACTIVE/COMPLETED).
+// Admins see everything, including DRAFT and ARCHIVED.
+app.get("/api/hackathons", optionalAuth, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const list = await prisma.hackathon.findMany({
       orderBy: { createdAt: "desc" }
     });
-    res.json(list);
+
+    const isAdmin = req.user && (req.user.role === "ADMIN" || req.user.role === "SUPER_ADMIN");
+    const visible = isAdmin ? list : list.filter((h) => h.published && !h.archived);
+
+    res.json(
+      visible.map((h) => ({
+        ...h,
+        lifecycle: resolveLifecycleStatus(h),
+      }))
+    );
   } catch (err: any) {
     res.status(500).json({ error: "Failed to fetch hackathons: " + err.message });
   }
 });
 
-// Save or update a hackathon in PostgreSQL
-app.post("/api/hackathons", async (req: Request, res: Response) => {
+// Save or update a hackathon in PostgreSQL (admin only)
+app.post("/api/hackathons", verifyToken, requireRole(["ADMIN", "SUPER_ADMIN"]), async (req: Request, res: Response) => {
   const {
     id,
     name,
@@ -287,7 +425,8 @@ app.post("/api/hackathons", async (req: Request, res: Response) => {
     testCases,
     rules,
     resources,
-    status
+    published,
+    archived
   } = req.body;
 
   if (!name || !description) {
@@ -295,7 +434,13 @@ app.post("/api/hackathons", async (req: Request, res: Response) => {
   }
 
   try {
-    const dataObj = {
+    const existing = id ? await prisma.hackathon.findUnique({ where: { id } }) : null;
+
+    // Lifecycle state comes from the database, never from client-side status strings.
+    const isPublished = published !== undefined ? !!published : (existing?.published ?? false);
+    const isArchived = archived !== undefined ? !!archived : (existing?.archived ?? false);
+
+    const dataObj: any = {
       name,
       tagline: tagline || null,
       description,
@@ -314,9 +459,11 @@ app.post("/api/hackathons", async (req: Request, res: Response) => {
       testCases: testCases || [],
       rules: rules || [],
       resources: resources || [],
-      status: status || "upcoming",
       startDate: eventStart ? new Date(eventStart) : null,
-      endDate: eventClose ? new Date(eventClose) : null
+      endDate: eventClose ? new Date(eventClose) : null,
+      published: isPublished,
+      archived: isArchived,
+      publishedAt: isPublished && !existing?.published ? new Date() : existing?.publishedAt ?? null,
     };
 
     const hackathon = await prisma.hackathon.upsert({
@@ -327,14 +474,80 @@ app.post("/api/hackathons", async (req: Request, res: Response) => {
         ...dataObj
       }
     });
-    res.json(hackathon);
+
+    // Persist the authoritative derived lifecycle back into Hackathon.status
+    const lifecycle = resolveLifecycleStatus(hackathon);
+    const persisted = await prisma.hackathon.update({
+      where: { id: hackathon.id },
+      data: { status: lifecycleToPersisted(lifecycle) }
+    });
+
+    res.json({ ...persisted, lifecycle });
   } catch (err: any) {
     res.status(500).json({ error: "Failed to configure hackathon: " + err.message });
   }
 });
 
-// Delete a hackathon
-app.delete("/api/hackathons/:id", async (req: Request, res: Response) => {
+// Publish / activate a hackathon (admin only)
+app.post("/api/hackathons/:id/publish", verifyToken, requireRole(["ADMIN", "SUPER_ADMIN"]), async (req: Request, res: Response) => {
+  const { id } = req.params;
+  if (!id) {
+    return res.status(400).json({ error: "Missing hackathon ID." });
+  }
+
+  try {
+    const existing = await prisma.hackathon.findUnique({ where: { id } });
+    if (!existing) {
+      return res.status(404).json({ error: "Hackathon not found." });
+    }
+
+    const updated = await prisma.hackathon.update({
+      where: { id },
+      data: { published: true, archived: false, publishedAt: existing.publishedAt || new Date() }
+    });
+    const lifecycle = resolveLifecycleStatus(updated);
+    const persisted = await prisma.hackathon.update({
+      where: { id },
+      data: { status: lifecycleToPersisted(lifecycle) }
+    });
+
+    res.json({ ...persisted, lifecycle, message: `Hackathon published. Status: ${lifecycle}` });
+  } catch (err: any) {
+    res.status(500).json({ error: "Failed to publish hackathon: " + err.message });
+  }
+});
+
+// Archive a hackathon (admin only)
+app.post("/api/hackathons/:id/archive", verifyToken, requireRole(["ADMIN", "SUPER_ADMIN"]), async (req: Request, res: Response) => {
+  const { id } = req.params;
+  if (!id) {
+    return res.status(400).json({ error: "Missing hackathon ID." });
+  }
+
+  try {
+    const existing = await prisma.hackathon.findUnique({ where: { id } });
+    if (!existing) {
+      return res.status(404).json({ error: "Hackathon not found." });
+    }
+
+    const updated = await prisma.hackathon.update({
+      where: { id },
+      data: { archived: true }
+    });
+    const lifecycle = resolveLifecycleStatus(updated);
+    const persisted = await prisma.hackathon.update({
+      where: { id },
+      data: { status: lifecycleToPersisted(lifecycle) }
+    });
+
+    res.json({ ...persisted, lifecycle, message: "Hackathon archived." });
+  } catch (err: any) {
+    res.status(500).json({ error: "Failed to archive hackathon: " + err.message });
+  }
+});
+
+// Delete a hackathon (admin only)
+app.delete("/api/hackathons/:id", verifyToken, requireRole(["ADMIN", "SUPER_ADMIN"]), async (req: Request, res: Response) => {
   const { id } = req.params;
   if (!id) {
     return res.status(400).json({ error: "Missing hackathon ID." });
@@ -342,6 +555,10 @@ app.delete("/api/hackathons/:id", async (req: Request, res: Response) => {
 
   try {
     await prisma.registration.deleteMany({ where: { hackathonId: id } }).catch(() => {});
+    const bp = await prisma.blueprint.findUnique({ where: { hackathonId: id } }).catch(() => null);
+    if (bp) {
+      await prisma.blueprintVersion.deleteMany({ where: { blueprintId: bp.id } }).catch(() => {});
+    }
     await prisma.blueprint.deleteMany({ where: { hackathonId: id } }).catch(() => {});
     await prisma.submission.deleteMany({ where: { hackathonId: id } }).catch(() => {});
     await prisma.hackathon.deleteMany({ where: { id } });
@@ -353,12 +570,21 @@ app.delete("/api/hackathons/:id", async (req: Request, res: Response) => {
 });
 
 // Fetch registrations for a particular hackathon
-app.get("/api/registrations", async (req: Request, res: Response) => {
+app.get("/api/registrations", optionalAuth, async (req: AuthenticatedRequest, res: Response) => {
   const { hackathonId, userId } = req.query;
   try {
     const whereClause: any = {};
     if (hackathonId) whereClause.hackathonId = String(hackathonId);
-    if (userId) whereClause.userId = String(userId);
+
+    // Participants can only read their own registrations
+    if (req.user && req.user.role !== "ADMIN" && req.user.role !== "SUPER_ADMIN") {
+      if (userId && String(userId) !== req.user.id) {
+        return res.status(403).json({ error: "Cannot view another user's registrations." });
+      }
+      whereClause.userId = req.user.id;
+    } else if (userId) {
+      whereClause.userId = String(userId);
+    }
 
     const list = await prisma.registration.findMany({
       where: whereClause,
@@ -379,12 +605,34 @@ app.get("/api/registrations", async (req: Request, res: Response) => {
   }
 });
 
-// Create or update a registration
-app.post("/api/registrations", async (req: Request, res: Response) => {
-  const { hackathonId, userId, collegeName, teamName, participationMode, userEmail } = req.body;
+// Create or update a registration (authenticated user identity is authoritative)
+app.post("/api/registrations", optionalAuth, async (req: AuthenticatedRequest, res: Response) => {
+  const { hackathonId, collegeName, teamName, participationMode, userEmail } = req.body;
+  const userId = req.user?.id || req.body.userId;
+
   if (!hackathonId || !userId) {
     return res.status(400).json({ error: "Missing hackathonId or userId." });
   }
+  if (req.user && req.user.role === "PARTICIPANT" && req.body.userId && req.body.userId !== req.user.id) {
+    return res.status(403).json({ error: "Cannot register on behalf of another user." });
+  }
+
+  // Lifecycle gate: registrations only for published (UPCOMING/ACTIVE) hackathons.
+  const hackathon = await prisma.hackathon.findUnique({ where: { id: hackathonId } });
+  if (!hackathon) {
+    return res.status(404).json({ error: "Hackathon not found." });
+  }
+  if (!canAcceptRegistrations(hackathon)) {
+    const lifecycle = resolveLifecycleStatus(hackathon);
+    return res.status(409).json({
+      error: lifecycle === "DRAFT"
+        ? "Hackathon is not published yet. Registration is disabled."
+        : lifecycle === "COMPLETED"
+          ? "Hackathon has ended. Registration is closed."
+          : "Hackathon is archived. Registration is disabled."
+    });
+  }
+
   try {
     // Safely verify if user exists, create on-the-fly if missing (handles mock dev credentials)
     let dbUser = await prisma.user.findUnique({ where: { id: userId } });
@@ -393,7 +641,7 @@ app.post("/api/registrations", async (req: Request, res: Response) => {
       // Check if email already registered under another ID to prevent email uniqueness crash
       const emailMatch = await prisma.user.findUnique({ where: { email } });
       const targetEmail = emailMatch ? `${userId.toLowerCase()}@example.com` : email;
-      
+
       dbUser = await prisma.user.create({
         data: {
           id: userId,
@@ -432,13 +680,54 @@ app.post("/api/registrations", async (req: Request, res: Response) => {
   }
 });
 
+// Update registration status (admin only)
+app.put("/api/registrations/:id", verifyToken, requireRole(["ADMIN", "SUPER_ADMIN"]), async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { status } = req.body;
+
+  if (!id) {
+    return res.status(400).json({ error: "Missing registration ID." });
+  }
+
+  const VALID_STATUSES = ["PENDING", "SHORTLISTED", "REJECTED", "APPROVED", "ON_HOLD"];
+  if (!status || !VALID_STATUSES.includes(status)) {
+    return res.status(400).json({
+      error: `Invalid status. Allowed values: ${VALID_STATUSES.join(", ")}.`
+    });
+  }
+
+  try {
+    const existing = await prisma.registration.findUnique({ where: { id } });
+    if (!existing) {
+      return res.status(404).json({ error: "Registration not found." });
+    }
+
+    const updated = await prisma.registration.update({
+      where: { id },
+      data: { status }
+    });
+    res.json(updated);
+  } catch (err: any) {
+    res.status(500).json({ error: "Failed to update registration: " + err.message });
+  }
+});
+
 // Fetch submissions with manual user/hackathon enrichment
-app.get("/api/submissions", async (req: Request, res: Response) => {
+app.get("/api/submissions", optionalAuth, async (req: AuthenticatedRequest, res: Response) => {
   const { hackathonId, userId } = req.query;
   try {
     const whereClause: any = {};
     if (hackathonId) whereClause.hackathonId = String(hackathonId);
-    if (userId) whereClause.userId = String(userId);
+
+    // Participants can only read their own submissions
+    if (req.user && req.user.role !== "ADMIN" && req.user.role !== "SUPER_ADMIN") {
+      if (userId && String(userId) !== req.user.id) {
+        return res.status(403).json({ error: "Cannot view another user's submissions." });
+      }
+      whereClause.userId = req.user.id;
+    } else if (userId) {
+      whereClause.userId = String(userId);
+    }
 
     const submissions = await prisma.submission.findMany({
       where: whereClause,
@@ -486,19 +775,9 @@ app.get("/api/hackathons/:hackathonId/leaderboard", async (req: Request, res: Re
       include: { reports: true }
     });
 
-    // Helper to get category score from report payload
-    const getCategoryScore = (sub: any, categoryName: string): number => {
-      const report = sub.reports?.[0];
-      if (!report || !report.payload) return 0;
-      const payload = report.payload as any;
-      const details = payload.scoringDetails || [];
-      const match = details.find(
-        (d: any) => d.categoryName?.toLowerCase().includes(categoryName.toLowerCase())
-      );
-      return match ? match.awardedMarks : 0;
-    };
-
-    // Sort submissions deterministically
+    // Deterministic ranking: higher score wins. Ties are broken by
+    // evaluation completion time (earlier = better), then stable submission ID.
+    // FAILED/non-COMPLETED submissions are excluded above and cannot outrank.
     submissions.sort((a, b) => {
       const scoreA = a.score ?? 0;
       const scoreB = b.score ?? 0;
@@ -506,50 +785,28 @@ app.get("/api/hackathons/:hackathonId/leaderboard", async (req: Request, res: Re
         return scoreB - scoreA;
       }
 
-      // Tie breaker 1: Problem Alignment
-      const alignA = getCategoryScore(a, "alignment");
-      const alignB = getCategoryScore(b, "alignment");
-      if (alignB !== alignA) return alignB - alignA;
+      const timeA = a.completedAt ? new Date(a.completedAt).getTime() : Number.MAX_SAFE_INTEGER;
+      const timeB = b.completedAt ? new Date(b.completedAt).getTime() : Number.MAX_SAFE_INTEGER;
+      if (timeA !== timeB) {
+        return timeA - timeB;
+      }
 
-      // Tie breaker 2: UI/UX & Features
-      const uiA = getCategoryScore(a, "ui/ux") || getCategoryScore(a, "feature");
-      const uiB = getCategoryScore(b, "ui/ux") || getCategoryScore(b, "feature");
-      if (uiB !== uiA) return uiB - uiA;
-
-      // Tie breaker 3: Performance & SEO
-      const perfA = getCategoryScore(a, "performance");
-      const perfB = getCategoryScore(b, "performance");
-      if (perfB !== perfA) return perfB - perfA;
-
-      // Tie breaker 4: Accessibility
-      const accA = getCategoryScore(a, "accessibility");
-      const accB = getCategoryScore(b, "accessibility");
-      if (accB !== accA) return accB - accA;
-
-      // Tie breaker 5: Innovation
-      const innA = getCategoryScore(a, "innovation");
-      const innB = getCategoryScore(b, "innovation");
-      if (innB !== innA) return innB - innA;
-
-      // Tie breaker 6: Documentation
-      const docA = getCategoryScore(a, "documentation");
-      const docB = getCategoryScore(b, "documentation");
-      if (docB !== docA) return docB - docA;
-
-      // Tie breaker 7: submittedAt/createdAt
-      return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
     });
 
-    // Generate ranks
+    // Generate ranks (computed synchronously before any async enrichment)
     let currentRank = 0;
     let lastScore: number | null = null;
+    const ranked = submissions.map((sub, idx) => {
+      if (lastScore === null || sub.score !== lastScore) {
+        currentRank = idx + 1;
+        lastScore = sub.score;
+      }
+      return { sub, rank: currentRank };
+    });
+
     const rankedLeaderboard = await Promise.all(
-      submissions.map(async (sub, idx) => {
-        if (lastScore === null || sub.score !== lastScore) {
-          currentRank = idx + 1;
-          lastScore = sub.score;
-        }
-        
+      ranked.map(async ({ sub, rank }) => {
         // Enrich user details
         const user = await prisma.user.findUnique({
           where: { id: sub.userId },
@@ -557,7 +814,7 @@ app.get("/api/hackathons/:hackathonId/leaderboard", async (req: Request, res: Re
         });
 
         return {
-          rank: currentRank,
+          rank,
           submissionId: sub.id,
           participantId: sub.userId,
           participantName: user ? `${user.firstName || ""} ${user.lastName || ""}`.trim() : "Unknown Participant",
@@ -583,6 +840,72 @@ app.get("/api/hackathons/:hackathonId/leaderboard", async (req: Request, res: Re
   }
 });
 
-app.listen(PORT, () => {
-  console.log(`Frontend Arena Evaluation Engine running on port ${PORT}`);
+// Ensure demo credentials exist so the real JWT auth flow works out of the box.
+// Idempotent: never modifies existing users.
+async function ensureDemoUsers(): Promise<void> {
+  const demoUsers = [
+    { email: "admin@frontendarena.dev", password: "admin123", firstName: "Admin", lastName: "User", role: "ADMIN" },
+    { email: "developer@frontendarena.dev", password: "developer123", firstName: "Developer", lastName: "User", role: "PARTICIPANT" }
+  ];
+
+  for (const demo of demoUsers) {
+    const existing = await prisma.user.findUnique({ where: { email: demo.email } });
+    if (!existing) {
+      await prisma.user.create({
+        data: {
+          email: demo.email,
+          password: hashPassword(demo.password),
+          firstName: demo.firstName,
+          lastName: demo.lastName,
+          role: demo.role
+        }
+      });
+      console.log(`[Auth] Seeded demo ${demo.role.toLowerCase()} account: ${demo.email}`);
+    }
+  }
+}
+
+async function boot(): Promise<void> {
+  evaluationQueue = await createEvaluationQueue();
+  console.log(`[Queue] Evaluation queue driver active: ${evaluationQueue.name}`);
+
+  const server = app.listen(PORT, async () => {
+    console.log(`Frontend Arena Evaluation Engine running on port ${PORT}`);
+    try {
+      await ensureDemoUsers();
+    } catch (err: any) {
+      console.warn(`[Auth] Demo user seeding skipped: ${err.message}`);
+    }
+  });
+
+  // Graceful shutdown: stop accepting new work, close queue + DB connections.
+  const shutdown = (signal: string) => {
+    console.log(`[Server] ${signal} received — shutting down gracefully...`);
+    server.close(async () => {
+      try {
+        await evaluationQueue.close();
+      } catch (err: any) {
+        console.error(`[Server] Error closing queue: ${err.message}`);
+      }
+      try {
+        await prisma.$disconnect();
+      } catch (err: any) {
+        console.error(`[Server] Error closing Prisma: ${err.message}`);
+      }
+      console.log("[Server] Shutdown complete.");
+      process.exit(0);
+    });
+    setTimeout(() => {
+      console.error("[Server] Forced shutdown after 10s timeout.");
+      process.exit(1);
+    }, 10_000).unref();
+  };
+
+  process.on("SIGTERM", () => shutdown("SIGTERM"));
+  process.on("SIGINT", () => shutdown("SIGINT"));
+}
+
+boot().catch((err) => {
+  console.error(`[Server] FATAL: ${err.message}`);
+  process.exit(1);
 });

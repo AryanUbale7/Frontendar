@@ -83,9 +83,34 @@ async function runE2E() {
       body: JSON.stringify(payload)
     });
 
-    assert(res.ok, "HTTP request to /api/evaluate returned 200 OK");
-    const report = await res.json();
-    
+    assert(res.status === 202, "HTTP request to /api/evaluate returned 202 Accepted (non-blocking)");
+    const queued = await res.json();
+    assert(queued.jobId !== undefined, "Queue job id returned immediately");
+    assert(queued.status === "QUEUED", "Submission starts in QUEUED status");
+
+    console.log(`\n--- Evaluation queued (jobId: ${queued.jobId}) — waiting for completion ---`);
+
+    // Poll submissions endpoint until the evaluation completes
+    let report: any;
+    for (let i = 0; i < 120; i++) {
+      await new Promise((r) => setTimeout(r, 5000));
+      const checkRes = await fetch(`http://localhost:4000/api/submissions?hackathonId=${hackathon.id}&userId=${user.id}`);
+      if (!checkRes.ok) continue;
+      const subs = await checkRes.json();
+      const latest = subs.find((s: any) => s.id === queued.submissionId) || subs[0];
+      if (latest?.status === "COMPLETED" && latest.reports?.length > 0) {
+        report = latest.reports[0].payload;
+        break;
+      }
+      if (latest?.status === "FAILED") {
+        throw new Error("Evaluation finished with FAILED status.");
+      }
+    }
+
+    if (!report) {
+      throw new Error("Evaluation did not complete within the polling window.");
+    }
+
     console.log("\n--- FAIE Runtime Evidence Captured ---");
     console.log(`Detected Project Type: ${report.projectClassification?.detectedProjectType}`);
     console.log(`Selected Blueprint: ${report.hackathonTitle}`);
@@ -98,14 +123,14 @@ async function runE2E() {
 
     // 2. Verify DB persistence
     console.log("\n--- Verifying PostgreSQL Database Persistence ---");
-    const sub = await prisma.submission.findFirst({
-      where: { hackathonId: hackathon.id, userId: user.id },
+    const sub = await prisma.submission.findUnique({
+      where: { id: queued.submissionId },
       include: { reports: true }
     });
 
     assert(sub !== null, "Submission record was successfully persisted in PostgreSQL");
     assert(sub?.status === "COMPLETED", "Submission status is COMPLETED");
-    assert(sub?.score === report.scoreSummary.finalScore, "Persisted score matches the evaluated score");
+    assert(sub?.score === Math.round(report.scoreSummary.finalScore), "Persisted score matches the evaluated score");
     assert(sub?.reports.length === 1, "Evaluation report is saved and linked to submission");
     assert((sub?.reports[0].payload as any).scoreSummary.finalScore === report.scoreSummary.finalScore, "Report payload score matches");
 

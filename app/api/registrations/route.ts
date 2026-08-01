@@ -1,49 +1,28 @@
-import { NextRequest, NextResponse } from "next/server";
-
-const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:4000";
+import { NextRequest } from "next/server";
+import { proxyRequest } from "@/lib/backend-proxy";
 
 export async function GET(request: NextRequest) {
-  try {
-    const { searchParams } = new URL(request.url);
-    const hackathonId = searchParams.get("hackathonId");
-    const userId = searchParams.get("userId");
-    
-    let targetUrl = `${BACKEND_URL}/api/registrations`;
-    const params = [];
-    if (hackathonId) params.push(`hackathonId=${hackathonId}`);
-    if (userId) params.push(`userId=${userId}`);
-    if (params.length > 0) {
-      targetUrl += `?${params.join("&")}`;
-    }
+  const { searchParams } = new URL(request.url);
+  const hackathonId = searchParams.get("hackathonId");
+  const userId = searchParams.get("userId");
 
-    const response = await fetch(targetUrl, {
-      method: "GET",
-      cache: "no-store",
-    });
+  const params = [];
+  if (hackathonId) params.push(`hackathonId=${hackathonId}`);
+  if (userId) params.push(`userId=${userId}`);
 
-    if (!response.ok) {
-      return NextResponse.json({ error: "Failed to fetch registrations from backend." }, { status: response.status });
-    }
-
-    const data = await response.json();
-    return NextResponse.json(data);
-  } catch (error: any) {
-    return NextResponse.json({ error: "Failed to connect to evaluation backend: " + error.message }, { status: 502 });
+  let path = "/api/registrations";
+  if (params.length > 0) {
+    path += `?${params.join("&")}`;
   }
+
+  return proxyRequest(request, path, { method: "GET" });
 }
 
 export async function POST(request: NextRequest) {
-  try {
-    const body = await request.json();
-    const response = await fetch(`${BACKEND_URL}/api/registrations`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-
-    const data = await response.json();
-    return NextResponse.json(data, { status: response.status });
-  } catch (error: any) {
-    return NextResponse.json({ error: "Failed to connect to evaluation backend: " + error.message }, { status: 502 });
-  }
+  const body = await request.json();
+  return proxyRequest(request, "/api/registrations", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
 }

@@ -2,6 +2,7 @@ import { Router, Request, Response } from "express";
 import { prisma } from "../config/db";
 import * as jwt from "jsonwebtoken";
 import { OAuth2Client } from "google-auth-library";
+import { hashPassword, verifyPassword, isHashedPassword } from "../engine/password";
 
 // Use a simple, fast hashing check for absolute reliability in microservice environments
 const JWT_SECRET = process.env.JWT_SECRET || "super-secret-key-frontend-arena";
@@ -27,7 +28,7 @@ authRouter.post("/register", async (req: Request, res: Response) => {
     const user = await prisma.user.create({
       data: {
         email,
-        password, // Stored safely (in prod, hashed via bcrypt)
+        password: hashPassword(password),
         role: role || "PARTICIPANT"
       }
     });
@@ -47,8 +48,16 @@ authRouter.post("/login", async (req: Request, res: Response) => {
 
   try {
     const user = await prisma.user.findUnique({ where: { email } });
-    if (!user || user.password !== password) {
+    if (!user || !user.password || !verifyPassword(password, user.password)) {
       return res.status(401).json({ error: "Invalid email or password credentials." });
+    }
+
+    // Migrate legacy plaintext passwords to hashed storage on successful login
+    if (!isHashedPassword(user.password)) {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { password: hashPassword(password) }
+      }).catch(() => {});
     }
 
     // Sign tokens

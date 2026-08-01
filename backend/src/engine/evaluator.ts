@@ -2,8 +2,64 @@ import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
 import * as http from "http";
-import { execSync } from "child_process";
+import { execFileSync } from "child_process";
 import { FAIEOrchestrator, KnowledgeBlueprint } from "../../../evaluation-engine/intelligence-engine";
+
+// ---------------------------------------------------------------------------
+// Phase 3 execution safeguards (do not change scoring semantics)
+// ---------------------------------------------------------------------------
+
+/** Untrusted participant input — validate before any command execution. */
+function validateRepoUrl(url: string): string {
+  const trimmed = (url || "").trim();
+  if (!trimmed) {
+    throw new Error("Repository URL is required.");
+  }
+  if (!/^https?:\/\/|^(git@|ssh:\/\/|git:\/\/)/i.test(trimmed)) {
+    throw new Error("Invalid repository URL: only http(s), git@, ssh:// and git:// sources are allowed.");
+  }
+  // No shell metacharacters, quotes, whitespace or control chars.
+  if (/[\s"'`$&|;<>()\\\u0000-\u001f]/.test(trimmed)) {
+    throw new Error("Invalid repository URL: contains unsupported characters.");
+  }
+  return trimmed;
+}
+
+function commandBin(base: string): string {
+  return process.platform === "win32" ? `${base}.cmd` : base;
+}
+
+const MAX_REPO_BYTES = (Number(process.env.EVALUATION_MAX_REPO_MB) || 200) * 1024 * 1024;
+const MAX_SCANNED_FILE_BYTES = 2 * 1024 * 1024;
+
+function walkSizeBytes(dir: string): number {
+  let total = 0;
+  try {
+    const entries = fs.readdirSync(dir, { withFileTypes: true });
+    for (const entry of entries) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        total += walkSizeBytes(full);
+      } else if (entry.isFile()) {
+        try {
+          total += fs.statSync(full).size;
+        } catch {}
+      }
+    }
+  } catch {}
+  return total;
+}
+
+function assertRepoWithinSizeLimit(dir: string): void {
+  const size = walkSizeBytes(dir);
+  if (size > MAX_REPO_BYTES) {
+    throw new Error(
+      `Repository exceeds the configured size limit (${Math.round(size / (1024 * 1024))}MB > ${MAX_REPO_BYTES / (1024 * 1024)}MB). ` +
+      `Set EVALUATION_MAX_REPO_MB to raise the limit if this is expected.`
+    );
+  }
+}
+
 
 export interface ProblemStatementEntry {
   title: string;
@@ -171,10 +227,15 @@ function runLighthouseAudit(distDir: string): { performance: number; accessibili
   let server: http.Server | null = null;
   try {
     server = http.createServer((req, res) => {
-      let safePath = req.url === "/" ? "index.html" : req.url!.split("?")[0];
-      let filePath = path.join(distDir, safePath);
+      // Path traversal guard: resolved path must stay inside the dist directory.
+      const base = path.resolve(distDir);
+      let safePath = req.url === "/" ? "index.html" : decodeURIComponent(req.url!.split("?")[0]);
+      let filePath = path.resolve(path.join(base, safePath));
+      if (filePath !== base && !filePath.startsWith(base + path.sep)) {
+        filePath = path.join(base, "index.html");
+      }
       if (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
-        filePath = path.join(distDir, "index.html");
+        filePath = path.join(base, "index.html");
       }
       try {
         const ext = path.extname(filePath).toLowerCase();
@@ -199,8 +260,9 @@ function runLighthouseAudit(distDir: string): { performance: number; accessibili
     const port = (server.address() as any).port;
     const url = `http://localhost:${port}`;
 
-    const output = execSync(
-      `npx lighthouse ${url} --output=json --chrome-flags="--headless --no-sandbox --disable-gpu"`,
+    const output = execFileSync(
+      commandBin("npx"),
+      ["lighthouse", url, "--output=json", "--chrome-flags=--headless --no-sandbox --disable-gpu"],
       { stdio: "pipe", timeout: 45000, encoding: "utf-8" }
     );
 
@@ -265,6 +327,9 @@ async function runToolAudits(
 
     if ([".ts", ".tsx", ".js", ".jsx", ".json", ".md", ".env", ".local"].includes(ext)) {
       try {
+        // Per-file read cap: pathological/huge files are skipped from content
+        // scanning (size counter above is unaffected).
+        if (fs.statSync(file).size > MAX_SCANNED_FILE_BYTES) return;
         const content = fs.readFileSync(file, "utf-8");
         const lines = content.split("\n");
         totalLinesCount += lines.length;
@@ -297,8 +362,8 @@ async function runToolAudits(
   
   if (fs.existsSync(packageJsonPath)) {
     try {
-      execSync("npm install", { cwd: tempDir, stdio: "ignore", timeout: 45000 });
-      execSync("npm run build", { cwd: tempDir, stdio: "ignore", timeout: 30000 });
+      execFileSync(commandBin("npm"), ["install"], { cwd: tempDir, stdio: "ignore", timeout: 45000 });
+      execFileSync(commandBin("npm"), ["run", "build"], { cwd: tempDir, stdio: "ignore", timeout: 30000 });
       if (!fs.existsSync(distDir)) {
         if (fs.existsSync(path.join(tempDir, "build"))) {
           distDir = path.join(tempDir, "build");
@@ -420,10 +485,11 @@ export async function evaluateSubmission(
   // Clone Repository
   logs.push(`[3/10] Cloning repository to temporary workspace...`);
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "faie-v2-eval-"));
+  const safeRepoUrl = validateRepoUrl(repoUrl);
   
   let cloneSuccess = false;
   try {
-    execSync(`git clone --depth 1 ${repoUrl} "${tempDir}"`, { stdio: "ignore", timeout: 20000 });
+    execFileSync("git", ["clone", "--depth", "1", safeRepoUrl, tempDir], { stdio: "ignore", timeout: 20000 });
     cloneSuccess = true;
     logs.push(`[3/10] Successfully cloned repository.`);
   } catch (err: any) {
@@ -437,6 +503,16 @@ export async function evaluateSubmission(
       }
     } catch {}
     throw new Error(`Failed to clone git repository from URL: ${repoUrl}`);
+  }
+
+  // Repository size limit (untrusted input: a bloated repo can exhaust disk).
+  try {
+    assertRepoWithinSizeLimit(tempDir);
+  } catch (sizeErr: any) {
+    try {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    } catch {}
+    throw sizeErr;
   }
 
   try {

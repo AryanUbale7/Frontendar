@@ -81,7 +81,7 @@ export default function ParticipantDashboardPage() {
                 title: h.name,
                 date: h.eventClose ? new Date(h.eventClose).toLocaleDateString() : "N/A",
                 bannerUrl: h.bannerUrl,
-                tag: h.status || "Virtual"
+                tag: h.lifecycle ? h.lifecycle.charAt(0) + h.lifecycle.slice(1).toLowerCase() : (h.status || "Virtual")
               }));
               setInitiatives(formatted);
             }

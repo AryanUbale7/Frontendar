@@ -76,6 +76,7 @@ interface Hackathon {
   rules: string[];
   resources: Resource[];
   status: string;
+  lifecycle?: string;
 }
 
 function HackathonRegistrationContent() {
@@ -175,7 +176,7 @@ function HackathonRegistrationContent() {
 
             // Check if user is enrolled
             if (user) {
-              fetch(`/api/registrations?hackathonId=${found.id}`)
+              fetch(`/api/registrations?hackathonId=${found.id}&userId=${user.id}`)
                 .then((r) => r.json())
                 .then((list) => {
                   if (Array.isArray(list)) {
@@ -195,7 +196,8 @@ function HackathonRegistrationContent() {
                               status: sub.status,
                               score: sub.score ?? 0,
                               grade: sub.grade || (sub.score && sub.score >= 75 ? "PASSED" : "FAILED"),
-                              repoUrl: sub.repoUrl
+                              repoUrl: sub.repoUrl,
+                              reports: sub.reports
                             }));
                             setSubmissionAttempts(formatted);
 
@@ -233,16 +235,27 @@ function HackathonRegistrationContent() {
 
   useEffect(() => {
     if (activePortalTab === "leaderboard" && hackathonId) {
-      setLoadingLeaderboard(true);
-      fetch(`/api/hackathons/${hackathonId}/leaderboard`)
-        .then((r) => r.json())
-        .then((data) => {
-          if (data && Array.isArray(data.leaderboard)) {
+      let cancelled = false;
+      const loadLeaderboard = async () => {
+        setLoadingLeaderboard(true);
+        try {
+          const res = await fetch(`/api/hackathons/${hackathonId}/leaderboard`);
+          const data = await res.json();
+          if (!cancelled && data && Array.isArray(data.leaderboard)) {
             setLeaderboardList(data.leaderboard);
           }
-        })
-        .catch((err) => console.error("Failed to load leaderboard:", err))
-        .finally(() => setLoadingLeaderboard(false));
+        } catch (err) {
+          console.error("Failed to load leaderboard:", err);
+        } finally {
+          if (!cancelled) setLoadingLeaderboard(false);
+        }
+      };
+      loadLeaderboard();
+      const interval = setInterval(loadLeaderboard, 15000);
+      return () => {
+        cancelled = true;
+        clearInterval(interval);
+      };
     }
   }, [activePortalTab, hackathonId]);
 
@@ -322,8 +335,16 @@ function HackathonRegistrationContent() {
       alert("No active hackathon loaded.");
       return;
     }
+    if (!user) {
+      alert("You must be logged in to submit your project.");
+      return;
+    }
     if (!repoUrl.includes("github.com")) {
       alert("Please provide a valid GitHub repository URL.");
+      return;
+    }
+    if (activeHackathon.lifecycle && activeHackathon.lifecycle !== "ACTIVE") {
+      alert("Submissions are currently closed. The hackathon must be in its Active window to accept projects.");
       return;
     }
     setSubmittingProject(true);
@@ -391,29 +412,15 @@ function HackathonRegistrationContent() {
       });
 
       if (response.ok) {
-        const report = await response.json();
-        setEvaluationReport(report);
-        setAstCheckResult("passed");
+        const result = await response.json();
+        // The backend now enqueues evaluation and returns 202 immediately.
+        // The full report arrives asynchronously; poll until it is available.
+        setAstCheckResult("submitted");
         setSubmissionSuccess(true);
         setSubmittingProject(false);
         setRepoUrl("");
         setDeploymentUrl("");
-
-        // Reload attempts history from PostgreSQL directly!
-        fetch(`/api/submissions?hackathonId=${activeHackathon.id}&userId=${user.id}`)
-          .then((r) => r.json())
-          .then((subs) => {
-            if (Array.isArray(subs)) {
-              setSubmissionAttempts(subs.map((sub, idx) => ({
-                version: sub.version || idx + 1,
-                time: new Date(sub.updatedAt).toLocaleString(),
-                status: sub.status,
-                score: sub.score ?? 0,
-                grade: sub.grade || (sub.score && sub.score >= 75 ? "PASSED" : "FAILED"),
-                repoUrl: sub.repoUrl
-              })));
-            }
-          });
+        void pollForEvaluationResult(activeHackathon.id, user.id);
         return;
       } else {
         const errData = await response.json();
@@ -423,6 +430,64 @@ function HackathonRegistrationContent() {
       alert("Evaluation Error: " + err.message);
       setSubmittingProject(false);
       setAstCheckResult(null);
+    }
+  };
+
+  const pollForEvaluationResult = async (hackathonId: string, userId: string, attemptsLeft = 60) => {
+    try {
+      const res = await fetch(`/api/submissions?hackathonId=${hackathonId}&userId=${userId}`);
+      if (res.ok) {
+        const subs = await res.json();
+        if (Array.isArray(subs) && subs.length > 0) {
+          const latest = subs[0];
+          if (latest.status === "COMPLETED" && latest.reports && latest.reports.length > 0) {
+            setEvaluationReport(latest.reports[0].payload);
+            setAstCheckResult("passed");
+            refreshLiveData(hackathonId, userId);
+            return;
+          }
+          if (latest.status === "FAILED") {
+            setAstCheckResult("failed");
+            alert("Evaluation failed for your submission. Check your repository and try again.");
+            return;
+          }
+        }
+      }
+    } catch (err) {
+      console.error("Failed to poll evaluation status:", err);
+    }
+
+    if (attemptsLeft > 0) {
+      setTimeout(() => pollForEvaluationResult(hackathonId, userId, attemptsLeft - 1), 5000);
+    }
+  };
+
+  const refreshLiveData = async (hackathonId: string, userId: string) => {
+    try {
+      const subRes = await fetch(`/api/submissions?hackathonId=${hackathonId}&userId=${userId}`);
+      if (subRes.ok) {
+        const subs = await subRes.json();
+        if (Array.isArray(subs)) {
+          setSubmissionAttempts(subs.map((sub: any, idx: number) => ({
+            version: sub.version || idx + 1,
+            time: new Date(sub.updatedAt).toLocaleString(),
+            status: sub.status,
+            score: sub.score ?? 0,
+            grade: sub.grade || (sub.score && sub.score >= 75 ? "PASSED" : "FAILED"),
+            repoUrl: sub.repoUrl,
+            reports: sub.reports
+          })));
+        }
+      }
+      const leadRes = await fetch(`/api/hackathons/${hackathonId}/leaderboard`);
+      if (leadRes.ok) {
+        const data = await leadRes.json();
+        if (data && Array.isArray(data.leaderboard)) {
+          setLeaderboardList(data.leaderboard);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to refresh live data:", err);
     }
   };
 
@@ -1179,6 +1244,7 @@ function HackathonRegistrationContent() {
                                 <th className="p-3">Time Submitted</th>
                                 <th className="p-3">Scorecard</th>
                                 <th className="p-3">Status</th>
+                                <th className="p-3">Action</th>
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
@@ -1191,6 +1257,22 @@ function HackathonRegistrationContent() {
                                     <Badge className="bg-emerald-50 text-emerald-600 border border-emerald-200 text-[9px] font-bold tracking-widest uppercase">
                                       {attempt.status}
                                     </Badge>
+                                  </td>
+                                  <td className="p-3">
+                                    {attempt.reports && attempt.reports.length > 0 ? (
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setEvaluationReport(attempt.reports[0].payload);
+                                          setSubmissionSuccess(true);
+                                        }}
+                                        className="text-[#FF006E] hover:underline font-bold"
+                                      >
+                                        View Report
+                                      </button>
+                                    ) : (
+                                      <span className="text-slate-400 italic">No Report</span>
+                                    )}
                                   </td>
                                 </tr>
                               ))}

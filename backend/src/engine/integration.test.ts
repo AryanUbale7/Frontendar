@@ -1,7 +1,7 @@
 import { prisma } from "../config/db";
 import { resolveHackathonLifecycle } from "./utils";
 import { evaluateSubmission } from "./evaluator";
-import { RealRedisBullQueue } from "./redis-queue.system";
+import { InMemoryEvaluationQueue } from "./in-memory-queue.system";
 
 function assert(condition: any, message: string) {
   if (!condition) {
@@ -176,8 +176,8 @@ async function runTests() {
     assert(sub.status === "QUEUED", "Submission initial status is QUEUED");
 
     // Add to Queue
-    const queue = new RealRedisBullQueue();
-    const job = await queue.addJob(sub.repoUrl, undefined, mockBlueprint, testUserId);
+    const queue = new InMemoryEvaluationQueue();
+    const job = await queue.addJob(sub.repoUrl, mockBlueprint, testUserId);
     assert(job.status === "queued" || job.status === "processing", "Queue job enqueued/processing successfully");
 
     // Update status to Evaluating

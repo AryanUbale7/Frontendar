@@ -1,37 +1,15 @@
-import { NextRequest, NextResponse } from "next/server";
-
-const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:4000";
+import { NextRequest } from "next/server";
+import { proxyRequest } from "@/lib/backend-proxy";
 
 export async function GET(request: NextRequest) {
-  try {
-    const response = await fetch(`${BACKEND_URL}/api/hackathons`, {
-      method: "GET",
-      cache: "no-store",
-    });
-
-    if (!response.ok) {
-      return NextResponse.json({ error: "Failed to fetch hackathons from backend." }, { status: response.status });
-    }
-
-    const data = await response.json();
-    return NextResponse.json(data);
-  } catch (error: any) {
-    return NextResponse.json({ error: "Failed to connect to evaluation backend: " + error.message }, { status: 502 });
-  }
+  return proxyRequest(request, "/api/hackathons", { method: "GET" });
 }
 
 export async function POST(request: NextRequest) {
-  try {
-    const body = await request.json();
-    const response = await fetch(`${BACKEND_URL}/api/hackathons`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-
-    const data = await response.json();
-    return NextResponse.json(data, { status: response.status });
-  } catch (error: any) {
-    return NextResponse.json({ error: "Failed to connect to evaluation backend: " + error.message }, { status: 502 });
-  }
+  const body = await request.json();
+  return proxyRequest(request, "/api/hackathons", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
 }

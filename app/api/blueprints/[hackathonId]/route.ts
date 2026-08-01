@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-
-const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:4000";
+import { proxyRequest } from "@/lib/backend-proxy";
 
 export async function GET(
   request: NextRequest,
@@ -12,25 +11,5 @@ export async function GET(
     return NextResponse.json({ error: "Missing hackathonId." }, { status: 400 });
   }
 
-  try {
-    const response = await fetch(`${BACKEND_URL}/api/blueprints/${hackathonId}`, {
-      method: "GET",
-      cache: "no-store",
-    });
-
-    if (!response.ok) {
-      return NextResponse.json(
-        { error: "No blueprint configured for this hackathon yet." },
-        { status: 404 }
-      );
-    }
-
-    const data = await response.json();
-    return NextResponse.json(data);
-  } catch (error: any) {
-    return NextResponse.json(
-      { error: "Failed to connect to evaluation backend: " + error.message },
-      { status: 502 }
-    );
-  }
+  return proxyRequest(request, `/api/blueprints/${hackathonId}`, { method: "GET" });
 }
