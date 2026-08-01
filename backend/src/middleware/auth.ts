@@ -49,6 +49,7 @@ export function optionalAuth(req: AuthenticatedRequest, res: Response, next: Nex
     req.user = decoded;
     next();
   } catch (err) {
-    return res.status(401).json({ error: "Invalid or expired token." });
+    // If the token is invalid or expired, proceed anonymously rather than blocking with a 401
+    next();
   }
 }
