@@ -77,11 +77,12 @@ export interface EvaluationReportProps {
     }>;
     toolAudits: {
       performance: {
-        lighthouseScore: number;
-        accessibilityScore: number;
-        seoScore: number;
-        bestPracticesScore: number;
+        lighthouseScore: any;
+        accessibilityScore: any;
+        seoScore: any;
+        bestPracticesScore: any;
         passedMinChecks: boolean;
+        errorReason?: string | null;
         evidence: { metrics: string[]; deductions: string[] };
       };
       security: {
@@ -119,10 +120,12 @@ export function EvaluationReport({ report }: EvaluationReportProps) {
   const [expandedFeatureIdx, setExpandedFeatureIdx] = useState<number | null>(0);
 
   // Radial Score SVG Helper
-  const renderRadialScore = (score: number, size: number = 80, strokeWidth: number = 6, colorClass: string = "text-[#FF006E]") => {
+  const renderRadialScore = (score: any, size: number = 80, strokeWidth: number = 6, colorClass: string = "text-[#FF006E]") => {
+    const isUnavailable = score === "UNAVAILABLE" || typeof score !== "number" || isNaN(score);
+    const numericScore = isUnavailable ? 0 : score;
     const radius = (size - strokeWidth) / 2;
     const circumference = radius * 2 * Math.PI;
-    const offset = circumference - (score / 100) * circumference;
+    const offset = circumference - (numericScore / 100) * circumference;
 
     return (
       <div className="relative inline-flex items-center justify-center">
@@ -137,7 +140,7 @@ export function EvaluationReport({ report }: EvaluationReportProps) {
             cy={size / 2}
           />
           <circle
-            className={colorClass}
+            className={isUnavailable ? "text-slate-200" : colorClass}
             strokeWidth={strokeWidth}
             strokeDasharray={circumference}
             strokeDashoffset={offset}
@@ -149,7 +152,9 @@ export function EvaluationReport({ report }: EvaluationReportProps) {
             cy={size / 2}
           />
         </svg>
-        <span className="absolute text-xs font-black text-slate-800">{score}</span>
+        <span className={isUnavailable ? "absolute text-[10px] font-bold text-slate-400 uppercase" : "absolute text-xs font-black text-slate-800"}>
+          {isUnavailable ? "N/A" : `${score}`}
+        </span>
       </div>
     );
   };
@@ -452,6 +457,19 @@ export function EvaluationReport({ report }: EvaluationReportProps) {
                 <span className="text-xs font-bold text-slate-700 block">SEO</span>
               </div>
             </div>
+
+            {/* Show any Lighthouse unreachable / unavailable warning */}
+            {(report.toolAudits.performance.lighthouseScore === "UNAVAILABLE" || report.toolAudits.performance.errorReason) && (
+              <div className="p-4 border border-amber-200 rounded-xl bg-amber-50 text-xs text-amber-800 space-y-1.5 shadow-2xs">
+                <p className="font-bold flex items-center gap-1.5 text-amber-900">
+                  <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
+                  <span>Lighthouse Metrics Limited</span>
+                </p>
+                <p className="text-[11px] leading-relaxed text-slate-600">
+                  {report.toolAudits.performance.errorReason || "Lighthouse could not analyze the submitted deployment because the URL was unreachable or the browser runtime was unavailable during evaluation."}
+                </p>
+              </div>
+            )}
 
             {/* Playwright Screenshot Evidence Objects */}
             {report.screenshots && report.screenshots.length > 0 && (

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, Suspense } from "react";
+import React, { useState, useEffect, useRef, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
@@ -113,6 +113,15 @@ function HackathonRegistrationContent() {
   const [submissionSuccess, setSubmissionSuccess] = useState(false);
   const [astCheckResult, setAstCheckResult] = useState<string | null>(null);
   const [evaluationReport, setEvaluationReport] = useState<any | null>(null);
+  const [evaluatingSubmission, setEvaluatingSubmission] = useState<any | null>(null);
+  const isMountedRef = useRef(true);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
   
   // Submission Workspace Wizard States
   const [submissionStep, setSubmissionStep] = useState(1);
@@ -200,6 +209,13 @@ function HackathonRegistrationContent() {
                               reports: sub.reports
                             }));
                             setSubmissionAttempts(formatted);
+
+                            const newestSub = subs[0];
+                            if (newestSub && (newestSub.status === "QUEUED" || newestSub.status === "EVALUATING")) {
+                              setEvaluatingSubmission(newestSub);
+                              setSubmissionSuccess(true);
+                              void pollForEvaluationResult(found.id, user.id);
+                            }
 
                             const completedSub = subs.find(s => s.status === "COMPLETED" && s.reports && s.reports.length > 0);
                             if (completedSub) {
@@ -420,6 +436,27 @@ function HackathonRegistrationContent() {
         setSubmittingProject(false);
         setRepoUrl("");
         setDeploymentUrl("");
+
+        // Immediate fetch to populate evaluating state
+        const subRes = await fetch(`/api/submissions?hackathonId=${activeHackathon.id}&userId=${user.id}`);
+        if (subRes.ok) {
+          const subs = await subRes.json();
+          if (Array.isArray(subs) && subs.length > 0) {
+            setEvaluatingSubmission(subs[0]);
+            
+            const formatted = subs.map((sub: any, idx: number) => ({
+              version: sub.version || idx + 1,
+              time: new Date(sub.updatedAt).toLocaleString(),
+              status: sub.status,
+              score: sub.score ?? 0,
+              grade: sub.grade || (sub.score && sub.score >= 75 ? "PASSED" : "FAILED"),
+              repoUrl: sub.repoUrl,
+              reports: sub.reports
+            }));
+            setSubmissionAttempts(formatted);
+          }
+        }
+
         void pollForEvaluationResult(activeHackathon.id, user.id);
         return;
       } else {
@@ -434,41 +471,16 @@ function HackathonRegistrationContent() {
   };
 
   const pollForEvaluationResult = async (hackathonId: string, userId: string, attemptsLeft = 60) => {
+    if (!isMountedRef.current) return;
     try {
       const res = await fetch(`/api/submissions?hackathonId=${hackathonId}&userId=${userId}`);
       if (res.ok) {
         const subs = await res.json();
         if (Array.isArray(subs) && subs.length > 0) {
           const latest = subs[0];
-          if (latest.status === "COMPLETED" && latest.reports && latest.reports.length > 0) {
-            setEvaluationReport(latest.reports[0].payload);
-            setAstCheckResult("passed");
-            refreshLiveData(hackathonId, userId);
-            return;
-          }
-          if (latest.status === "FAILED") {
-            setAstCheckResult("failed");
-            alert("Evaluation failed for your submission. Check your repository and try again.");
-            return;
-          }
-        }
-      }
-    } catch (err) {
-      console.error("Failed to poll evaluation status:", err);
-    }
 
-    if (attemptsLeft > 0) {
-      setTimeout(() => pollForEvaluationResult(hackathonId, userId, attemptsLeft - 1), 5000);
-    }
-  };
-
-  const refreshLiveData = async (hackathonId: string, userId: string) => {
-    try {
-      const subRes = await fetch(`/api/submissions?hackathonId=${hackathonId}&userId=${userId}`);
-      if (subRes.ok) {
-        const subs = await subRes.json();
-        if (Array.isArray(subs)) {
-          setSubmissionAttempts(subs.map((sub: any, idx: number) => ({
+          // Format all submissions for the history timeline
+          const formatted = subs.map((sub: any, idx: number) => ({
             version: sub.version || idx + 1,
             time: new Date(sub.updatedAt).toLocaleString(),
             status: sub.status,
@@ -476,18 +488,46 @@ function HackathonRegistrationContent() {
             grade: sub.grade || (sub.score && sub.score >= 75 ? "PASSED" : "FAILED"),
             repoUrl: sub.repoUrl,
             reports: sub.reports
-          })));
-        }
-      }
-      const leadRes = await fetch(`/api/hackathons/${hackathonId}/leaderboard`);
-      if (leadRes.ok) {
-        const data = await leadRes.json();
-        if (data && Array.isArray(data.leaderboard)) {
-          setLeaderboardList(data.leaderboard);
+          }));
+          setSubmissionAttempts(formatted);
+
+          if (latest.status === "COMPLETED" && latest.reports && latest.reports.length > 0) {
+            setEvaluationReport(latest.reports[0].payload);
+            setEvaluatingSubmission(null);
+            setAstCheckResult("passed");
+
+            // Refresh leaderboard
+            const leadRes = await fetch(`/api/hackathons/${hackathonId}/leaderboard`);
+            if (leadRes.ok) {
+              const data = await leadRes.json();
+              if (data && Array.isArray(data.leaderboard)) {
+                setLeaderboardList(data.leaderboard);
+              }
+            }
+            return;
+          }
+          if (latest.status === "FAILED") {
+            setEvaluatingSubmission(null);
+            setAstCheckResult("failed");
+            alert("Evaluation failed for your submission. Check your repository and try again.");
+            return;
+          }
+
+          if (latest.status === "QUEUED" || latest.status === "EVALUATING") {
+            setEvaluatingSubmission(latest);
+          }
         }
       }
     } catch (err) {
-      console.error("Failed to refresh live data:", err);
+      console.error("Failed to poll evaluation status:", err);
+    }
+
+    if (isMountedRef.current && attemptsLeft > 0) {
+      setTimeout(() => {
+        if (isMountedRef.current) {
+          pollForEvaluationResult(hackathonId, userId, attemptsLeft - 1);
+        }
+      }, 4000);
     }
   };
 
@@ -933,23 +973,118 @@ function HackathonRegistrationContent() {
                       ))}
                     </div>
 
-                    {submissionSuccess && evaluationReport ? (
+                    {submissionSuccess && (evaluationReport || evaluatingSubmission) ? (
                       <div className="space-y-6">
-                        <div className="flex justify-between items-center bg-white p-3 border border-[#E2E8F0] rounded-xl shadow-2xs">
-                          <span className="text-xs text-[#64748B] font-medium">Need to submit a newer version of your repository?</span>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setSubmissionSuccess(false);
-                              setSubmissionStep(1);
-                            }}
-                          >
-                            Submit Update
-                          </Button>
-                        </div>
-                        <EvaluationReport report={evaluationReport} />
+                        {/* Evaluating Submission in Progress Panel */}
+                        {evaluatingSubmission && (
+                          <Card className="p-6 bg-slate-900 border-slate-800 text-white shadow-xl rounded-2xl space-y-6 animate-pulse-slow">
+                            <div className="flex justify-between items-start">
+                              <div className="space-y-1">
+                                <div className="flex items-center gap-2">
+                                  <span className="relative flex h-3 w-3">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#FF006E] opacity-75"></span>
+                                    <span className="relative inline-flex rounded-full h-3 w-3 bg-[#FF006E]"></span>
+                                  </span>
+                                  <h3 className="font-heading text-base font-extrabold uppercase tracking-widest text-[#FF006E]">
+                                    FAIE Evaluation in Progress
+                                  </h3>
+                                </div>
+                                <p className="text-[11px] text-slate-400 font-mono">
+                                  Analyzing Submission Version: <span className="text-white font-bold">v{evaluatingSubmission.version || (submissionAttempts[0]?.version ? submissionAttempts[0].version : 1)}</span>
+                                </p>
+                              </div>
+                              <div className="p-2 rounded-xl bg-slate-800/80 border border-slate-700 animate-spin duration-3000">
+                                <RefreshCw className="h-5 w-5 text-slate-400" />
+                              </div>
+                            </div>
+
+                            {/* Interactive Steps List */}
+                            <div className="space-y-3 pt-2">
+                              <div className="flex items-center gap-3 text-xs text-slate-300">
+                                <div className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                                  ✓
+                                </div>
+                                <span className="font-medium">Repository: Submission received & validated</span>
+                              </div>
+
+                              <div className="flex items-center gap-3 text-xs text-slate-300">
+                                <div className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                                  ✓
+                                </div>
+                                <span className="font-medium">Queue: Added to evaluation queue</span>
+                              </div>
+
+                              <div className="flex items-center gap-3 text-xs text-slate-300">
+                                {evaluatingSubmission.status === "EVALUATING" ? (
+                                  <>
+                                    <div className="flex h-5 w-5 items-center justify-center rounded-full bg-[#FF006E]/20 text-[#FF006E] border border-[#FF006E]/30 animate-pulse">
+                                      ●
+                                    </div>
+                                    <span className="font-bold text-[#FF006E] animate-pulse">FAIE Worker: FAIE Evaluation Running</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <div className="flex h-5 w-5 items-center justify-center rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                                      ●
+                                    </div>
+                                    <span className="font-medium text-slate-400">FAIE Worker: Waiting for FAIE Worker (Queued)</span>
+                                  </>
+                                )}
+                              </div>
+
+                              <div className="flex items-center gap-3 text-xs text-slate-500">
+                                <div className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-800 text-slate-600 border border-slate-700">
+                                  ○
+                                </div>
+                                <span className="font-medium">Report: Waiting for completion</span>
+                              </div>
+                            </div>
+
+                            <div className="bg-slate-800/40 p-4 border border-slate-800/80 rounded-xl space-y-1">
+                              <p className="text-xs text-slate-300 leading-relaxed font-medium">
+                                Your latest submission is being evaluated. This page will update automatically when the evaluation is complete.
+                              </p>
+                              <p className="text-[9px] text-[#FF006E] font-mono animate-pulse">
+                                [Refreshing evaluation status automatically...]
+                              </p>
+                            </div>
+                          </Card>
+                        )}
+
+                        {/* Demoted previous report OR submit update header */}
+                        {evaluationReport && (
+                          <>
+                            {evaluatingSubmission ? (
+                              <div className="p-4 border border-amber-200 rounded-2xl bg-amber-50/60 text-xs text-amber-800 space-y-1 shadow-2xs">
+                                <p className="font-bold flex items-center gap-1.5 text-amber-900">
+                                  <AlertCircle className="h-4 w-4 text-amber-700" />
+                                  <span>Previous Evaluation Results (v{evaluationReport.version || (submissionAttempts.find(s => s.status === "COMPLETED")?.version || 1)})</span>
+                                </p>
+                                <p className="text-[#64748B] leading-relaxed">
+                                  This is your previous completed result. Version <span className="font-bold text-slate-800">v{evaluatingSubmission.version}</span> is currently being evaluated.
+                                </p>
+                              </div>
+                            ) : (
+                              <div className="flex justify-between items-center bg-white p-3 border border-[#E2E8F0] rounded-xl shadow-2xs">
+                                <span className="text-xs text-[#64748B] font-medium">Need to submit a newer version of your repository?</span>
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    setSubmissionSuccess(false);
+                                    setSubmissionStep(1);
+                                  }}
+                                >
+                                  Submit Update
+                                </Button>
+                              </div>
+                            )}
+                            <div className={evaluatingSubmission ? "opacity-60 pointer-events-none transition-all duration-300" : "transition-all duration-300"}>
+                              <EvaluationReport report={evaluationReport} />
+                            </div>
+                          </>
+                        )}
                       </div>
                     ) : (
                       <div className="space-y-6">

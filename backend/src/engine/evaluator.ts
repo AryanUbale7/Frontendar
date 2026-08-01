@@ -133,6 +133,7 @@ export interface ToolAuditResults {
     seoScore: number | "UNAVAILABLE";
     bestPracticesScore: number | "UNAVAILABLE";
     passedMinChecks: boolean;
+    errorReason?: string | null;
     evidence: {
       metrics: string[];
       deductions: string[];
@@ -219,62 +220,132 @@ function resolveActiveProblem(blueprint: Blueprint): ProblemStatementEntry {
   return blueprint.problemStatement;
 }
 
-function runLighthouseAudit(distDir: string): { performance: number; accessibility: number; seo: number; bestPractices: number } | "UNAVAILABLE" {
-  if (!fs.existsSync(distDir)) {
-    return "UNAVAILABLE";
-  }
-
+async function runLighthouseAudit(
+  distDir: string,
+  deploymentUrl?: string | null
+): Promise<{
+  scores: { performance: number; accessibility: number; seo: number; bestPractices: number } | "UNAVAILABLE";
+  errorReason?: string;
+}> {
+  let targetUrl = "";
   let server: http.Server | null = null;
+
   try {
-    server = http.createServer((req, res) => {
-      // Path traversal guard: resolved path must stay inside the dist directory.
-      const base = path.resolve(distDir);
-      let safePath = req.url === "/" ? "index.html" : decodeURIComponent(req.url!.split("?")[0]);
-      let filePath = path.resolve(path.join(base, safePath));
-      if (filePath !== base && !filePath.startsWith(base + path.sep)) {
-        filePath = path.join(base, "index.html");
+    // 1. Determine target URL and validate
+    if (deploymentUrl) {
+      targetUrl = deploymentUrl.trim();
+      if (!/^https?:\/\//i.test(targetUrl)) {
+        return { scores: "UNAVAILABLE", errorReason: "DEPLOYMENT_UNREACHABLE: Invalid URL format." };
       }
-      if (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
-        filePath = path.join(base, "index.html");
-      }
+      
+      // Perform simple fetch check
       try {
-        const ext = path.extname(filePath).toLowerCase();
-        let contentType = "text/html";
-        if (ext === ".js") contentType = "application/javascript";
-        else if (ext === ".css") contentType = "text/css";
-        else if (ext === ".png") contentType = "image/png";
-        else if (ext === ".jpg" || ext === ".jpeg") contentType = "image/jpeg";
-        else if (ext === ".svg") contentType = "image/svg+xml";
-        else if (ext === ".ico") contentType = "image/x-icon";
-
-        const content = fs.readFileSync(filePath);
-        res.writeHead(200, { "Content-Type": contentType });
-        res.end(content);
-      } catch {
-        res.writeHead(404);
-        res.end("Not Found");
+        const checkRes = await Promise.race([
+          fetch(targetUrl, { method: "HEAD" }),
+          new Promise<never>((_, reject) => setTimeout(() => reject(new Error("Timeout")), 8000))
+        ]);
+        if (!checkRes.ok) {
+          // Fallback to GET just in case HEAD is blocked
+          const checkResGet = await fetch(targetUrl, { method: "GET" });
+          if (!checkResGet.ok) {
+            return { scores: "UNAVAILABLE", errorReason: "DEPLOYMENT_UNREACHABLE: Target URL returned status " + checkResGet.status };
+          }
+        }
+      } catch (err: any) {
+        return { scores: "UNAVAILABLE", errorReason: "DEPLOYMENT_UNREACHABLE: Target URL is unreachable or timed out." };
       }
-    });
+    } else {
+      // Local fallback server
+      if (!fs.existsSync(distDir)) {
+        return { scores: "UNAVAILABLE", errorReason: "INVALID_LIGHTHOUSE_RESULT: Dist directory missing." };
+      }
+      server = http.createServer((req, res) => {
+        const base = path.resolve(distDir);
+        let safePath = req.url === "/" ? "index.html" : decodeURIComponent(req.url!.split("?")[0]);
+        let filePath = path.resolve(path.join(base, safePath));
+        if (filePath !== base && !filePath.startsWith(base + path.sep)) {
+          filePath = path.join(base, "index.html");
+        }
+        if (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
+          filePath = path.join(base, "index.html");
+        }
+        try {
+          const ext = path.extname(filePath).toLowerCase();
+          let contentType = "text/html";
+          if (ext === ".js") contentType = "application/javascript";
+          else if (ext === ".css") contentType = "text/css";
+          else if (ext === ".png") contentType = "image/png";
+          else if (ext === ".jpg" || ext === ".jpeg") contentType = "image/jpeg";
+          else if (ext === ".svg") contentType = "image/svg+xml";
+          else if (ext === ".ico") contentType = "image/x-icon";
 
-    server.listen(0);
-    const port = (server.address() as any).port;
-    const url = `http://localhost:${port}`;
+          const content = fs.readFileSync(filePath);
+          res.writeHead(200, { "Content-Type": contentType });
+          res.end(content);
+        } catch {
+          res.writeHead(404);
+          res.end("Not Found");
+        }
+      });
 
-    const output = execFileSync(
-      commandBin("npx"),
-      ["lighthouse", url, "--output=json", "--chrome-flags=--headless --no-sandbox --disable-gpu"],
-      { stdio: "pipe", timeout: 45000, encoding: "utf-8" }
-    );
+      server.listen(0);
+      const port = (server.address() as any).port;
+      targetUrl = `http://localhost:${port}`;
+    }
 
-    const lhr = JSON.parse(output);
+    // 2. Set Chrome Executable Path from Playwright
+    try {
+      const playwright = require("playwright");
+      if (playwright && playwright.chromium) {
+        process.env.CHROME_PATH = playwright.chromium.executablePath();
+      }
+    } catch (err: any) {
+      return { scores: "UNAVAILABLE", errorReason: `BROWSER_LAUNCH_FAILED: Failed to resolve Chromium path (${err.message}).` };
+    }
+
+    if (!process.env.CHROME_PATH || !fs.existsSync(process.env.CHROME_PATH)) {
+      return { scores: "UNAVAILABLE", errorReason: "BROWSER_LAUNCH_FAILED: Chromium binary not found on disk." };
+    }
+
+    // 3. Execute Lighthouse command
+    let output = "";
+    try {
+      output = execFileSync(
+        commandBin("npx"),
+        ["lighthouse", targetUrl, "--output=json", "--chrome-flags=--headless --no-sandbox --disable-gpu --disable-software-rasterizer"],
+        { stdio: "pipe", timeout: 50000, encoding: "utf-8" }
+      );
+    } catch (err: any) {
+      const isTimeout = err.signal === "SIGTERM" || err.message.includes("timeout");
+      return { 
+        scores: "UNAVAILABLE", 
+        errorReason: isTimeout 
+          ? "NAVIGATION_TIMEOUT: Lighthouse evaluation exceeded the allowed execution time." 
+          : `LIGHTHOUSE_EXECUTION_FAILED: Lighthouse exited with an error (${err.message}).` 
+      };
+    }
+
+    // 4. Parse Lighthouse LHR JSON
+    let lhr: any;
+    try {
+      lhr = JSON.parse(output);
+    } catch (err: any) {
+      return { scores: "UNAVAILABLE", errorReason: "INVALID_LIGHTHOUSE_RESULT: Failed to parse Lighthouse report JSON." };
+    }
+
+    if (!lhr.categories || !lhr.categories.performance) {
+      return { scores: "UNAVAILABLE", errorReason: "INVALID_LIGHTHOUSE_RESULT: Missing standard metric categories." };
+    }
+
     const performance = Math.round((lhr.categories.performance.score || 0) * 100);
     const accessibility = Math.round((lhr.categories.accessibility.score || 0) * 100);
     const seo = Math.round((lhr.categories.seo.score || 0) * 100);
     const bestPractices = Math.round((lhr.categories["best-practices"].score || 0) * 100);
 
-    return { performance, accessibility, seo, bestPractices };
+    return { scores: { performance, accessibility, seo, bestPractices } };
+
   } catch (err: any) {
-    return "UNAVAILABLE";
+    return { scores: "UNAVAILABLE", errorReason: `LIGHTHOUSE_EXECUTION_FAILED: Unexpected error during run (${err.message}).` };
   } finally {
     if (server) {
       server.close();
@@ -285,7 +356,8 @@ function runLighthouseAudit(distDir: string): { performance: number; accessibili
 // Deterministic Static Scanner (Zero AI)
 async function runToolAudits(
   tempDir: string,
-  blueprint: Blueprint
+  blueprint: Blueprint,
+  deploymentUrl?: string | null
 ): Promise<ToolAuditResults> {
   const readmePath = path.join(tempDir, "README.md");
   let hasReadme = false;
@@ -378,7 +450,11 @@ async function runToolAudits(
   }
 
   // Real Lighthouse Execution
-  const lhResult = buildSuccess ? runLighthouseAudit(distDir) : "UNAVAILABLE";
+  const auditRes = buildSuccess 
+    ? await runLighthouseAudit(distDir, deploymentUrl) 
+    : { scores: "UNAVAILABLE" as const, errorReason: "INVALID_LIGHTHOUSE_RESULT: Build script failed." };
+  const lhResult = auditRes.scores;
+  const errorReason = auditRes.errorReason;
 
   let lighthouseScore: number | "UNAVAILABLE" = "UNAVAILABLE";
   let accessibilityScore: number | "UNAVAILABLE" = "UNAVAILABLE";
@@ -419,6 +495,7 @@ async function runToolAudits(
       seoScore,
       bestPracticesScore,
       passedMinChecks: passedPerf && passedAccess && passedSeo && passedBest,
+      errorReason: errorReason || null,
       evidence: {
         metrics,
         deductions: performanceDeductions,
@@ -475,7 +552,8 @@ function getAllFiles(dir: string, fileList: string[] = []): string[] {
 
 export async function evaluateSubmission(
   repoUrl: string,
-  blueprint: Blueprint
+  blueprint: Blueprint,
+  deploymentUrl?: string | null
 ): Promise<DynamicEvaluationReport> {
   const logs: string[] = [];
   logs.push(`[1/10] Submission received: ${repoUrl}`);
@@ -518,7 +596,7 @@ export async function evaluateSubmission(
   try {
     // 1. Tool Audits
     logs.push(`[4/10] Running static code quality and security scans...`);
-    const toolResults = await runToolAudits(tempDir, blueprint);
+    const toolResults = await runToolAudits(tempDir, blueprint, deploymentUrl);
 
     // 2. Dispatch to Frontend Arena Intelligence Engine (FAIE v2)
     logs.push(`[5/10] Dispatching workspace to Frontend Arena Intelligence Engine (FAIE v2)...`);

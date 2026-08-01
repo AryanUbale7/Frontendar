@@ -53,12 +53,14 @@ async function resolveBlueprintForJob(data: EvaluationJobData): Promise<Blueprin
  */
 export async function runEvaluationJob(jobData: EvaluationJobData): Promise<any> {
   const { submissionId, repoUrl } = jobData;
+  let deploymentUrl: string | null = null;
 
   if (submissionId) {
     const existing = await prisma.submission.findUnique({ where: { id: submissionId } });
     if (!existing) {
       throw new Error(`Submission ${submissionId} not found — cannot evaluate.`);
     }
+    deploymentUrl = existing.deploymentUrl;
 
     // Idempotency guard: already completed with a persisted report → return it.
     if (existing.status === "COMPLETED") {
@@ -80,7 +82,7 @@ export async function runEvaluationJob(jobData: EvaluationJobData): Promise<any>
       throw new Error("No blueprint available for this evaluation job.");
     }
 
-    const report = await evaluateSubmission(repoUrl, blueprint);
+    const report = await evaluateSubmission(repoUrl, blueprint, deploymentUrl);
 
     // Log/output size cap: keep the report bounded regardless of repo behaviour.
     if (Array.isArray(report.logs)) {
