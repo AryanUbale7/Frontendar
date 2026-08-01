@@ -1,5 +1,5 @@
 import { prisma } from "../config/db";
-import { resolveHackathonLifecycle } from "../../../lib/utils";
+import { resolveHackathonLifecycle } from "./utils";
 
 function assert(condition: any, message: string) {
   if (!condition) {

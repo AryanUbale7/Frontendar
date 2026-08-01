@@ -1,5 +1,5 @@
 import { prisma } from "../config/db";
-import { resolveHackathonLifecycle } from "../../../lib/utils";
+import { resolveHackathonLifecycle } from "./utils";
 import { evaluateSubmission } from "./evaluator";
 import { RealRedisBullQueue } from "./redis-queue.system";
 
