@@ -1,6 +1,7 @@
 import * as fs from "fs";
 import * as path from "path";
 import * as os from "os";
+import * as http from "http";
 import { execSync } from "child_process";
 import { FAIEOrchestrator, KnowledgeBlueprint } from "../../../evaluation-engine/intelligence-engine";
 
@@ -71,10 +72,10 @@ export interface Blueprint extends KnowledgeBlueprint {
 // Tool-generated evidence items (Fully deterministic)
 export interface ToolAuditResults {
   performance: {
-    lighthouseScore: number;
-    accessibilityScore: number;
-    seoScore: number;
-    bestPracticesScore: number;
+    lighthouseScore: number | "UNAVAILABLE";
+    accessibilityScore: number | "UNAVAILABLE";
+    seoScore: number | "UNAVAILABLE";
+    bestPracticesScore: number | "UNAVAILABLE";
     passedMinChecks: boolean;
     evidence: {
       metrics: string[];
@@ -162,6 +163,63 @@ function resolveActiveProblem(blueprint: Blueprint): ProblemStatementEntry {
   return blueprint.problemStatement;
 }
 
+function runLighthouseAudit(distDir: string): { performance: number; accessibility: number; seo: number; bestPractices: number } | "UNAVAILABLE" {
+  if (!fs.existsSync(distDir)) {
+    return "UNAVAILABLE";
+  }
+
+  let server: http.Server | null = null;
+  try {
+    server = http.createServer((req, res) => {
+      let safePath = req.url === "/" ? "index.html" : req.url!.split("?")[0];
+      let filePath = path.join(distDir, safePath);
+      if (!fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
+        filePath = path.join(distDir, "index.html");
+      }
+      try {
+        const ext = path.extname(filePath).toLowerCase();
+        let contentType = "text/html";
+        if (ext === ".js") contentType = "application/javascript";
+        else if (ext === ".css") contentType = "text/css";
+        else if (ext === ".png") contentType = "image/png";
+        else if (ext === ".jpg" || ext === ".jpeg") contentType = "image/jpeg";
+        else if (ext === ".svg") contentType = "image/svg+xml";
+        else if (ext === ".ico") contentType = "image/x-icon";
+
+        const content = fs.readFileSync(filePath);
+        res.writeHead(200, { "Content-Type": contentType });
+        res.end(content);
+      } catch {
+        res.writeHead(404);
+        res.end("Not Found");
+      }
+    });
+
+    server.listen(0);
+    const port = (server.address() as any).port;
+    const url = `http://localhost:${port}`;
+
+    const output = execSync(
+      `npx lighthouse ${url} --output=json --chrome-flags="--headless --no-sandbox --disable-gpu"`,
+      { stdio: "pipe", timeout: 45000, encoding: "utf-8" }
+    );
+
+    const lhr = JSON.parse(output);
+    const performance = Math.round((lhr.categories.performance.score || 0) * 100);
+    const accessibility = Math.round((lhr.categories.accessibility.score || 0) * 100);
+    const seo = Math.round((lhr.categories.seo.score || 0) * 100);
+    const bestPractices = Math.round((lhr.categories["best-practices"].score || 0) * 100);
+
+    return { performance, accessibility, seo, bestPractices };
+  } catch (err: any) {
+    return "UNAVAILABLE";
+  } finally {
+    if (server) {
+      server.close();
+    }
+  }
+}
+
 // Deterministic Static Scanner (Zero AI)
 async function runToolAudits(
   tempDir: string,
@@ -233,33 +291,61 @@ async function runToolAudits(
     ? Math.round((tsCount / (tsCount + jsCount)) * 100) 
     : 0;
 
-  let buildSuccess = true;
+  let buildSuccess = false;
+  let distDir = path.join(tempDir, "dist");
   const packageJsonPath = path.join(tempDir, "package.json");
   
   if (fs.existsSync(packageJsonPath)) {
     try {
-      const pkg = JSON.parse(fs.readFileSync(packageJsonPath, "utf-8"));
-      if (pkg.scripts && pkg.scripts.build) {
-        buildSuccess = true;
+      execSync("npm install", { cwd: tempDir, stdio: "ignore", timeout: 45000 });
+      execSync("npm run build", { cwd: tempDir, stdio: "ignore", timeout: 30000 });
+      if (!fs.existsSync(distDir)) {
+        if (fs.existsSync(path.join(tempDir, "build"))) {
+          distDir = path.join(tempDir, "build");
+        } else if (fs.existsSync(path.join(tempDir, ".next"))) {
+          distDir = path.join(tempDir, ".next");
+        }
       }
+      buildSuccess = fs.existsSync(distDir) && fs.readdirSync(distDir).length > 0;
     } catch {
       buildSuccess = false;
     }
   }
 
-  const lighthouseScore = buildSuccess ? 92 : 65;
-  const accessibilityScore = hasReadme ? 90 : 75;
-  const seoScore = hasReadme && readmeSize > 1000 ? 88 : 70;
-  const bestPracticesScore = buildSuccess && secretsFound.length === 0 ? 95 : 65;
+  // Real Lighthouse Execution
+  const lhResult = buildSuccess ? runLighthouseAudit(distDir) : "UNAVAILABLE";
 
-  const passedPerf = lighthouseScore >= blueprint.performanceRules.lighthouseMin;
-  const passedAccess = accessibilityScore >= blueprint.performanceRules.accessibilityMin;
-  const passedSeo = seoScore >= blueprint.performanceRules.seoMin;
-  const passedBest = bestPracticesScore >= blueprint.performanceRules.bestPracticesMin;
+  let lighthouseScore: number | "UNAVAILABLE" = "UNAVAILABLE";
+  let accessibilityScore: number | "UNAVAILABLE" = "UNAVAILABLE";
+  let seoScore: number | "UNAVAILABLE" = "UNAVAILABLE";
+  let bestPracticesScore: number | "UNAVAILABLE" = "UNAVAILABLE";
+
+  if (lhResult !== "UNAVAILABLE") {
+    lighthouseScore = lhResult.performance;
+    accessibilityScore = lhResult.accessibility;
+    seoScore = lhResult.seo;
+    bestPracticesScore = lhResult.bestPractices;
+  }
+
+  const passedPerf = lighthouseScore === "UNAVAILABLE" || lighthouseScore >= blueprint.performanceRules.lighthouseMin;
+  const passedAccess = accessibilityScore === "UNAVAILABLE" || accessibilityScore >= blueprint.performanceRules.accessibilityMin;
+  const passedSeo = seoScore === "UNAVAILABLE" || seoScore >= blueprint.performanceRules.seoMin;
+  const passedBest = bestPracticesScore === "UNAVAILABLE" || bestPracticesScore >= blueprint.performanceRules.bestPracticesMin;
 
   const performanceDeductions: string[] = [];
-  if (!passedPerf) performanceDeductions.push(`Performance score (${lighthouseScore}) below minimum required (${blueprint.performanceRules.lighthouseMin}).`);
-  if (!passedAccess) performanceDeductions.push(`Accessibility score (${accessibilityScore}) below minimum required (${blueprint.performanceRules.accessibilityMin}).`);
+  if (lighthouseScore !== "UNAVAILABLE" && !passedPerf) {
+    performanceDeductions.push(`Performance score (${lighthouseScore}) below minimum required (${blueprint.performanceRules.lighthouseMin}).`);
+  }
+  if (accessibilityScore !== "UNAVAILABLE" && !passedAccess) {
+    performanceDeductions.push(`Accessibility score (${accessibilityScore}) below minimum required (${blueprint.performanceRules.accessibilityMin}).`);
+  }
+
+  const metrics = [
+    `Lighthouse Performance audit: ${lighthouseScore === "UNAVAILABLE" ? "LIGHTHOUSE_STATUS = UNAVAILABLE" : lighthouseScore + "/100"}`,
+    `Lighthouse Accessibility audit: ${accessibilityScore === "UNAVAILABLE" ? "LIGHTHOUSE_STATUS = UNAVAILABLE" : accessibilityScore + "/100"}`,
+    `Lighthouse SEO audit: ${seoScore === "UNAVAILABLE" ? "LIGHTHOUSE_STATUS = UNAVAILABLE" : seoScore + "/100"}`,
+    `Lighthouse Best Practices audit: ${bestPracticesScore === "UNAVAILABLE" ? "LIGHTHOUSE_STATUS = UNAVAILABLE" : bestPracticesScore + "/100"}`
+  ];
 
   return {
     performance: {
@@ -269,12 +355,7 @@ async function runToolAudits(
       bestPracticesScore,
       passedMinChecks: passedPerf && passedAccess && passedSeo && passedBest,
       evidence: {
-        metrics: [
-          `Lighthouse Performance audit: ${lighthouseScore}/100`,
-          `Lighthouse Accessibility audit: ${accessibilityScore}/100`,
-          `Lighthouse SEO audit: ${seoScore}/100`,
-          `Lighthouse Best Practices audit: ${bestPracticesScore}/100`
-        ],
+        metrics,
         deductions: performanceDeductions,
       }
     },
@@ -366,7 +447,7 @@ export async function evaluateSubmission(
     // 2. Dispatch to Frontend Arena Intelligence Engine (FAIE v2)
     logs.push(`[5/10] Dispatching workspace to Frontend Arena Intelligence Engine (FAIE v2)...`);
     const faieOrchestrator = new FAIEOrchestrator(blueprint.synonymDictionary, blueprint.confidenceThreshold || 75);
-    const faieReport = await faieOrchestrator.evaluate(tempDir, repoUrl, blueprint);
+    const faieReport = await faieOrchestrator.evaluate(tempDir, repoUrl, blueprint, undefined, toolResults);
 
     logs.push(`[10/10] FAIE v2 evaluation completed. Final Score: ${faieReport.scoreSummary.finalScore}/100.`);
 

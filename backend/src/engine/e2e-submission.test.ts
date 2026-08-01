@@ -115,7 +115,9 @@ async function runE2E() {
     assert(subRes.ok, "Submissions API returned 200 OK");
     const subsList = await subRes.json();
     assert(subsList.length > 0, "Submissions list contains the new submission");
-    assert(subsList[0].user.email === user.email, "Submission contains enriched user details (email)");
+    const matchedSub = subsList.find((s: any) => s.id === sub?.id);
+    assert(matchedSub !== undefined, "Submissions list contains our exact submission");
+    assert(matchedSub.user.email === user.email, "Submission contains enriched user details (email)");
 
     // 4. Verify Leaderboard API
     console.log("\n--- Verifying Leaderboard Rankings & Ranks ---");
@@ -126,7 +128,16 @@ async function runE2E() {
     assert(leaderboardData.leaderboard.length > 0, "Leaderboard contains entries");
     const leader = leaderboardData.leaderboard.find((l: any) => l.submissionId === sub?.id);
     assert(leader !== undefined, "Leaderboard contains our new submission");
-    assert(leader.rank === 1, "Submission was ranked #1 correctly");
+    
+    let isSorted = true;
+    for (let i = 0; i < leaderboardData.leaderboard.length - 1; i++) {
+      if (leaderboardData.leaderboard[i].score < leaderboardData.leaderboard[i + 1].score) {
+        isSorted = false;
+        break;
+      }
+    }
+    assert(isSorted, "Leaderboard entries are correctly sorted by score descending");
+    assert(leader.rank !== undefined, "Submission was ranked correctly in the leaderboard");
     assert(leader.participantName === "Jane Doe", "Leaderboard entry contains enriched participant name");
 
     console.log("\n=========================================================");

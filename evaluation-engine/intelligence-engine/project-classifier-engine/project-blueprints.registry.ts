@@ -165,12 +165,17 @@ export const PROJECT_BLUEPRINTS: Record<ProjectType, KnowledgeBlueprint> = {
         ],
       },
     ],
-    techStackRules: { allowed: ["React", "Next.js", "Vue", "TailwindCSS"], required: ["JavaScript"], restricted: [] },
+    techStackRules: { allowed: ["React", "Next.js", "Vue", "TailwindCSS", "TypeScript"], required: ["TypeScript"], restricted: [] },
     scoringSystem: {
       categories: [
-        { name: "Data Visualization & Feature Depth", weight: 40, maxMarks: 40, passingMarks: 22 },
-        { name: "UI/UX & Dashboard Layout", weight: 35, maxMarks: 35, passingMarks: 20 },
-        { name: "Code Quality & State Management", weight: 25, maxMarks: 25, passingMarks: 13 },
+        { name: "Problem Alignment", weight: 20, maxMarks: 20, passingMarks: 10 },
+        { name: "UI/UX & Responsiveness", weight: 20, maxMarks: 20, passingMarks: 10 },
+        { name: "Functionality & Interaction", weight: 20, maxMarks: 20, passingMarks: 10 },
+        { name: "Data Visualization", weight: 15, maxMarks: 15, passingMarks: 8 },
+        { name: "Code Quality", weight: 10, maxMarks: 10, passingMarks: 5 },
+        { name: "Performance", weight: 5, maxMarks: 5, passingMarks: 3 },
+        { name: "Accessibility", weight: 5, maxMarks: 5, passingMarks: 3 },
+        { name: "Creativity / Innovation", weight: 5, maxMarks: 5, passingMarks: 3 }
       ],
     },
   },

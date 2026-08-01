@@ -88,8 +88,24 @@ export class ScoringEngine {
       sumCategoryScore += r.scoreAwarded;
     });
 
-    // Check false positive rejected claims
     let deductionsTotal = 0;
+
+    // TypeScript compliance check (Task 9)
+    let tsRequired = false;
+    if (blueprint.techStackRules && blueprint.techStackRules.required) {
+      tsRequired = blueprint.techStackRules.required.some((t) => t.toLowerCase() === "typescript");
+    }
+    const hasTS = repoAnalysis.hasTsConfig || repoAnalysis.detectedLanguages.typescriptPercent > 0;
+    if (tsRequired) {
+      if (!hasTS) {
+        deductionsTotal += 15;
+        logs.push(`TypeScript Required: YES | TypeScript Detected: NO | Compliance: FAIL | Penalty: -15 pts`);
+      } else {
+        logs.push(`TypeScript Required: YES | TypeScript Detected: YES | Compliance: PASS`);
+      }
+    }
+
+    // Check false positive rejected claims
     let rejectedClaimsCount = 0;
     featureResults.forEach((fr) => {
       if (fr.evidence.rejectedClaims && fr.evidence.rejectedClaims.length > 0) {
@@ -103,53 +119,35 @@ export class ScoringEngine {
       logs.push(`False-Positive Shield Penalty: ${rejectedClaimsCount} claim(s) rejected (-${penalty} pts).`);
     }
 
-    // Pass/Fail status determination
+    // Pass/Fail status determination (Task 8 - Minimize Auto-Fail)
     let status: "pass" | "fail" = "pass";
 
-    if (overallAlignmentPercent < 45 && implementedCount === 0) {
+    if (repoAnalysis.detectedFilesCount === 0) {
       status = "fail";
-      logs.push("Automatic Fail Triggered: Zero implemented features detected.");
+      logs.push("Automatic Fail Triggered: Missing or inaccessible GitHub repository source code.");
     }
 
-    if (rejectedClaimsCount >= 2 || (rejectedClaimsCount > 0 && implementedCount === 0)) {
-      status = "fail";
-      logs.push("Automatic Fail Triggered: Multiple documentation claims rejected by False-Positive Shield.");
-    }
-
-    if (blueprint.mandatoryRules) {
-      for (const rule of blueprint.mandatoryRules) {
-        if (rule.autoFail && overallAlignmentPercent < 50) {
+    const restricted = blueprint.techStackRules.restricted || [];
+    if (restricted.length > 0) {
+      const deps = repoAnalysis.allDependencies.map((d) => d.toLowerCase());
+      for (const res of restricted) {
+        if (deps.some((d) => d.includes(res.toLowerCase()))) {
           status = "fail";
-          logs.push(`Mandatory Rule Triggered AUTO-FAIL: ${rule.rule}`);
-        } else if (rule.penalty > 0 && !uiAnalysis.isResponsive) {
-          deductionsTotal += rule.penalty;
-          logs.push(`Mandatory Rule Penalty: ${rule.rule} (-${rule.penalty} pts)`);
+          logs.push(`Automatic Fail Triggered: Prohibited technology detected: ${res}`);
         }
       }
     }
 
-    // Capped Bonus Points (Max 10 pts max under diminishing returns)
-    let bonusPointsTotal = 0;
-    if (status === "pass") {
-      if (repoAnalysis.hasTsConfig) bonusPointsTotal += 5;
-      if (repoAnalysis.hasTailwind) bonusPointsTotal += 5;
-      bonusPointsTotal = Math.min(10, bonusPointsTotal);
-      if (bonusPointsTotal > 0) logs.push(`Bonus Awarded (Capped): +${bonusPointsTotal} pts`);
+    if (rejectedClaimsCount >= 3) {
+      status = "fail";
+      logs.push("Automatic Fail Triggered: Excessive fraudulent documentation claims rejected by False-Positive Shield.");
     }
 
-    // Score Calibration Curve (Diminishing returns to eliminate score inflation)
-    const rawScore = sumCategoryScore + bonusPointsTotal - deductionsTotal;
-    let finalScore = 0;
+    // Score sum (Task 7 - Score emerges naturally from evidence, capped at 100)
+    let rawScore = sumCategoryScore - deductionsTotal;
+    let finalScore = status === "fail" ? Math.min(25, Math.max(0, rawScore)) : Math.max(0, Math.min(100, rawScore));
 
-    if (status === "fail") {
-      finalScore = Math.min(25, Math.max(0, Math.round(rawScore * 0.3)));
-    } else {
-      // Diminishing returns curve: Score = RawScore * (1 - 0.12 * (RawScore / 100)) * HumanCoef
-      const calibrated = rawScore * (1.0 - 0.11 * (rawScore / 100.0)) * this.alignmentCoefficients.repository;
-      finalScore = Math.max(0, Math.min(96, Math.round(calibrated)));
-    }
-
-    logs.push(`FAIE Calibrated Final Score: ${finalScore}/100. Status: ${status.toUpperCase()}`);
+    logs.push(`FAIE Final Score: ${finalScore}/100. Status: ${status.toUpperCase()}`);
 
     return {
       finalScore,
@@ -161,7 +159,7 @@ export class ScoringEngine {
       folderCompliancePercent,
       uiCompliancePercent,
       overallAlignmentPercent,
-      bonusPointsTotal,
+      bonusPointsTotal: 0,
       deductionsTotal,
       categoryReasonings: reasonings,
       logs,
