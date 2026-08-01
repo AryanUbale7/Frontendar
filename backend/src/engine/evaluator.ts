@@ -234,6 +234,7 @@ async function runLighthouseAudit(
 }> {
   let targetUrl = "";
   let server: http.Server | null = null;
+  let chrome: any = null;
 
   try {
     // 1. Determine target URL and validate
@@ -321,6 +322,8 @@ async function runLighthouseAudit(
 
     const chromePath = process.env.CHROME_PATH || "";
     const exists = chromePath ? fs.existsSync(chromePath) : false;
+    console.log("[Lighthouse] Chromium path:", chromePath);
+    console.log("[Lighthouse] Chromium exists:", exists);
     logs?.push(`[Lighthouse] Chromium path: ${chromePath}`);
     logs?.push(`[Lighthouse] Chromium exists: ${exists}`);
 
@@ -329,68 +332,76 @@ async function runLighthouseAudit(
       return { scores: "UNAVAILABLE", errorReason: "BROWSER_BINARY_MISSING" };
     }
 
-    logs?.push(`[Lighthouse] Chromium launched`);
-    logs?.push(`[Lighthouse] audit started`);
+    // 3. Launch Chrome using chrome-launcher
+    // chrome-launcher exports { launch } as named exports — do not use .default
+    const chromeLauncher = require("chrome-launcher");
+    // lighthouse may be a default or named export depending on version
+    const lhModule = require("lighthouse");
+    const lighthouse = typeof lhModule === "function" ? lhModule : (lhModule.default ?? lhModule.lighthouse ?? lhModule);
 
-    // 3. Execute Lighthouse command
-    let output = "";
+    logs?.push(`[Lighthouse] Launching Chromium...`);
     try {
-      output = execFileSync(
-        commandBin("npx"),
-        [
-          "lighthouse",
-          targetUrl,
-          "--output=json",
-          "--chrome-flags=--headless --no-sandbox --disable-setuid-sandbox --disable-dev-shm-usage --disable-gpu --disable-software-rasterizer"
-        ],
-        { stdio: "pipe", timeout: 50000, encoding: "utf-8" }
-      );
-      logs?.push(`[Lighthouse] audit completed`);
-    } catch (err: any) {
-      console.error("[Lighthouse] Browser launch / execution failed:", err);
-      const isTimeout = err.signal === "SIGTERM" || err.message.includes("timeout");
-      const stderr = err.stderr ? err.stderr.toString("utf-8") : "";
-      
-      const isLaunchError = err.message.includes("launch") || 
-                            err.message.includes("Chrome failed to start") || 
-                            err.message.includes("shared libraries") ||
-                            stderr.includes("shared libraries") ||
-                            stderr.includes("Failed to launch") ||
-                            stderr.includes("ChromeLauncher");
+      chrome = await chromeLauncher.launch({
+        chromePath: chromePath,
+        chromeFlags: [
+          "--headless",
+          "--no-sandbox",
+          "--disable-setuid-sandbox",
+          "--disable-dev-shm-usage",
+          "--disable-gpu"
+        ]
+      });
+      logs?.push(`[Lighthouse] Chromium ready on port ${chrome.port}`);
+    } catch (launchErr: any) {
+      console.error("[Lighthouse] Browser launch failed:", launchErr);
+      logs?.push(`[Lighthouse] Chromium launch failed: ${launchErr.message}`);
+      return { scores: "UNAVAILABLE", errorReason: "BROWSER_LAUNCH_FAILED" };
+    }
 
-      logs?.push(`[Lighthouse] audit execution failed: ${isTimeout ? "timeout" : err.message}`);
-      if (stderr) {
-        logs?.push(`[Lighthouse] stderr: ${stderr.split("\n").slice(0, 5).join("\n")}`);
+    // 4. Run programmatic Lighthouse audit with 120s async timeout
+    logs?.push(`[Lighthouse] Starting audit...`);
+    const startTime = Date.now();
+
+    const timeoutPromise = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("LIGHTHOUSE_EXECUTION_TIMEOUT")), 120000)
+    );
+
+    const auditPromise = lighthouse(targetUrl, {
+      port: chrome.port,
+      output: "json",
+      onlyCategories: ["performance", "accessibility", "best-practices", "seo"]
+    });
+
+    let runnerResult: any;
+    try {
+      runnerResult = await Promise.race([auditPromise, timeoutPromise]);
+    } catch (auditErr: any) {
+      const duration = Date.now() - startTime;
+      console.error(`[Lighthouse] Audit failed after ${duration}ms:`, auditErr);
+
+      if (auditErr.message === "LIGHTHOUSE_EXECUTION_TIMEOUT") {
+        logs?.push(`[Lighthouse] Audit failed after ${duration}ms: timeout`);
+        return { scores: "UNAVAILABLE", errorReason: "LIGHTHOUSE_EXECUTION_TIMEOUT" };
       }
 
-      if (isTimeout) {
-        return { scores: "UNAVAILABLE", errorReason: "NAVIGATION_TIMEOUT" };
-      }
-      if (isLaunchError) {
-        return { scores: "UNAVAILABLE", errorReason: "BROWSER_LAUNCH_FAILED" };
-      }
+      logs?.push(`[Lighthouse] Audit failed after ${duration}ms: ${auditErr.message}`);
       return { scores: "UNAVAILABLE", errorReason: "LIGHTHOUSE_EXECUTION_FAILED" };
     }
 
-    // 4. Parse Lighthouse LHR JSON
-    let lhr: any;
-    try {
-      lhr = JSON.parse(output);
-    } catch (err: any) {
-      logs?.push(`[Lighthouse] failed to parse audit report JSON`);
-      return { scores: "UNAVAILABLE", errorReason: "INVALID_LIGHTHOUSE_RESULT" };
-    }
-
-    if (!lhr.categories || !lhr.categories.performance) {
+    // 5. Parse Lighthouse LHR JSON
+    const lhr = runnerResult?.lhr;
+    if (!lhr || !lhr.categories || !lhr.categories.performance) {
       logs?.push(`[Lighthouse] missing metric categories in report`);
       return { scores: "UNAVAILABLE", errorReason: "INVALID_LIGHTHOUSE_RESULT" };
     }
 
-    const performance = Math.round((lhr.categories.performance.score || 0) * 100);
-    const accessibility = Math.round((lhr.categories.accessibility.score || 0) * 100);
-    const seo = Math.round((lhr.categories.seo.score || 0) * 100);
-    const bestPractices = Math.round((lhr.categories["best-practices"].score || 0) * 100);
+    const performance = Math.round((lhr.categories.performance.score ?? 0) * 100);
+    const accessibility = Math.round((lhr.categories.accessibility.score ?? 0) * 100);
+    const seo = Math.round((lhr.categories.seo.score ?? 0) * 100);
+    const bestPractices = Math.round((lhr.categories["best-practices"]?.score ?? 0) * 100);
 
+    const duration = Date.now() - startTime;
+    logs?.push(`[Lighthouse] Audit completed in ${duration}ms`);
     logs?.push(`[Lighthouse] Performance: ${performance}`);
     logs?.push(`[Lighthouse] Accessibility: ${accessibility}`);
     logs?.push(`[Lighthouse] Best Practices: ${bestPractices}`);
@@ -402,6 +413,14 @@ async function runLighthouseAudit(
     logs?.push(`[Lighthouse] unexpected error: ${err.message}`);
     return { scores: "UNAVAILABLE", errorReason: "LIGHTHOUSE_EXECUTION_FAILED" };
   } finally {
+    if (chrome) {
+      try {
+        await chrome.kill();
+        logs?.push(`[Lighthouse] Chromium closed`);
+      } catch (killErr: any) {
+        console.error("[Lighthouse] Failed to kill Chromium:", killErr);
+      }
+    }
     if (server) {
       server.close();
       logs?.push(`[Lighthouse] local server closed`);
