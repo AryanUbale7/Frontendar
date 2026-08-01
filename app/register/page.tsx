@@ -437,6 +437,16 @@ function HackathonRegistrationContent() {
         setRepoUrl("");
         setDeploymentUrl("");
 
+        // Optimistically set the evaluating state immediately (immediate visual feedback)
+        const nextVersion = submissionAttempts.length > 0
+          ? submissionAttempts[0].version + 1
+          : 1;
+        setEvaluatingSubmission({
+          id: result.submissionId,
+          status: "QUEUED",
+          version: result.version || nextVersion
+        });
+
         // Immediate fetch to populate evaluating state
         const subRes = await fetch(`/api/submissions?hackathonId=${activeHackathon.id}&userId=${user.id}`);
         if (subRes.ok) {
@@ -977,74 +987,100 @@ function HackathonRegistrationContent() {
                       <div className="space-y-6">
                         {/* Evaluating Submission in Progress Panel */}
                         {evaluatingSubmission && (
-                          <Card className="p-6 bg-slate-900 border-slate-800 text-white shadow-xl rounded-2xl space-y-6 animate-pulse-slow">
-                            <div className="flex justify-between items-start">
-                              <div className="space-y-1">
-                                <div className="flex items-center gap-2">
-                                  <span className="relative flex h-3 w-3">
-                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#FF006E] opacity-75"></span>
-                                    <span className="relative inline-flex rounded-full h-3 w-3 bg-[#FF006E]"></span>
-                                  </span>
-                                  <h3 className="font-heading text-base font-extrabold uppercase tracking-widest text-[#FF006E]">
-                                    FAIE Evaluation in Progress
-                                  </h3>
+                          <Card className="p-8 bg-slate-900 border border-slate-800 text-white shadow-2xl rounded-3xl relative overflow-hidden space-y-6">
+                            {/* Ambient background glow */}
+                            <div className="absolute top-0 right-0 w-64 h-64 bg-magenta-500/10 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none" />
+                            <div className="absolute bottom-0 left-0 w-64 h-64 bg-[#FF006E]/10 rounded-full blur-3xl -ml-16 -mb-16 pointer-events-none" />
+
+                            <style dangerouslySetInnerHTML={{ __html: `
+                              @keyframes faie-scan {
+                                0% { transform: translateY(-40px); opacity: 0.1; }
+                                50% { transform: translateY(40px); opacity: 0.8; }
+                                100% { transform: translateY(-40px); opacity: 0.1; }
+                              }
+                              .animate-scan {
+                                animation: faie-scan 3s ease-in-out infinite;
+                              }
+                              @keyframes faie-reverse-spin {
+                                from { transform: rotate(360deg); }
+                                to { transform: rotate(0deg); }
+                              }
+                              .reverse-spin {
+                                animation: faie-reverse-spin 6s linear infinite;
+                              }
+                              .animate-spin-slow {
+                                animation: spin 12s linear infinite;
+                              }
+                            `}} />
+
+                            {/* Rotating/Orbiting FAIE scanner header */}
+                            <div className="flex flex-col items-center justify-center text-center space-y-4 relative py-4">
+                              <div className="relative flex items-center justify-center h-24 w-24">
+                                {/* Outer rotating ring */}
+                                <div className="absolute inset-0 rounded-full border-2 border-dashed border-[#FF006E]/40 animate-spin-slow" />
+                                
+                                {/* Inner counter-rotating ring */}
+                                <div className="absolute inset-2 rounded-full border border-dotted border-white/20 reverse-spin" />
+                                
+                                {/* Central pulsing core */}
+                                <div className="relative flex h-14 w-14 items-center justify-center rounded-full bg-slate-800 border border-slate-700/60 shadow-lg animate-pulse">
+                                  <Sparkles className="h-6 w-6 text-[#FF006E]" />
                                 </div>
-                                <p className="text-[11px] text-slate-400 font-mono">
-                                  Analyzing Submission Version: <span className="text-white font-bold">v{evaluatingSubmission.version || (submissionAttempts[0]?.version ? submissionAttempts[0].version : 1)}</span>
-                                </p>
+
+                                {/* Vertical scanning line */}
+                                <div className="absolute top-0 bottom-0 left-1/2 w-0.5 bg-gradient-to-b from-transparent via-[#FF006E] to-transparent animate-scan" />
                               </div>
-                              <div className="p-2 rounded-xl bg-slate-800/80 border border-slate-700 animate-spin duration-3000">
-                                <RefreshCw className="h-5 w-5 text-slate-400" />
+
+                              <div className="space-y-1">
+                                <h3 className="font-heading text-lg font-black uppercase tracking-wider text-[#FF006E] animate-pulse">
+                                  Evaluating Your Submission
+                                </h3>
+                                <p className="text-xs text-slate-400 font-mono">
+                                  FAIE is analyzing your latest project: <span className="text-white font-bold">Version v{evaluatingSubmission.version || (submissionAttempts[0]?.version ? submissionAttempts[0].version : 1)}</span>
+                                </p>
                               </div>
                             </div>
 
-                            {/* Interactive Steps List */}
-                            <div className="space-y-3 pt-2">
-                              <div className="flex items-center gap-3 text-xs text-slate-300">
-                                <div className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                            {/* Skeleton Status Rows */}
+                            <div className="space-y-4 pt-2 max-w-md mx-auto">
+                              <div className="flex items-center gap-3.5 text-xs text-slate-300 bg-slate-800/40 p-3 rounded-xl border border-slate-800/80">
+                                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
                                   ✓
                                 </div>
-                                <span className="font-medium">Repository: Submission received & validated</span>
+                                <span className="font-semibold text-slate-200">Submission Received</span>
                               </div>
 
-                              <div className="flex items-center gap-3 text-xs text-slate-300">
-                                <div className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
-                                  ✓
-                                </div>
-                                <span className="font-medium">Queue: Added to evaluation queue</span>
-                              </div>
-
-                              <div className="flex items-center gap-3 text-xs text-slate-300">
+                              <div className="flex items-center gap-3.5 text-xs bg-slate-800/40 p-3 rounded-xl border border-slate-800/80">
                                 {evaluatingSubmission.status === "EVALUATING" ? (
                                   <>
-                                    <div className="flex h-5 w-5 items-center justify-center rounded-full bg-[#FF006E]/20 text-[#FF006E] border border-[#FF006E]/30 animate-pulse">
-                                      ●
+                                    <div className="flex h-6 w-6 items-center justify-center rounded-full bg-[#FF006E]/20 text-[#FF006E] border border-[#FF006E]/30 animate-spin">
+                                      <RefreshCw className="h-3 w-3" />
                                     </div>
-                                    <span className="font-bold text-[#FF006E] animate-pulse">FAIE Worker: FAIE Evaluation Running</span>
+                                    <span className="font-bold text-[#FF006E] animate-pulse">FAIE Worker: FAIE Evaluation Running...</span>
                                   </>
                                 ) : (
                                   <>
-                                    <div className="flex h-5 w-5 items-center justify-center rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                                    <div className="flex h-6 w-6 items-center justify-center rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/30 animate-pulse">
                                       ●
                                     </div>
-                                    <span className="font-medium text-slate-400">FAIE Worker: Waiting for FAIE Worker (Queued)</span>
+                                    <span className="font-semibold text-slate-300">Queue: Waiting for FAIE Worker (Queued)...</span>
                                   </>
                                 )}
                               </div>
 
-                              <div className="flex items-center gap-3 text-xs text-slate-500">
-                                <div className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-800 text-slate-600 border border-slate-700">
+                              <div className="flex items-center gap-3.5 text-xs text-slate-500 bg-slate-800/10 p-3 rounded-xl border border-slate-800/20">
+                                <div className="flex h-6 w-6 items-center justify-center rounded-full bg-slate-800 text-slate-600 border border-slate-700">
                                   ○
                                 </div>
-                                <span className="font-medium">Report: Waiting for completion</span>
+                                <span className="font-medium">Report: Generating Audit Report</span>
                               </div>
                             </div>
 
-                            <div className="bg-slate-800/40 p-4 border border-slate-800/80 rounded-xl space-y-1">
-                              <p className="text-xs text-slate-300 leading-relaxed font-medium">
-                                Your latest submission is being evaluated. This page will update automatically when the evaluation is complete.
+                            <div className="bg-slate-800/30 p-4 border border-slate-800/80 rounded-2xl max-w-md mx-auto text-center">
+                              <p className="text-[11px] text-slate-400 leading-relaxed font-medium">
+                                Your latest submission is being evaluated. This page will update automatically.
                               </p>
-                              <p className="text-[9px] text-[#FF006E] font-mono animate-pulse">
+                              <p className="text-[9px] text-[#FF006E] font-mono animate-pulse mt-1">
                                 [Refreshing evaluation status automatically...]
                               </p>
                             </div>
@@ -1355,9 +1391,9 @@ function HackathonRegistrationContent() {
                                 className="bg-[#FF006E] text-white font-bold"
                                 loading={submittingProject}
                                 onClick={handleProjectSubmit}
-                                disabled={!checklistRepo || !checklistDeploy || !checklistReadme}
+                                disabled={!checklistRepo || !checklistDeploy || !checklistReadme || !!evaluatingSubmission}
                               >
-                                Submit & Evaluate Project
+                                {evaluatingSubmission ? "Evaluation In Progress" : "Submit & Evaluate Project"}
                               </Button>
                             </div>
                           </div>

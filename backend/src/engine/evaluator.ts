@@ -26,7 +26,11 @@ function validateRepoUrl(url: string): string {
 }
 
 function commandBin(base: string): string {
-  return process.platform === "win32" ? `${base}.cmd` : base;
+  if (process.platform === "win32") {
+    if (base === "bun") return "bun";
+    return `${base}.cmd`;
+  }
+  return base;
 }
 
 const MAX_REPO_BYTES = (Number(process.env.EVALUATION_MAX_REPO_MB) || 200) * 1024 * 1024;
@@ -222,7 +226,8 @@ function resolveActiveProblem(blueprint: Blueprint): ProblemStatementEntry {
 
 async function runLighthouseAudit(
   distDir: string,
-  deploymentUrl?: string | null
+  deploymentUrl?: string | null,
+  logs?: string[]
 ): Promise<{
   scores: { performance: number; accessibility: number; seo: number; bestPractices: number } | "UNAVAILABLE";
   errorReason?: string;
@@ -234,8 +239,10 @@ async function runLighthouseAudit(
     // 1. Determine target URL and validate
     if (deploymentUrl) {
       targetUrl = deploymentUrl.trim();
+      logs?.push(`[Lighthouse] validating deployment: ${targetUrl}`);
       if (!/^https?:\/\//i.test(targetUrl)) {
-        return { scores: "UNAVAILABLE", errorReason: "DEPLOYMENT_UNREACHABLE: Invalid URL format." };
+        logs?.push(`[Lighthouse] validation failed: Invalid URL format`);
+        return { scores: "UNAVAILABLE", errorReason: "DEPLOYMENT_UNREACHABLE" };
       }
       
       // Perform simple fetch check
@@ -248,16 +255,21 @@ async function runLighthouseAudit(
           // Fallback to GET just in case HEAD is blocked
           const checkResGet = await fetch(targetUrl, { method: "GET" });
           if (!checkResGet.ok) {
-            return { scores: "UNAVAILABLE", errorReason: "DEPLOYMENT_UNREACHABLE: Target URL returned status " + checkResGet.status };
+            logs?.push(`[Lighthouse] reachability check failed: status ${checkResGet.status}`);
+            return { scores: "UNAVAILABLE", errorReason: "DEPLOYMENT_UNREACHABLE" };
           }
         }
+        logs?.push(`[Lighthouse] deployment reachable`);
       } catch (err: any) {
-        return { scores: "UNAVAILABLE", errorReason: "DEPLOYMENT_UNREACHABLE: Target URL is unreachable or timed out." };
+        logs?.push(`[Lighthouse] reachability check failed or timed out: ${err.message}`);
+        return { scores: "UNAVAILABLE", errorReason: "DEPLOYMENT_UNREACHABLE" };
       }
     } else {
       // Local fallback server
+      logs?.push(`[Lighthouse] running against local fallback server...`);
       if (!fs.existsSync(distDir)) {
-        return { scores: "UNAVAILABLE", errorReason: "INVALID_LIGHTHOUSE_RESULT: Dist directory missing." };
+        logs?.push(`[Lighthouse] local dist directory missing`);
+        return { scores: "UNAVAILABLE", errorReason: "BUILD_FAILED" };
       }
       server = http.createServer((req, res) => {
         const base = path.resolve(distDir);
@@ -291,6 +303,7 @@ async function runLighthouseAudit(
       server.listen(0);
       const port = (server.address() as any).port;
       targetUrl = `http://localhost:${port}`;
+      logs?.push(`[Lighthouse] local fallback server listening on ${targetUrl}`);
     }
 
     // 2. Set Chrome Executable Path from Playwright
@@ -300,12 +313,17 @@ async function runLighthouseAudit(
         process.env.CHROME_PATH = playwright.chromium.executablePath();
       }
     } catch (err: any) {
-      return { scores: "UNAVAILABLE", errorReason: `BROWSER_LAUNCH_FAILED: Failed to resolve Chromium path (${err.message}).` };
+      logs?.push(`[Lighthouse] chromium path resolution failed: ${err.message}`);
+      return { scores: "UNAVAILABLE", errorReason: "BROWSER_LAUNCH_FAILED" };
     }
 
     if (!process.env.CHROME_PATH || !fs.existsSync(process.env.CHROME_PATH)) {
-      return { scores: "UNAVAILABLE", errorReason: "BROWSER_LAUNCH_FAILED: Chromium binary not found on disk." };
+      logs?.push(`[Lighthouse] chromium binary not found on disk`);
+      return { scores: "UNAVAILABLE", errorReason: "BROWSER_LAUNCH_FAILED" };
     }
+
+    logs?.push(`[Lighthouse] Chromium launched`);
+    logs?.push(`[Lighthouse] audit started`);
 
     // 3. Execute Lighthouse command
     let output = "";
@@ -315,13 +333,13 @@ async function runLighthouseAudit(
         ["lighthouse", targetUrl, "--output=json", "--chrome-flags=--headless --no-sandbox --disable-gpu --disable-software-rasterizer"],
         { stdio: "pipe", timeout: 50000, encoding: "utf-8" }
       );
+      logs?.push(`[Lighthouse] audit completed`);
     } catch (err: any) {
       const isTimeout = err.signal === "SIGTERM" || err.message.includes("timeout");
+      logs?.push(`[Lighthouse] audit execution failed: ${isTimeout ? "timeout" : err.message}`);
       return { 
         scores: "UNAVAILABLE", 
-        errorReason: isTimeout 
-          ? "NAVIGATION_TIMEOUT: Lighthouse evaluation exceeded the allowed execution time." 
-          : `LIGHTHOUSE_EXECUTION_FAILED: Lighthouse exited with an error (${err.message}).` 
+        errorReason: isTimeout ? "NAVIGATION_TIMEOUT" : "LIGHTHOUSE_EXECUTION_FAILED"
       };
     }
 
@@ -330,11 +348,13 @@ async function runLighthouseAudit(
     try {
       lhr = JSON.parse(output);
     } catch (err: any) {
-      return { scores: "UNAVAILABLE", errorReason: "INVALID_LIGHTHOUSE_RESULT: Failed to parse Lighthouse report JSON." };
+      logs?.push(`[Lighthouse] failed to parse audit report JSON`);
+      return { scores: "UNAVAILABLE", errorReason: "INVALID_LIGHTHOUSE_RESULT" };
     }
 
     if (!lhr.categories || !lhr.categories.performance) {
-      return { scores: "UNAVAILABLE", errorReason: "INVALID_LIGHTHOUSE_RESULT: Missing standard metric categories." };
+      logs?.push(`[Lighthouse] missing metric categories in report`);
+      return { scores: "UNAVAILABLE", errorReason: "INVALID_LIGHTHOUSE_RESULT" };
     }
 
     const performance = Math.round((lhr.categories.performance.score || 0) * 100);
@@ -342,22 +362,36 @@ async function runLighthouseAudit(
     const seo = Math.round((lhr.categories.seo.score || 0) * 100);
     const bestPractices = Math.round((lhr.categories["best-practices"].score || 0) * 100);
 
+    logs?.push(`[Lighthouse] Performance: ${performance}`);
+    logs?.push(`[Lighthouse] Accessibility: ${accessibility}`);
+    logs?.push(`[Lighthouse] Best Practices: ${bestPractices}`);
+    logs?.push(`[Lighthouse] SEO: ${seo}`);
+
     return { scores: { performance, accessibility, seo, bestPractices } };
 
   } catch (err: any) {
-    return { scores: "UNAVAILABLE", errorReason: `LIGHTHOUSE_EXECUTION_FAILED: Unexpected error during run (${err.message}).` };
+    logs?.push(`[Lighthouse] unexpected error: ${err.message}`);
+    return { scores: "UNAVAILABLE", errorReason: "LIGHTHOUSE_EXECUTION_FAILED" };
   } finally {
     if (server) {
       server.close();
+      logs?.push(`[Lighthouse] local server closed`);
     }
   }
+}
+function detectPackageManager(tempDir: string): "npm" | "yarn" | "pnpm" | "bun" {
+  if (fs.existsSync(path.join(tempDir, "yarn.lock"))) return "yarn";
+  if (fs.existsSync(path.join(tempDir, "pnpm-lock.yaml"))) return "pnpm";
+  if (fs.existsSync(path.join(tempDir, "bun.lockb")) || fs.existsSync(path.join(tempDir, "bun.lock"))) return "bun";
+  return "npm";
 }
 
 // Deterministic Static Scanner (Zero AI)
 async function runToolAudits(
   tempDir: string,
   blueprint: Blueprint,
-  deploymentUrl?: string | null
+  deploymentUrl?: string | null,
+  logs?: string[]
 ): Promise<ToolAuditResults> {
   const readmePath = path.join(tempDir, "README.md");
   let hasReadme = false;
@@ -431,28 +465,63 @@ async function runToolAudits(
   let buildSuccess = false;
   let distDir = path.join(tempDir, "dist");
   const packageJsonPath = path.join(tempDir, "package.json");
-  
+
   if (fs.existsSync(packageJsonPath)) {
+    const pm = detectPackageManager(tempDir);
+    logs?.push(`[Build] package manager: ${pm}`);
+    
     try {
-      execFileSync(commandBin("npm"), ["install"], { cwd: tempDir, stdio: "ignore", timeout: 45000 });
-      execFileSync(commandBin("npm"), ["run", "build"], { cwd: tempDir, stdio: "ignore", timeout: 30000 });
-      if (!fs.existsSync(distDir)) {
-        if (fs.existsSync(path.join(tempDir, "build"))) {
-          distDir = path.join(tempDir, "build");
-        } else if (fs.existsSync(path.join(tempDir, ".next"))) {
-          distDir = path.join(tempDir, ".next");
+      logs?.push(`[Build] running dependency installation: ${pm} install`);
+      execFileSync(commandBin(pm), ["install"], { cwd: tempDir, stdio: "pipe", timeout: 60000 });
+      
+      logs?.push(`[Build] command: ${pm} run build`);
+      try {
+        execFileSync(commandBin(pm), ["run", "build"], { cwd: tempDir, stdio: "pipe", timeout: 45000 });
+        if (!fs.existsSync(distDir)) {
+          if (fs.existsSync(path.join(tempDir, "build"))) {
+            distDir = path.join(tempDir, "build");
+          } else if (fs.existsSync(path.join(tempDir, ".next"))) {
+            distDir = path.join(tempDir, ".next");
+          }
         }
+        buildSuccess = fs.existsSync(distDir) && fs.readdirSync(distDir).length > 0;
+        if (buildSuccess) {
+          logs?.push(`[Build] status: PASSED`);
+        } else {
+          logs?.push(`[Build] status: FAILED (missing or empty build output directory)`);
+        }
+      } catch (buildErr: any) {
+        buildSuccess = false;
+        const exitCode = buildErr.status !== undefined ? buildErr.status : 1;
+        const stderrOutput = buildErr.stderr ? buildErr.stderr.toString("utf-8") : (buildErr.message || "");
+        logs?.push(`[Build] status: FAILED`);
+        logs?.push(`[Build] exit code: ${exitCode}`);
+        const safeDiag = stderrOutput.split("\n").slice(0, 10).join("\n");
+        logs?.push(`[Build] diagnostics:\n${safeDiag}`);
       }
-      buildSuccess = fs.existsSync(distDir) && fs.readdirSync(distDir).length > 0;
-    } catch {
+    } catch (installErr: any) {
       buildSuccess = false;
+      const exitCode = installErr.status !== undefined ? installErr.status : 1;
+      const stderrOutput = installErr.stderr ? installErr.stderr.toString("utf-8") : (installErr.message || "");
+      logs?.push(`[Build] dependency installation failed`);
+      logs?.push(`[Build] status: FAILED`);
+      logs?.push(`[Build] exit code: ${exitCode}`);
+      const safeDiag = stderrOutput.split("\n").slice(0, 5).join("\n");
+      logs?.push(`[Build] diagnostics:\n${safeDiag}`);
     }
+  } else {
+    logs?.push(`[Build] package.json not found in repository root.`);
   }
 
-  // Real Lighthouse Execution
-  const auditRes = buildSuccess 
-    ? await runLighthouseAudit(distDir, deploymentUrl) 
-    : { scores: "UNAVAILABLE" as const, errorReason: "INVALID_LIGHTHOUSE_RESULT: Build script failed." };
+  // Real Lighthouse Execution: Decouple from local build if deploymentUrl is present
+  let auditRes;
+  if (deploymentUrl) {
+    auditRes = await runLighthouseAudit(distDir, deploymentUrl, logs);
+  } else {
+    auditRes = buildSuccess
+      ? await runLighthouseAudit(distDir, null, logs)
+      : { scores: "UNAVAILABLE" as const, errorReason: "BUILD_FAILED" };
+  }
   const lhResult = auditRes.scores;
   const errorReason = auditRes.errorReason;
 

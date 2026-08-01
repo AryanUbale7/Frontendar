@@ -290,6 +290,9 @@ app.post("/api/evaluate", optionalAuth, async (req: AuthenticatedRequest, res: R
       });
 
       if (existing) {
+        if (existing.status === "QUEUED" || existing.status === "EVALUATING") {
+          return res.status(409).json({ error: "Evaluation already in progress for this hackathon." });
+        }
         submission = await prisma.submission.update({
           where: { id: existing.id },
           data: {
@@ -367,6 +370,7 @@ app.post("/api/evaluate", optionalAuth, async (req: AuthenticatedRequest, res: R
     jobId: job.jobId,
     submissionId: submission.id,
     status: "QUEUED",
+    version: submission.version,
     message: "Evaluation queued. Results will be available via the submissions endpoint once complete."
   });
 });
