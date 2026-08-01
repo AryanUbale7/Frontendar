@@ -308,9 +308,9 @@ async function runLighthouseAudit(
 
     // 2. Set Chrome Executable Path from Playwright
     try {
+      process.env.PLAYWRIGHT_BROWSERS_PATH = "0"; // Force local project directory cache
       const playwright = require("playwright");
       if (playwright && playwright.chromium) {
-        process.env.PLAYWRIGHT_BROWSERS_PATH = "0"; // Force local project directory cache
         process.env.CHROME_PATH = playwright.chromium.executablePath();
       }
     } catch (err: any) {
