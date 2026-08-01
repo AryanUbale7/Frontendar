@@ -310,16 +310,23 @@ async function runLighthouseAudit(
     try {
       const playwright = require("playwright");
       if (playwright && playwright.chromium) {
+        process.env.PLAYWRIGHT_BROWSERS_PATH = "0"; // Force local project directory cache
         process.env.CHROME_PATH = playwright.chromium.executablePath();
       }
     } catch (err: any) {
       logs?.push(`[Lighthouse] chromium path resolution failed: ${err.message}`);
+      console.error("[Lighthouse] Browser launch failed during path resolution:", err);
       return { scores: "UNAVAILABLE", errorReason: "BROWSER_LAUNCH_FAILED" };
     }
 
-    if (!process.env.CHROME_PATH || !fs.existsSync(process.env.CHROME_PATH)) {
+    const chromePath = process.env.CHROME_PATH || "";
+    const exists = chromePath ? fs.existsSync(chromePath) : false;
+    logs?.push(`[Lighthouse] Chromium path: ${chromePath}`);
+    logs?.push(`[Lighthouse] Chromium exists: ${exists}`);
+
+    if (!chromePath || !exists) {
       logs?.push(`[Lighthouse] chromium binary not found on disk`);
-      return { scores: "UNAVAILABLE", errorReason: "BROWSER_LAUNCH_FAILED" };
+      return { scores: "UNAVAILABLE", errorReason: "BROWSER_BINARY_MISSING" };
     }
 
     logs?.push(`[Lighthouse] Chromium launched`);
@@ -330,17 +337,39 @@ async function runLighthouseAudit(
     try {
       output = execFileSync(
         commandBin("npx"),
-        ["lighthouse", targetUrl, "--output=json", "--chrome-flags=--headless --no-sandbox --disable-gpu --disable-software-rasterizer"],
+        [
+          "lighthouse",
+          targetUrl,
+          "--output=json",
+          "--chrome-flags=--headless --no-sandbox --disable-setuid-sandbox --disable-dev-shm-usage --disable-gpu --disable-software-rasterizer"
+        ],
         { stdio: "pipe", timeout: 50000, encoding: "utf-8" }
       );
       logs?.push(`[Lighthouse] audit completed`);
     } catch (err: any) {
+      console.error("[Lighthouse] Browser launch / execution failed:", err);
       const isTimeout = err.signal === "SIGTERM" || err.message.includes("timeout");
+      const stderr = err.stderr ? err.stderr.toString("utf-8") : "";
+      
+      const isLaunchError = err.message.includes("launch") || 
+                            err.message.includes("Chrome failed to start") || 
+                            err.message.includes("shared libraries") ||
+                            stderr.includes("shared libraries") ||
+                            stderr.includes("Failed to launch") ||
+                            stderr.includes("ChromeLauncher");
+
       logs?.push(`[Lighthouse] audit execution failed: ${isTimeout ? "timeout" : err.message}`);
-      return { 
-        scores: "UNAVAILABLE", 
-        errorReason: isTimeout ? "NAVIGATION_TIMEOUT" : "LIGHTHOUSE_EXECUTION_FAILED"
-      };
+      if (stderr) {
+        logs?.push(`[Lighthouse] stderr: ${stderr.split("\n").slice(0, 5).join("\n")}`);
+      }
+
+      if (isTimeout) {
+        return { scores: "UNAVAILABLE", errorReason: "NAVIGATION_TIMEOUT" };
+      }
+      if (isLaunchError) {
+        return { scores: "UNAVAILABLE", errorReason: "BROWSER_LAUNCH_FAILED" };
+      }
+      return { scores: "UNAVAILABLE", errorReason: "LIGHTHOUSE_EXECUTION_FAILED" };
     }
 
     // 4. Parse Lighthouse LHR JSON

@@ -4,7 +4,7 @@
   "description": "Evaluation engine for Frontend Arena dynamic blueprints",
   "main": "dist/backend/src/server.js",
   "scripts": {
-    "build": "prisma generate && tsc && npx playwright install chromium && node -e \"require('fs').writeFileSync('dist/server.js', \\\"module.exports = require('./backend/src/server.js');\\\")\"",
+    "build": "prisma generate && tsc && node -e \"process.env.PLAYWRIGHT_BROWSERS_PATH='0'; require('child_process').execSync('npx playwright install chromium', {stdio: 'inherit'})\" && node -e \"require('fs').writeFileSync('dist/server.js', \\\"module.exports = require('./backend/src/server.js');\\\")\"",
     "start": "node dist/backend/src/server.js",
     "dev": "ts-node src/server.ts",
     "worker": "node dist/backend/src/worker/index.js",
