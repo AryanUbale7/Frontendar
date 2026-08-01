@@ -109,7 +109,7 @@ export default function PlatformAdminDashboardPage() {
   React.useEffect(() => {
     const fetchHackathons = async () => {
       try {
-        const res = await fetch("/api/hackathons");
+        const res = await fetch("/api/hackathons", { headers: { ...authHeaders() } });
         if (res.ok) {
           const list = await res.json();
           if (Array.isArray(list)) {
@@ -324,7 +324,7 @@ export default function PlatformAdminDashboardPage() {
 
   const refreshHackathons = async () => {
     try {
-      const res = await fetch("/api/hackathons");
+      const res = await fetch("/api/hackathons", { headers: { ...authHeaders() } });
       if (res.ok) {
         const list = await res.json();
         if (Array.isArray(list)) setHackathons(list);
@@ -556,7 +556,7 @@ export default function PlatformAdminDashboardPage() {
             headers: { "Content-Type": "application/json", ...authHeaders() },
             body: JSON.stringify(updated)
           }).then(() => {
-            fetch("/api/hackathons").then(r => r.json()).then(list => {
+            fetch("/api/hackathons", { headers: { ...authHeaders() } }).then(r => r.json()).then(list => {
               if (Array.isArray(list)) setHackathons(list);
             });
           });
@@ -579,7 +579,7 @@ export default function PlatformAdminDashboardPage() {
         headers: { "Content-Type": "application/json", ...authHeaders() },
         body: JSON.stringify(newHackathon)
       });
-      const refreshRes = await fetch("/api/hackathons");
+      const refreshRes = await fetch("/api/hackathons", { headers: { ...authHeaders() } });
       const list = await refreshRes.json();
       if (Array.isArray(list)) setHackathons(list);
     } catch (e) {
