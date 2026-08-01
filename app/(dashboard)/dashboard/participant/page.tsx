@@ -59,26 +59,45 @@ export default function ParticipantDashboardPage() {
     }
   };
 
-  // Load enrolled hackathons from localStorage
-  useEffect(() => {
-    if (user && typeof window !== "undefined") {
-      const stored = localStorage.getItem(`fa_enrolled_hackathons_usr_${user.id}`);
-      if (stored) {
-        try {
-          setInitiatives(JSON.parse(stored));
-        } catch (e) {
-          console.error(e);
-        }
-      }
-    }
-  }, [user]);
+  // Load enrolled hackathons from PostgreSQL
+  const [submittedCount, setSubmittedCount] = useState(0);
 
-  // Count evaluated submissions
-  const submittedCount = React.useMemo(() => {
-    if (!user || typeof window === "undefined") return 0;
-    const subs = localStorage.getItem(`fa_submissions_${user.id}`);
-    if (!subs) return 0;
-    try { return JSON.parse(subs).length; } catch { return 0; }
+  useEffect(() => {
+    if (user) {
+      const loadParticipantData = async () => {
+        try {
+          // Fetch registrations for the user
+          const regRes = await fetch(`/api/registrations?userId=${user.id}`);
+          const hackRes = await fetch(`/api/hackathons`);
+          const subRes = await fetch(`/api/submissions?userId=${user.id}`);
+          
+          if (regRes.ok && hackRes.ok) {
+            const regs = await regRes.json();
+            const hacks = await hackRes.json();
+            if (Array.isArray(regs) && Array.isArray(hacks)) {
+              const enrolledHacks = hacks.filter(h => regs.some(r => r.hackathonId === h.id));
+              const formatted = enrolledHacks.map(h => ({
+                id: h.id,
+                title: h.name,
+                date: h.eventClose ? new Date(h.eventClose).toLocaleDateString() : "N/A",
+                bannerUrl: h.bannerUrl,
+                tag: h.status || "Virtual"
+              }));
+              setInitiatives(formatted);
+            }
+          }
+          if (subRes.ok) {
+            const subs = await subRes.json();
+            if (Array.isArray(subs)) {
+              setSubmittedCount(subs.filter((s: any) => s.status === "COMPLETED").length);
+            }
+          }
+        } catch (e) {
+          console.error("Failed to load enrolled hackathons:", e);
+        }
+      };
+      loadParticipantData();
+    }
   }, [user]);
 
   return (

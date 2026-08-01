@@ -40,6 +40,7 @@ import { RequireRole } from "@/components/auth/RequireRole";
 import { EmptyState } from "@/components/design-system/EmptyState";
 import { useUIStore } from "@/store/uiStore";
 import { BlueprintEditor } from "@/features/admin/blueprint/BlueprintEditor";
+import { resolveHackathonLifecycle } from "@/lib/utils";
 
 interface Round {
   name: string;
@@ -134,6 +135,46 @@ export default function PlatformAdminDashboardPage() {
   const [registrations, setRegistrations] = useState<any[]>([]);
   const [loadingRegs, setLoadingRegs] = useState<boolean>(false);
 
+  const [adminSubmissions, setAdminSubmissions] = useState<any[]>([]);
+  const [loadingAdminSubmissions, setLoadingAdminSubmissions] = useState(false);
+  const [adminLeaderboard, setAdminLeaderboard] = useState<any[]>([]);
+  const [loadingAdminLeaderboard, setLoadingAdminLeaderboard] = useState(false);
+
+  const fetchAdminSubmissions = async (hackathonId?: string) => {
+    setLoadingAdminSubmissions(true);
+    try {
+      const url = hackathonId ? `/api/submissions?hackathonId=${hackathonId}` : "/api/submissions";
+      const res = await fetch(url);
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          setAdminSubmissions(data);
+        }
+      }
+    } catch (e) {
+      console.error("Failed to fetch admin submissions:", e);
+    } finally {
+      setLoadingAdminSubmissions(false);
+    }
+  };
+
+  const fetchAdminLeaderboard = async (hackathonId: string) => {
+    setLoadingAdminLeaderboard(true);
+    try {
+      const res = await fetch(`/api/hackathons/${hackathonId}/leaderboard`);
+      if (res.ok) {
+        const data = await res.json();
+        if (data && Array.isArray(data.leaderboard)) {
+          setAdminLeaderboard(data.leaderboard);
+        }
+      }
+    } catch (e) {
+      console.error("Failed to fetch leaderboard:", e);
+    } finally {
+      setLoadingAdminLeaderboard(false);
+    }
+  };
+
   const fetchRegistrations = async (hackathonId: string) => {
     if (!hackathonId) return;
     setLoadingRegs(true);
@@ -185,6 +226,20 @@ export default function PlatformAdminDashboardPage() {
   const [activeBlueprintHackathonId, setActiveBlueprintHackathonId] = useState<string | null>(null);
   const [activeManageHackathonId, setActiveManageHackathonId] = useState<string | null>(null);
   const [activePortalTab, setActivePortalTab] = useState<"problem" | "rules" | "resources" | "submissions" | "leaderboard">("problem");
+
+  React.useEffect(() => {
+    if (activePortalTab === "submissions") {
+      fetchAdminSubmissions(activeManageHackathonId || undefined);
+    } else if (activePortalTab === "leaderboard" && activeManageHackathonId) {
+      fetchAdminLeaderboard(activeManageHackathonId);
+    }
+  }, [activePortalTab, activeManageHackathonId]);
+
+  React.useEffect(() => {
+    if (activeTab === "submissions") {
+      fetchAdminSubmissions();
+    }
+  }, [activeTab]);
 
   const resetForm = () => {
     setHackathonName("");
@@ -896,21 +951,117 @@ export default function PlatformAdminDashboardPage() {
 
                 {activePortalTab === "submissions" && (
                   <Card className="p-6 bg-white border-[#E2E8F0] shadow-sm rounded-2xl animate-in fade-in duration-200">
-                    <EmptyState
-                      title="No Project Submissions Received"
-                      description="Once teams link their repository links and execute AST code analysis, files will appear here."
-                      icon={<GitPullRequest className="h-7 w-7" />}
-                    />
+                    {loadingAdminSubmissions ? (
+                      <div className="flex justify-center p-8">
+                        <RefreshCw className="h-6 w-6 animate-spin text-[#FF006E]" />
+                      </div>
+                    ) : adminSubmissions.length > 0 ? (
+                      <div className="overflow-x-auto text-xs">
+                        <table className="w-full text-left border-collapse">
+                          <thead>
+                            <tr className="bg-slate-50 border-b border-slate-100 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                              <th className="p-3">Project Name</th>
+                              <th className="p-3">Participant</th>
+                              <th className="p-3">Repository</th>
+                              <th className="p-3">Deployment</th>
+                              <th className="p-3">Status</th>
+                              <th className="p-3">Score</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100">
+                            {adminSubmissions.map((sub, idx) => (
+                              <tr key={idx} className="hover:bg-slate-50/50">
+                                <td className="p-3 font-semibold text-slate-800">{sub.projectName}</td>
+                                <td className="p-3">
+                                  <div className="font-medium text-slate-700">{sub.user.firstName} {sub.user.lastName}</div>
+                                  <div className="text-[10px] text-slate-400">{sub.user.email}</div>
+                                </td>
+                                <td className="p-3 font-mono text-slate-500">
+                                  <a href={sub.repoUrl} target="_blank" rel="noreferrer" className="text-[#FF006E] hover:underline truncate max-w-[200px] block">
+                                    {sub.repoUrl.replace("https://github.com/", "")}
+                                  </a>
+                                </td>
+                                <td className="p-3">
+                                  {sub.deploymentUrl ? (
+                                    <a href={sub.deploymentUrl} target="_blank" rel="noreferrer" className="text-blue-500 hover:underline truncate max-w-[150px] block">
+                                      {sub.deploymentUrl}
+                                    </a>
+                                  ) : (
+                                    <span className="text-slate-400 italic">None</span>
+                                  )}
+                                </td>
+                                <td className="p-3">
+                                  <Badge className={
+                                    sub.status === "COMPLETED" ? "bg-emerald-50 text-emerald-600 border-emerald-200" :
+                                    sub.status === "FAILED" ? "bg-rose-50 text-rose-600 border-rose-200" :
+                                    "bg-amber-50 text-amber-600 border-amber-200 animate-pulse"
+                                  }>
+                                    {sub.status}
+                                  </Badge>
+                                </td>
+                                <td className="p-3 font-bold text-[#FF006E]">{sub.score !== null ? `${sub.score}/100` : "Pending"}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : (
+                      <EmptyState
+                        title="No Project Submissions Received"
+                        description="Once teams link their repository links and execute AST code analysis, files will appear here."
+                        icon={<GitPullRequest className="h-7 w-7" />}
+                      />
+                    )}
                   </Card>
                 )}
 
                 {activePortalTab === "leaderboard" && (
                   <Card className="p-6 bg-white border-[#E2E8F0] shadow-sm rounded-2xl animate-in fade-in duration-200">
-                    <EmptyState
-                      title="Platform Leaderboard Uncalculated"
-                      description="Rankings will display here once automated tests run and scorecards are published."
-                      icon={<Medal className="h-7 w-7" />}
-                    />
+                    {loadingAdminLeaderboard ? (
+                      <div className="flex justify-center p-8">
+                        <RefreshCw className="h-6 w-6 animate-spin text-[#FF006E]" />
+                      </div>
+                    ) : adminLeaderboard.length > 0 ? (
+                      <div className="overflow-x-auto text-xs">
+                        <table className="w-full text-left border-collapse">
+                          <thead>
+                            <tr className="bg-slate-50 border-b border-slate-100 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                              <th className="p-3">Rank</th>
+                              <th className="p-3">Project Name</th>
+                              <th className="p-3">Participant</th>
+                              <th className="p-3">Score</th>
+                              <th className="p-3">Grade</th>
+                              <th className="p-3">Date Evaluated</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100">
+                            {adminLeaderboard.map((row, idx) => (
+                              <tr key={idx} className="hover:bg-slate-50/50">
+                                <td className="p-3 font-extrabold text-slate-800">Rank {row.rank}</td>
+                                <td className="p-3 font-semibold text-[#0F172A]">{row.projectName}</td>
+                                <td className="p-3">
+                                  <div className="font-medium text-slate-700">{row.participantName}</div>
+                                  <div className="text-[10px] text-slate-400">{row.participantEmail}</div>
+                                </td>
+                                <td className="p-3 font-bold text-[#FF006E]">{row.score}/100</td>
+                                <td className="p-3">
+                                  <Badge className={row.grade === "PASSED" ? "bg-emerald-50 text-emerald-600 border-emerald-200" : "bg-rose-50 text-rose-600 border-rose-200"}>
+                                    {row.grade}
+                                  </Badge>
+                                </td>
+                                <td className="p-3 text-slate-500">{new Date(row.timestamp).toLocaleString()}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : (
+                      <EmptyState
+                        title="Platform Leaderboard Uncalculated"
+                        description="Rankings will display here once automated tests run and scorecards are published."
+                        icon={<Medal className="h-7 w-7" />}
+                      />
+                    )}
                   </Card>
                 )}
               </div>
@@ -1526,9 +1677,9 @@ export default function PlatformAdminDashboardPage() {
                           }}
                         >
                           <div className="absolute inset-0 bg-black/15" />
-                          <div className="relative z-10">
+                           <div className="relative z-10">
                             <span className="px-2 py-0.5 rounded-md bg-black/50 text-[9px] font-bold text-[#FFD60A] uppercase border border-[#FFD60A]/20">
-                              {hackathon.status}
+                              {resolveHackathonLifecycle(hackathon).replace("_", " ")}
                             </span>
                             <h3 className="font-heading text-base font-bold truncate mt-1">
                               {hackathon.name}
@@ -1586,9 +1737,29 @@ export default function PlatformAdminDashboardPage() {
 
                         {/* Footer details link */}
                         <CardFooter className="p-3 bg-[#F8FAFC]/50 border-t border-[#F1F5F9] flex justify-between items-center text-xs">
-                          <span className="text-[#FF006E] font-semibold flex items-center gap-1">
-                            <Clock className="h-3.5 w-3.5" /> Upcoming
-                          </span>
+                          {(() => {
+                            const currentStatus = resolveHackathonLifecycle(hackathon);
+                            let statusText = "Upcoming";
+                            let statusColor = "text-amber-600";
+                            if (currentStatus === "REGISTRATION_OPEN") {
+                              statusText = "Registration Open";
+                              statusColor = "text-[#FF006E]";
+                            } else if (currentStatus === "LIVE") {
+                              statusText = "Live";
+                              statusColor = "text-emerald-600";
+                            } else if (currentStatus === "EVALUATING") {
+                              statusText = "Evaluating";
+                              statusColor = "text-blue-600";
+                            } else if (currentStatus === "COMPLETED") {
+                              statusText = "Completed";
+                              statusColor = "text-slate-600";
+                            }
+                            return (
+                              <span className={`${statusColor} font-bold flex items-center gap-1`}>
+                                <Clock className="h-3.5 w-3.5" /> {statusText}
+                              </span>
+                            );
+                          })()}
                           <div className="flex items-center gap-3">
                             <button
                               type="button"
@@ -1666,11 +1837,59 @@ export default function PlatformAdminDashboardPage() {
             </div>
 
             <Card className="p-6">
-              <EmptyState
-                title="No Project Submissions Found"
-                description="Once participants submit their software repositories, projects will appear here for code analysis and review."
-                icon={<GitPullRequest className="h-7 w-7" />}
-              />
+              {loadingAdminSubmissions ? (
+                <div className="flex justify-center p-8">
+                  <RefreshCw className="h-6 w-6 animate-spin text-[#FF006E]" />
+                </div>
+              ) : adminSubmissions.length > 0 ? (
+                <div className="overflow-x-auto text-xs">
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="bg-slate-50 border-b border-slate-100 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                        <th className="p-3">Hackathon</th>
+                        <th className="p-3">Project Name</th>
+                        <th className="p-3">Participant</th>
+                        <th className="p-3">Repository</th>
+                        <th className="p-3">Status</th>
+                        <th className="p-3">Score</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {adminSubmissions.map((sub, idx) => (
+                        <tr key={idx} className="hover:bg-slate-50/50">
+                          <td className="p-3 font-semibold text-slate-600">{sub.hackathonName}</td>
+                          <td className="p-3 font-semibold text-slate-800">{sub.projectName}</td>
+                          <td className="p-3">
+                            <div className="font-medium text-slate-700">{sub.user.firstName} {sub.user.lastName}</div>
+                            <div className="text-[10px] text-slate-400">{sub.user.email}</div>
+                          </td>
+                          <td className="p-3 font-mono text-slate-500">
+                            <a href={sub.repoUrl} target="_blank" rel="noreferrer" className="text-[#FF006E] hover:underline truncate max-w-[200px] block">
+                              {sub.repoUrl.replace("https://github.com/", "")}
+                            </a>
+                          </td>
+                          <td className="p-3">
+                            <Badge className={
+                              sub.status === "COMPLETED" ? "bg-emerald-50 text-emerald-600 border-emerald-200" :
+                              sub.status === "FAILED" ? "bg-rose-50 text-rose-600 border-rose-200" :
+                              "bg-amber-50 text-amber-600 border-amber-200"
+                            }>
+                              {sub.status}
+                            </Badge>
+                          </td>
+                          <td className="p-3 font-bold text-[#FF006E]">{sub.score !== null ? `${sub.score}/100` : "Pending"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <EmptyState
+                  title="No Project Submissions Found"
+                  description="Once participants submit their software repositories, projects will appear here for code analysis and review."
+                  icon={<GitPullRequest className="h-7 w-7" />}
+                />
+              )}
             </Card>
           </motion.div>
         );

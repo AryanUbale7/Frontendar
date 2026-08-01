@@ -117,6 +117,7 @@ function HackathonRegistrationContent() {
   const [submissionStep, setSubmissionStep] = useState(1);
   const [branchName, setBranchName] = useState("main");
   const [projectName, setProjectName] = useState("");
+  const [deploymentUrl, setDeploymentUrl] = useState("");
   const [shortDesc, setShortDesc] = useState("");
   const [detailedDesc, setDetailedDesc] = useState("");
   const [problemSolved, setProblemSolved] = useState("");
@@ -143,6 +144,8 @@ function HackathonRegistrationContent() {
   const [checklistReadme, setChecklistReadme] = useState(false);
   const [checklistConfirm, setChecklistConfirm] = useState(false);
   const [submissionAttempts, setSubmissionAttempts] = useState<any[]>([]);
+  const [leaderboardList, setLeaderboardList] = useState<any[]>([]);
+  const [loadingLeaderboard, setLoadingLeaderboard] = useState(false);
 
   // Load Hackathon details and check registration status
   useEffect(() => {
@@ -181,25 +184,29 @@ function HackathonRegistrationContent() {
                       setIsRegistered(true);
                       setRegistrationStatus(myReg.status);
 
-                      // Check if report exists
-                      const savedReport = localStorage.getItem(`fa_submission_report_${found.id}`);
-                      if (savedReport) {
-                        try {
-                          const parsed = JSON.parse(savedReport);
-                          if (parsed && typeof parsed === "object" && parsed.scoreSummary) {
-                            setEvaluationReport(parsed);
-                            setSubmissionSuccess(true);
-                          }
-                        } catch (e) {}
-                      }
+                      // Load attempts and active report from database
+                      fetch(`/api/submissions?hackathonId=${found.id}&userId=${user.id}`)
+                        .then((r) => r.json())
+                        .then((subs) => {
+                          if (Array.isArray(subs)) {
+                            const formatted = subs.map((sub, idx) => ({
+                              version: sub.version || idx + 1,
+                              time: new Date(sub.updatedAt).toLocaleString(),
+                              status: sub.status,
+                              score: sub.score ?? 0,
+                              grade: sub.grade || (sub.score && sub.score >= 75 ? "PASSED" : "FAILED"),
+                              repoUrl: sub.repoUrl
+                            }));
+                            setSubmissionAttempts(formatted);
 
-                      // Load attempts history
-                      const savedAttempts = localStorage.getItem(`fa_submission_attempts_${found.id}`);
-                      if (savedAttempts) {
-                        try {
-                          setSubmissionAttempts(JSON.parse(savedAttempts));
-                        } catch (e) {}
-                      }
+                            const completedSub = subs.find(s => s.status === "COMPLETED" && s.reports && s.reports.length > 0);
+                            if (completedSub) {
+                              setEvaluationReport(completedSub.reports[0].payload);
+                              setSubmissionSuccess(true);
+                            }
+                          }
+                        })
+                        .catch((err) => console.error("Failed to load submissions: ", err));
                     }
                   }
                 })
@@ -223,6 +230,21 @@ function HackathonRegistrationContent() {
       setCollegeName(user.collegeName || "");
     }
   }, [user]);
+
+  useEffect(() => {
+    if (activePortalTab === "leaderboard" && hackathonId) {
+      setLoadingLeaderboard(true);
+      fetch(`/api/hackathons/${hackathonId}/leaderboard`)
+        .then((r) => r.json())
+        .then((data) => {
+          if (data && Array.isArray(data.leaderboard)) {
+            setLeaderboardList(data.leaderboard);
+          }
+        })
+        .catch((err) => console.error("Failed to load leaderboard:", err))
+        .finally(() => setLoadingLeaderboard(false));
+    }
+  }, [activePortalTab, hackathonId]);
 
   const handleMemberEmailChange = (idx: number, val: string) => {
     setMemberEmails(memberEmails.map((email, i) => (i === idx ? val : email)));
@@ -351,6 +373,19 @@ function HackathonRegistrationContent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           repoUrl,
+          deploymentUrl,
+          hackathonId: activeHackathon.id,
+          userId: user.id,
+          projectName: projectName || "Untitled Project",
+          shortDesc: shortDesc || "",
+          detailedDesc: detailedDesc || "",
+          problemSolved: problemSolved || "",
+          features: featuresList,
+          techStack: selectedTechStack,
+          videoUrl: demoVideoUrl || "",
+          presentationPdf: presentationPdf || "",
+          architectureDiagram: architectureDiagram || "",
+          teamContributions: teamContributions,
           blueprint: bpData
         })
       });
@@ -358,95 +393,37 @@ function HackathonRegistrationContent() {
       if (response.ok) {
         const report = await response.json();
         setEvaluationReport(report);
-        localStorage.setItem(`fa_submission_report_${activeHackathon.id}`, JSON.stringify(report));
         setAstCheckResult("passed");
         setSubmissionSuccess(true);
         setSubmittingProject(false);
         setRepoUrl("");
+        setDeploymentUrl("");
+
+        // Reload attempts history from PostgreSQL directly!
+        fetch(`/api/submissions?hackathonId=${activeHackathon.id}&userId=${user.id}`)
+          .then((r) => r.json())
+          .then((subs) => {
+            if (Array.isArray(subs)) {
+              setSubmissionAttempts(subs.map((sub, idx) => ({
+                version: sub.version || idx + 1,
+                time: new Date(sub.updatedAt).toLocaleString(),
+                status: sub.status,
+                score: sub.score ?? 0,
+                grade: sub.grade || (sub.score && sub.score >= 75 ? "PASSED" : "FAILED"),
+                repoUrl: sub.repoUrl
+              })));
+            }
+          });
         return;
+      } else {
+        const errData = await response.json();
+        throw new Error(errData.error || "Failed to run automated evaluation on backend.");
       }
-    } catch (err) {
-      console.warn("Evaluation API offline, falling back to mock generator.");
-    }
-
-    // Fallback Mock Report
-    const mockReport = {
-      hackathonTitle: activeHackathon.name,
-      repoUrl,
-      status: "pass",
-      timestamp: new Date().toISOString(),
-      auditableReportId: `rep_sub_${Date.now()}`,
-      scoreSummary: {
-        finalScore: 85,
-        aiScoreTotal: 50,
-        toolScoreTotal: 30,
-        bonusPointsTotal: 5,
-        deductionsTotal: 0
-      },
-      aiEvaluation: {
-        problemAlignment: { score: 18, reason: "Excellent alignment with expected solution coverage." },
-        requiredFeatures: { implemented: [activeHackathon.problemTitle || "Core dashboard"], missing: [], score: 20 },
-        innovation: { score: 12, reason: "Highly interactive client components." },
-        bonusSuggestions: ["Add server-side authentication validation"]
-      },
-      toolAudits: {
-        performance: {
-          lighthouseScore: 85,
-          accessibilityScore: 90,
-          seoScore: 80,
-          bestPracticesScore: 88,
-          passedMinChecks: true,
-          evidence: { metrics: ["Performance: 85/100", "Accessibility: 90/100"], deductions: [] }
-        },
-        security: {
-          vulnerabilities: [],
-          secretsFound: [],
-          passedScan: true,
-          evidence: { vulnerabilitySummary: "0 package warnings.", secretsLog: "Secrets scanner: Clean check." }
-        },
-        codeQuality: {
-          detectedFilesCount: 24,
-          typescriptUsagePercent: 95,
-          readmeSize: 1240,
-          commentsDensityPercent: 8,
-          folderStructureValid: true,
-          evidence: { structureLog: "Standard Next.js components layout.", typescriptLog: "TS checking: OK.", documentationLog: "README found." }
-        },
-        gitHealth: { isPublic: true, hasReadme: true, hasGitHistory: true }
-      },
-      scoringDetails: [
-        { categoryName: "Problem Alignment", awardedMarks: 18, maxMarks: 20, passingMarks: 12, evaluatedBy: "AI Judge", evidenceCitations: ["Aligned with expected layouts."] },
-        { categoryName: "UI/UX & Features", awardedMarks: 20, maxMarks: 25, passingMarks: 15, evaluatedBy: "AI Judge", evidenceCitations: ["Detected active dashboard components."] },
-        { categoryName: "Performance & SEO", awardedMarks: 13, maxMarks: 15, passingMarks: 9, evaluatedBy: "Deterministic Tool", evidenceCitations: ["Lighthouse Performance: 85/100"] },
-        { categoryName: "Accessibility", awardedMarks: 9, maxMarks: 10, passingMarks: 6, evaluatedBy: "Deterministic Tool", evidenceCitations: ["Lighthouse Accessibility: 90/100"] },
-        { categoryName: "Innovation", awardedMarks: 12, maxMarks: 15, passingMarks: 9, evaluatedBy: "AI Judge", evidenceCitations: ["Interactive elements transitions."] },
-        { categoryName: "Documentation", awardedMarks: 8, maxMarks: 10, passingMarks: 6, evaluatedBy: "Deterministic Tool", evidenceCitations: ["README.md parsed: 1240 bytes."] }
-      ],
-      deductions: [],
-      bonuses: [{ rule: "Documentation Quality Bonus", reason: "README guide contains complete steps.", evidence: "README verified: 1240 bytes.", pointsAwarded: 5 }]
-    };
-
-    setEvaluationReport(mockReport);
-    localStorage.setItem(`fa_submission_report_${activeHackathon.id}`, JSON.stringify(mockReport));
-    
-    const attempt = {
-      version: submissionAttempts.length + 1,
-      time: new Date().toLocaleDateString() + " " + new Date().toLocaleTimeString(),
-      status: "COMPLETED",
-      score: mockReport.scoreSummary.finalScore,
-      grade: mockReport.scoreSummary.finalScore >= 90 ? "A" : "B",
-      repoUrl
-    };
-    const updatedAttempts = [...submissionAttempts, attempt];
-    setSubmissionAttempts(updatedAttempts);
-    localStorage.setItem(`fa_submission_attempts_${activeHackathon.id}`, JSON.stringify(updatedAttempts));
-
-    setAstCheckResult("passed");
-    setRepoUrl("");
-    setTimeout(() => {
-      setSubmissionSuccess(true);
+    } catch (err: any) {
+      alert("Evaluation Error: " + err.message);
       setSubmittingProject(false);
-    }, 1000);
+      setAstCheckResult(null);
+    }
   };
 
   if (loading) {
@@ -946,8 +923,8 @@ function HackathonRegistrationContent() {
                           <div className="space-y-4 max-w-lg">
                             <Input
                               label="Live Deployment URL"
-                              value={projectName} // Use projectName or temporary state
-                              onChange={(e) => setProjectName(e.target.value)}
+                              value={deploymentUrl}
+                              onChange={(e) => setDeploymentUrl(e.target.value)}
                               placeholder="https://my-demo-link.vercel.app"
                               helperText="Must be a live web page layout."
                             />
@@ -1227,11 +1204,51 @@ function HackathonRegistrationContent() {
 
                 {activePortalTab === "leaderboard" && (
                   <Card className="p-6 bg-white border-[#E2E8F0] shadow-sm rounded-2xl animate-in fade-in duration-200">
-                    <EmptyState
-                      title="Platform Leaderboard Uncalculated"
-                      description="Rankings will display here once automated tests run and scorecards are published."
-                      icon={<Medal className="h-7 w-7" />}
-                    />
+                    {loadingLeaderboard ? (
+                      <div className="flex justify-center p-8">
+                        <RefreshCw className="h-6 w-6 animate-spin text-[#FF006E]" />
+                      </div>
+                    ) : leaderboardList.length > 0 ? (
+                      <div className="overflow-x-auto text-xs">
+                        <table className="w-full text-left border-collapse">
+                          <thead>
+                            <tr className="bg-slate-50 border-b border-slate-100 text-[10px] font-bold text-slate-500 uppercase tracking-widest">
+                              <th className="p-3">Rank</th>
+                              <th className="p-3">Project Name</th>
+                              <th className="p-3">Participant</th>
+                              <th className="p-3">Score</th>
+                              <th className="p-3">Grade</th>
+                              <th className="p-3">Date Evaluated</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100">
+                            {leaderboardList.map((row, idx) => (
+                              <tr key={idx} className="hover:bg-slate-50/50">
+                                <td className="p-3 font-extrabold text-slate-800">Rank {row.rank}</td>
+                                <td className="p-3 font-semibold text-[#0F172A]">{row.projectName}</td>
+                                <td className="p-3">
+                                  <div className="font-medium text-slate-700">{row.participantName}</div>
+                                  <div className="text-[10px] text-slate-400">{row.participantEmail}</div>
+                                </td>
+                                <td className="p-3 font-bold text-[#FF006E]">{row.score}/100</td>
+                                <td className="p-3">
+                                  <Badge className={row.grade === "PASSED" ? "bg-emerald-50 text-emerald-600 border-emerald-200" : "bg-rose-50 text-rose-600 border-rose-200"}>
+                                    {row.grade}
+                                  </Badge>
+                                </td>
+                                <td className="p-3 text-slate-500">{new Date(row.timestamp).toLocaleString()}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : (
+                      <EmptyState
+                        title="Platform Leaderboard Uncalculated"
+                        description="Rankings will display here once automated tests run and scorecards are published."
+                        icon={<Medal className="h-7 w-7" />}
+                      />
+                    )}
                   </Card>
                 )}
               </div>

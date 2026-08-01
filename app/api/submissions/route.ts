@@ -7,42 +7,27 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const hackathonId = searchParams.get("hackathonId");
     const userId = searchParams.get("userId");
-    
-    let targetUrl = `${BACKEND_URL}/api/registrations`;
+
     const params = [];
     if (hackathonId) params.push(`hackathonId=${hackathonId}`);
     if (userId) params.push(`userId=${userId}`);
+
+    let url = `${BACKEND_URL}/api/submissions`;
     if (params.length > 0) {
-      targetUrl += `?${params.join("&")}`;
+      url += `?${params.join("&")}`;
     }
 
-    const response = await fetch(targetUrl, {
+    const response = await fetch(url, {
       method: "GET",
       cache: "no-store",
     });
 
     if (!response.ok) {
-      return NextResponse.json({ error: "Failed to fetch registrations from backend." }, { status: response.status });
+      return NextResponse.json({ error: "Failed to fetch submissions from backend." }, { status: response.status });
     }
 
     const data = await response.json();
     return NextResponse.json(data);
-  } catch (error: any) {
-    return NextResponse.json({ error: "Failed to connect to evaluation backend: " + error.message }, { status: 502 });
-  }
-}
-
-export async function POST(request: NextRequest) {
-  try {
-    const body = await request.json();
-    const response = await fetch(`${BACKEND_URL}/api/registrations`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-
-    const data = await response.json();
-    return NextResponse.json(data, { status: response.status });
   } catch (error: any) {
     return NextResponse.json({ error: "Failed to connect to evaluation backend: " + error.message }, { status: 502 });
   }
