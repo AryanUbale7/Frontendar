@@ -46,6 +46,13 @@ import { useUIStore } from "@/store/uiStore";
 import { BlueprintEditor } from "@/features/admin/blueprint/BlueprintEditor";
 import { EvaluationReport } from "@/components/design-system/EvaluationReport";
 
+/** Build Authorization headers from localStorage token for admin API calls. */
+function authHeaders(): Record<string, string> {
+  if (typeof window === "undefined") return {};
+  const token = localStorage.getItem("fa_access_token");
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 interface Round {
   name: string;
   description: string;
@@ -207,7 +214,7 @@ export default function PlatformAdminDashboardPage() {
     try {
       const response = await fetch(`/api/registrations/${regId}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeaders() },
         body: JSON.stringify({ status: newStatus }),
       });
       if (response.ok) {
@@ -303,7 +310,7 @@ export default function PlatformAdminDashboardPage() {
       return;
     }
     try {
-      const res = await fetch(`/api/hackathons/${id}`, { method: "DELETE" });
+      const res = await fetch(`/api/hackathons/${id}`, { method: "DELETE", headers: { ...authHeaders() } });
       if (res.ok) {
         setHackathons((prev) => prev.filter((h) => h.id !== id));
       } else {
@@ -332,7 +339,7 @@ export default function PlatformAdminDashboardPage() {
       return;
     }
     try {
-      const res = await fetch(`/api/hackathons/${id}/publish`, { method: "POST" });
+      const res = await fetch(`/api/hackathons/${id}/publish`, { method: "POST", headers: { ...authHeaders() } });
       if (res.ok) {
         const data = await res.json();
         showToast(data.message || "Hackathon published.");
@@ -351,7 +358,7 @@ export default function PlatformAdminDashboardPage() {
       return;
     }
     try {
-      const res = await fetch(`/api/hackathons/${id}/archive`, { method: "POST" });
+      const res = await fetch(`/api/hackathons/${id}/archive`, { method: "POST", headers: { ...authHeaders() } });
       if (res.ok) {
         const data = await res.json();
         showToast(data.message || "Hackathon archived.");
@@ -546,7 +553,7 @@ export default function PlatformAdminDashboardPage() {
           
           fetch("/api/hackathons", {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
+            headers: { "Content-Type": "application/json", ...authHeaders() },
             body: JSON.stringify(updated)
           }).then(() => {
             fetch("/api/hackathons").then(r => r.json()).then(list => {
@@ -569,7 +576,7 @@ export default function PlatformAdminDashboardPage() {
     try {
       await fetch("/api/hackathons", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeaders() },
         body: JSON.stringify(newHackathon)
       });
       const refreshRes = await fetch("/api/hackathons");
@@ -1786,7 +1793,7 @@ export default function PlatformAdminDashboardPage() {
                             </p>
                             <p className="flex items-center gap-1.5">
                               <span className="font-bold text-[#0F172A]">Reg Close:</span>{" "}
-                              {new Date(hackathon.registrationClose).toLocaleDateString()}
+                              {hackathon.registrationClose ? new Date(hackathon.registrationClose).toLocaleDateString() : "Not configured"}
                             </p>
                             {hackathon.rounds.length > 0 && (
                               <div className="flex items-center gap-1.5 pt-1 border-t border-[#F1F5F9] mt-2">
