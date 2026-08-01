@@ -53,6 +53,27 @@ function authHeaders(): Record<string, string> {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+const toLocalDatetimeString = (dateInput: string | Date | null | undefined): string => {
+  if (!dateInput) return "";
+  const d = new Date(dateInput);
+  if (isNaN(d.getTime())) return "";
+  
+  const pad = (num: number) => String(num).padStart(2, "0");
+  const year = d.getFullYear();
+  const month = pad(d.getMonth() + 1);
+  const day = pad(d.getDate());
+  const hours = pad(d.getHours());
+  const minutes = pad(d.getMinutes());
+  
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
+};
+
+const toISODate = (localStr: string | null | undefined): string => {
+  if (!localStr) return "";
+  const d = new Date(localStr);
+  return isNaN(d.getTime()) ? "" : d.toISOString();
+};
+
 interface Round {
   name: string;
   description: string;
@@ -287,10 +308,10 @@ export default function PlatformAdminDashboardPage() {
     setHackathonName(hackathon.name);
     setHackathonTagline(hackathon.tagline);
     setHackathonDescription(hackathon.description);
-    setRegStart(hackathon.registrationStart);
-    setRegClose(hackathon.registrationClose);
-    setEventStart(hackathon.eventStart);
-    setEventClose(hackathon.eventClose);
+    setRegStart(toLocalDatetimeString(hackathon.registrationStart));
+    setRegClose(toLocalDatetimeString(hackathon.registrationClose));
+    setEventStart(toLocalDatetimeString(hackathon.eventStart));
+    setEventClose(toLocalDatetimeString(hackathon.eventClose));
     setBannerImage(hackathon.bannerUrl);
     setSubmissionEnabled(hackathon.submissionEnabled);
     setLeaderboardEnabled(hackathon.leaderboardEnabled);
@@ -506,10 +527,10 @@ export default function PlatformAdminDashboardPage() {
       name: hackathonName,
       tagline: hackathonTagline,
       description: hackathonDescription,
-      registrationStart: regStart,
-      registrationClose: regClose,
-      eventStart,
-      eventClose,
+      registrationStart: toISODate(regStart),
+      registrationClose: toISODate(regClose),
+      eventStart: toISODate(eventStart),
+      eventClose: toISODate(eventClose),
       bannerUrl: bannerImage,
       submissionEnabled,
       leaderboardEnabled,
@@ -534,10 +555,10 @@ export default function PlatformAdminDashboardPage() {
             name: hackathonName,
             tagline: hackathonTagline,
             description: hackathonDescription,
-            registrationStart: regStart,
-            registrationClose: regClose,
-            eventStart,
-            eventClose,
+            registrationStart: toISODate(regStart),
+            registrationClose: toISODate(regClose),
+            eventStart: toISODate(eventStart),
+            eventClose: toISODate(eventClose),
             bannerUrl: bannerImage,
             submissionEnabled,
             leaderboardEnabled,
@@ -1829,7 +1850,7 @@ export default function PlatformAdminDashboardPage() {
                         </CardContent>
 
                         {/* Footer details link */}
-                        <CardFooter className="p-3 bg-[#F8FAFC]/50 border-t border-[#F1F5F9] flex justify-between items-center text-xs">
+                        <CardFooter className="p-3 bg-[#F8FAFC]/50 border-t border-[#F1F5F9] flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 text-xs">
                           {(() => {
                             const currentStatus = (hackathon.lifecycle || "DRAFT") as string;
                             let statusText = "Draft";
@@ -1853,7 +1874,7 @@ export default function PlatformAdminDashboardPage() {
                               </span>
                             );
                           })()}
-                          <div className="flex items-center gap-3">
+                           <div className="flex flex-wrap items-center gap-x-3 gap-y-2 w-full sm:w-auto sm:justify-end">
                             {!hackathon.published && (
                               <button
                                 type="button"
