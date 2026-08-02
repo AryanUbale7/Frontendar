@@ -48,6 +48,16 @@ interface Resource {
   type: string;
 }
 
+const DEFAULT_CATEGORIES = [
+  { name: "Problem Alignment & Mandatory Features", weight: 30, maxMarks: 30, passingMarks: 18 },
+  { name: "UI/UX & Responsiveness", weight: 25, maxMarks: 25, passingMarks: 15 },
+  { name: "Functionality & Interactivity", weight: 15, maxMarks: 15, passingMarks: 9 },
+  { name: "Code Quality & Architecture", weight: 10, maxMarks: 10, passingMarks: 6 },
+  { name: "Performance & Accessibility", weight: 10, maxMarks: 10, passingMarks: 6 },
+  { name: "Innovation & Creativity", weight: 5, maxMarks: 5, passingMarks: 3 },
+  { name: "Documentation", weight: 5, maxMarks: 5, passingMarks: 3 }
+];
+
 interface Hackathon {
   id: string;
   name: string;
@@ -209,15 +219,7 @@ export function BlueprintEditor({ hackathonId, onClose }: { hackathonId?: string
   );
 
   // SECTION 11: Scoring System
-  const [categories, setCategories] = useState<ScoringCategory[]>([
-    { name: "Problem Alignment", weight: 20, maxMarks: 20, passingMarks: 12 },
-    { name: "UI/UX & Responsiveness", weight: 25, maxMarks: 25, passingMarks: 15 },
-    { name: "Performance & SEO", weight: 15, maxMarks: 15, passingMarks: 9 },
-    { name: "Accessibility", weight: 10, maxMarks: 10, passingMarks: 6 },
-    { name: "Innovation", weight: 15, maxMarks: 15, passingMarks: 9 },
-    { name: "Documentation", weight: 10, maxMarks: 10, passingMarks: 6 },
-    { name: "Bonus Config", weight: 5, maxMarks: 5, passingMarks: 0 },
-  ]);
+  const [categories, setCategories] = useState<ScoringCategory[]>(DEFAULT_CATEGORIES);
 
   // SECTION 12: Auto Pass / Auto Fail Rules
   const [autoRules, setAutoRules] = useState<AutoRule[]>([
@@ -387,7 +389,12 @@ export function BlueprintEditor({ hackathonId, onClose }: { hackathonId?: string
       setExtraFuncCheck(bpData.innovationRules?.extraFunctionalities !== false);
       setBonusPointsMax(bpData.innovationRules?.bonusPointsMax || 5);
       setAiPrompt(bpData.aiEvaluationPrompt || aiPrompt);
-      setCategories(bpData.scoringSystem?.categories || categories);
+      const loadedCategories = bpData.scoringSystem?.categories;
+      if (Array.isArray(loadedCategories) && loadedCategories.length > 0) {
+        setCategories(loadedCategories);
+      } else {
+        setCategories(DEFAULT_CATEGORIES);
+      }
       setAutoRules(bpData.autoPassFailRules || autoRules);
       setBonusRules(bpData.bonusRules || bonusRules);
     }
@@ -546,7 +553,14 @@ export function BlueprintEditor({ hackathonId, onClose }: { hackathonId?: string
         if (bp.responsiveRules) setResponsiveCheck(bp.responsiveRules);
         if (bp.securityRules) setSecurityCheck(bp.securityRules);
         if (bp.aiEvaluationPrompt) setAiPrompt(bp.aiEvaluationPrompt);
-        if (bp.scoringSystem) setCategories(bp.scoringSystem.categories || categories);
+        if (bp.scoringSystem) {
+          const loadedCategories = bp.scoringSystem.categories;
+          if (Array.isArray(loadedCategories) && loadedCategories.length > 0) {
+            setCategories(loadedCategories);
+          } else {
+            setCategories(DEFAULT_CATEGORIES);
+          }
+        }
         if (bp.autoPassFailRules) setAutoRules(bp.autoPassFailRules);
         if (bp.bonusRules) setBonusRules(bp.bonusRules);
 
@@ -1407,9 +1421,16 @@ export function BlueprintEditor({ hackathonId, onClose }: { hackathonId?: string
                 <div className="space-y-4">
                   <div className="flex justify-between items-center border-b border-[#F1F5F9] pb-2">
                     <h4 className="text-xs font-bold text-[#0F172A]">Categories (Must sum to 100%)</h4>
-                    <span className="text-xs font-bold text-[#FF006E]">
-                      Current Total: {categories.reduce((sum, c) => sum + c.weight, 0)}%
-                    </span>
+                    {(() => {
+                      const total = categories.reduce((sum, c) => sum + c.weight, 0);
+                      if (total === 100) {
+                        return <span className="text-xs font-bold text-emerald-600">Current Total: 100% (Valid)</span>;
+                      } else if (total < 100) {
+                        return <span className="text-xs font-bold text-amber-600">Current Total: {total}% (Warning: Must sum to 100%)</span>;
+                      } else {
+                        return <span className="text-xs font-bold text-rose-600">Current Total: {total}% (Error: Exceeds 100%)</span>;
+                      }
+                    })()}
                   </div>
 
                   <div className="space-y-2">

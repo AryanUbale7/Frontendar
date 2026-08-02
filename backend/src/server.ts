@@ -81,6 +81,16 @@ app.post("/api/system/config", verifyToken, requireRole(["ADMIN", "SUPER_ADMIN"]
   }
 });
 
+const DEFAULT_CATEGORIES = [
+  { name: "Problem Alignment & Mandatory Features", weight: 30, maxMarks: 30, passingMarks: 18 },
+  { name: "UI/UX & Responsiveness", weight: 25, maxMarks: 25, passingMarks: 15 },
+  { name: "Functionality & Interactivity", weight: 15, maxMarks: 15, passingMarks: 9 },
+  { name: "Code Quality & Architecture", weight: 10, maxMarks: 10, passingMarks: 6 },
+  { name: "Performance & Accessibility", weight: 10, maxMarks: 10, passingMarks: 6 },
+  { name: "Innovation & Creativity", weight: 5, maxMarks: 5, passingMarks: 3 },
+  { name: "Documentation", weight: 5, maxMarks: 5, passingMarks: 3 }
+];
+
 // Fetch blueprint for a hackathon from PostgreSQL
 // Public: returns the PUBLISHED blueprint only (drafts are never exposed).
 // Admin: pass ?includeDraft=true to load the current row regardless of status.
@@ -110,6 +120,16 @@ app.get("/api/blueprints/:hackathonId", async (req: Request, res: Response) => {
     if (!includeDraft && bp.status !== "published") {
       return res.status(404).json({ error: "No published blueprint for this hackathon." });
     }
+
+    // Hydrate default categories if missing or empty
+    const scoring = bp.scoringSystem as any;
+    if (!scoring || !Array.isArray(scoring.categories) || scoring.categories.length === 0) {
+      bp.scoringSystem = {
+        ...(scoring || {}),
+        categories: DEFAULT_CATEGORIES
+      };
+    }
+
     res.json(bp);
   } catch (err: any) {
     res.status(500).json({ error: "Failed to fetch blueprint: " + err.message });
@@ -121,6 +141,15 @@ app.post("/api/blueprints", verifyToken, requireRole(["ADMIN", "SUPER_ADMIN"]), 
   const { hackathonId, blueprint, action } = req.body;
   if (!hackathonId || !blueprint) {
     return res.status(400).json({ error: "Missing hackathonId or blueprint details." });
+  }
+
+  // Validate category scoring weights sum to exactly 100%
+  const scoringSystem = blueprint.scoringSystem;
+  if (scoringSystem && Array.isArray(scoringSystem.categories) && scoringSystem.categories.length > 0) {
+    const totalWeight = scoringSystem.categories.reduce((sum: number, c: any) => sum + (c.weight || 0), 0);
+    if (totalWeight !== 100) {
+      return res.status(400).json({ error: "VALIDATION_FAILED", message: `Total category scoring weights must sum to exactly 100%. Currently it is ${totalWeight}%.` });
+    }
   }
 
   const publishAction = action === "publish" || blueprint?.status === "published";

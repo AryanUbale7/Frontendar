@@ -106,8 +106,9 @@ export class ScoreEngine {
     let maxAiScore = 0;
 
     // AI categories: Problem Alignment, Features, Innovation
+    const hasCategory = (nameStr: string) => blueprint.scoringSystem?.categories?.some((c: any) => c.name.toLowerCase().includes(nameStr));
     const alignmentMax = blueprint.scoringSystem?.categories?.find((c: any) => c.name.toLowerCase().includes("alignment"))?.maxMarks || 20;
-    const featuresMax = blueprint.scoringSystem?.categories?.find((c: any) => c.name.toLowerCase().includes("feature"))?.maxMarks || 25;
+    const featuresMax = blueprint.scoringSystem?.categories?.find((c: any) => c.name.toLowerCase().includes("feature") && !c.name.toLowerCase().includes("alignment"))?.maxMarks || (hasCategory("alignment") ? 0 : 25);
     const innovationMax = blueprint.scoringSystem?.categories?.find((c: any) => c.name.toLowerCase().includes("innovation"))?.maxMarks || 15;
 
     maxAiScore = alignmentMax + featuresMax + innovationMax;
@@ -137,8 +138,13 @@ export class ScoreEngine {
     let rawToolScore = 0;
     let maxToolScore = 0;
 
-    const perfMax = blueprint.scoringSystem?.categories?.find((c: any) => c.name.toLowerCase().includes("performance"))?.maxMarks || 15;
-    const accessMax = blueprint.scoringSystem?.categories?.find((c: any) => c.name.toLowerCase().includes("accessibility"))?.maxMarks || 10;
+    const combinedPerfAccess = blueprint.scoringSystem?.categories?.find((c: any) => c.name.toLowerCase().includes("performance") && c.name.toLowerCase().includes("accessibility"));
+    const perfMax = combinedPerfAccess
+      ? Math.round(combinedPerfAccess.maxMarks / 2)
+      : (blueprint.scoringSystem?.categories?.find((c: any) => c.name.toLowerCase().includes("performance") && !c.name.toLowerCase().includes("accessibility"))?.maxMarks || 15);
+    const accessMax = combinedPerfAccess
+      ? (combinedPerfAccess.maxMarks - Math.round(combinedPerfAccess.maxMarks / 2))
+      : (blueprint.scoringSystem?.categories?.find((c: any) => c.name.toLowerCase().includes("accessibility") && !c.name.toLowerCase().includes("performance"))?.maxMarks || 10);
     const docMax = blueprint.scoringSystem?.categories?.find((c: any) => c.name.toLowerCase().includes("documentation"))?.maxMarks || 10;
 
     maxToolScore = perfMax + accessMax + docMax;

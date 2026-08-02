@@ -378,6 +378,29 @@ export class FAIEOrchestrator {
           ruleApplied = "Code Architecture & Modularity Scan";
           confidence = Math.min(100, 40 + Math.min(6, repoAnalysis.detectedComponents.length) * 10);
           reasonStr = `Modular structures parsed. Component Count: ${repoAnalysis.detectedComponents.length}. Source files count: ${repoAnalysis.detectedFilesCount}. Duplicate files: ${hasDuplication ? "YES (-2 pts)" : "NO"}.`;
+        } else if (catLower.includes("performance") && catLower.includes("accessibility")) {
+          let perfPart = 3;
+          let accessPart = 3;
+          let perfStr = "N/A";
+          let accessStr = "N/A";
+          
+          if (toolResults && toolResults.performance) {
+            if (toolResults.performance.lighthouseScore !== "UNAVAILABLE") {
+              const lh = toolResults.performance.lighthouseScore;
+              perfPart = lh >= 90 ? 5 : lh >= 75 ? 4 : lh >= 50 ? 3 : 2;
+              perfStr = `${lh}/100`;
+            }
+            if (toolResults.performance.accessibilityScore !== "UNAVAILABLE") {
+              const lh = toolResults.performance.accessibilityScore;
+              accessPart = lh >= 90 ? 5 : lh >= 75 ? 4 : lh >= 50 ? 3 : 2;
+              accessStr = `${lh}/100`;
+            }
+          }
+          
+          scoreAwarded = Math.min(cat.maxMarks, perfPart + accessPart);
+          ruleApplied = "Real Performance & Accessibility Audit";
+          confidence = (toolResults?.performance?.lighthouseScore !== "UNAVAILABLE") ? toolResults.performance.lighthouseScore : 75;
+          reasonStr = `Scored based on real Lighthouse metrics. Performance: ${perfStr} (contrib: ${perfPart}/5), Accessibility: ${accessStr} (contrib: ${accessPart}/5).`;
         } else if (catLower.includes("performance")) {
           let score = 3; // neutral default
           if (toolResults && toolResults.performance && toolResults.performance.lighthouseScore !== "UNAVAILABLE") {
