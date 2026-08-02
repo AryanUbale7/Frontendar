@@ -85,6 +85,7 @@ interface RequiredFeature {
   description: string;
   mandatory: boolean;
   weight: number;
+  problemStatementId?: string;
 }
 
 interface ScoringCategory {
@@ -124,6 +125,7 @@ export function BlueprintEditor({ hackathonId, onClose }: { hackathonId?: string
 
   const [problemStatements, setProblemStatements] = useState<any[]>([
     {
+      id: `ps_${Date.now()}`,
       title: "",
       description: "",
       background: "",
@@ -132,6 +134,9 @@ export function BlueprintEditor({ hackathonId, onClose }: { hackathonId?: string
       difficulty: "Intermediate",
     }
   ]);
+
+  // Track which problem statement is selected in the Required Features section
+  const [selectedFeaturePsIdx, setSelectedFeaturePsIdx] = useState<number>(0);
 
   // SECTION 2: Required Features
   const [features, setFeatures] = useState<RequiredFeature[]>([
@@ -291,6 +296,7 @@ export function BlueprintEditor({ hackathonId, onClose }: { hackathonId?: string
     // Set default problemStatements list
     setProblemStatements([
       {
+        id: `ps_${Date.now()}`,
         title: h.problemTitle || h.name || "",
         description: h.problemDescription || h.description || "",
         background: "",
@@ -329,9 +335,13 @@ export function BlueprintEditor({ hackathonId, onClose }: { hackathonId?: string
       setBlueprintStatus(bpData.status || "draft");
       setVersion(bpData.version || 1);
 
-      // Load plural array or fallback to singular
+      // Load plural array or fallback to singular (hydrate stable IDs)
       if (Array.isArray(bpData.problemStatements) && bpData.problemStatements.length > 0) {
-        setProblemStatements(bpData.problemStatements);
+        const hydratedPS = bpData.problemStatements.map((ps: any, idx: number) => ({
+          ...ps,
+          id: ps.id || `ps_${Date.now()}_${idx}`,
+        }));
+        setProblemStatements(hydratedPS);
         if (bpData.problemStatements[0]) {
           setProblemTitle(bpData.problemStatements[0].title || "");
           setProblemDescription(bpData.problemStatements[0].description || "");
@@ -342,6 +352,7 @@ export function BlueprintEditor({ hackathonId, onClose }: { hackathonId?: string
         }
       } else if (bpData.problemStatement) {
         const stmt = {
+          id: bpData.problemStatement.id || `ps_${Date.now()}`,
           title: bpData.problemStatement.title || bpData.problemStatement.name || "",
           description: bpData.problemStatement.description || "",
           background: bpData.problemStatement.background || "",
@@ -358,7 +369,16 @@ export function BlueprintEditor({ hackathonId, onClose }: { hackathonId?: string
         setDifficulty(stmt.difficulty);
       }
 
-      setFeatures(bpData.requiredFeatures || []);
+      // Hydrate problemStatementId on loaded features (backward compat: default to first PS)
+      const loadedPS = Array.isArray(bpData.problemStatements) && bpData.problemStatements.length > 0
+        ? bpData.problemStatements
+        : bpData.problemStatement ? [bpData.problemStatement] : [];
+      const firstPsId = loadedPS[0]?.id || loadedPS[0]?.title || "default";
+      const hydratedFeatures = (bpData.requiredFeatures || []).map((f: any) => ({
+        ...f,
+        problemStatementId: f.problemStatementId || firstPsId,
+      }));
+      setFeatures(hydratedFeatures);
       setAllowedTech((bpData.techStackRules?.allowed || []).join(", "));
       setPreferredTech((bpData.techStackRules?.preferred || []).join(", "));
       setRestrictedTech((bpData.techStackRules?.restricted || []).join(", "));
@@ -460,6 +480,31 @@ export function BlueprintEditor({ hackathonId, onClose }: { hackathonId?: string
       return;
     }
 
+    // Validate required features and problem statements
+    const psIds = new Set(problemStatements.map((ps: any) => ps.id || ps.title));
+    for (const f of features) {
+      if (!f.problemStatementId || !psIds.has(f.problemStatementId)) {
+        alert(`Required feature '${f.name || "Unnamed feature"}' is not assigned to a valid Problem Statement.`);
+        return;
+      }
+    }
+
+    for (const ps of problemStatements) {
+      const psId = ps.id || ps.title;
+      const psFeatures = features.filter((f) => f.problemStatementId === psId);
+      if (psFeatures.length === 0) {
+        alert(`Problem Statement '${ps.title || "Unnamed option"}' must have at least one required feature.`);
+        return;
+      }
+    }
+
+    for (const f of features) {
+      if (f.mandatory && (f.weight === undefined || f.weight <= 0 || isNaN(Number(f.weight)))) {
+        alert(`Validation Error: Mandatory feature '${f.name || "Unnamed feature"}' must have a valid weight greater than 0.`);
+        return;
+      }
+    }
+
     const payload = {
       blueprintId: `bp_${Date.now()}`,
       hackathonId: selectedHackathonId,
@@ -535,7 +580,16 @@ export function BlueprintEditor({ hackathonId, onClose }: { hackathonId?: string
         if (bp.problemStatement) setBackground(bp.problemStatement.background || "");
         if (bp.problemStatement) setObjectives(bp.problemStatement.objectives || "");
         if (bp.problemStatement) setExpectedSolution(bp.problemStatement.expectedSolution || "");
-        if (bp.requiredFeatures) setFeatures(bp.requiredFeatures);
+        if (bp.requiredFeatures) {
+          const importPS = Array.isArray(bp.problemStatements) && bp.problemStatements.length > 0
+            ? bp.problemStatements
+            : bp.problemStatement ? [bp.problemStatement] : [];
+          const importFirstPsId = importPS[0]?.id || importPS[0]?.title || "default";
+          setFeatures(bp.requiredFeatures.map((f: any) => ({
+            ...f,
+            problemStatementId: f.problemStatementId || importFirstPsId,
+          })));
+        }
         if (bp.techStackRules) {
           setAllowedTech((bp.techStackRules.allowed || []).join(", "));
           setPreferredTech((bp.techStackRules.preferred || []).join(", "));
@@ -905,7 +959,7 @@ export function BlueprintEditor({ hackathonId, onClose }: { hackathonId?: string
                       type="button"
                       variant="outline"
                       size="sm"
-                      onClick={() => setProblemStatements([...problemStatements, { title: "", description: "", background: "", objectives: "", expectedSolution: "", difficulty: "Intermediate" }])}
+                      onClick={() => setProblemStatements([...problemStatements, { id: `ps_${Date.now()}_${problemStatements.length}`, title: "", description: "", background: "", objectives: "", expectedSolution: "", difficulty: "Intermediate" }])}
                       leftIcon={<Plus className="h-3.5 w-3.5" />}
                     >
                       Add Problem Statement
@@ -998,68 +1052,115 @@ export function BlueprintEditor({ hackathonId, onClose }: { hackathonId?: string
                 </div>
               )}
 
-              {/* SECTION 2: Required Features */}
+              {/* SECTION 2: Required Features (PS-Scoped) */}
               {activeSection === 1 && (
                 <div className="space-y-4">
-                  <div className="flex justify-between items-center border-b border-[#F1F5F9] pb-2">
-                    <h4 className="text-xs font-bold text-[#0F172A]">Configured Required Features</h4>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setFeatures([...features, { name: "", description: "", mandatory: false, weight: 5 }])}
-                      leftIcon={<Plus className="h-3.5 w-3.5" />}
-                    >
-                      Add Feature
-                    </Button>
-                  </div>
+                  {/* Problem Statement Selector */}
+                  {problemStatements.length > 1 && (
+                    <div className="flex flex-wrap gap-2 border-b border-[#F1F5F9] pb-3">
+                      {problemStatements.map((ps: any, psIdx: number) => {
+                        const psId = ps.id || ps.title || `ps_${psIdx}`;
+                        const psFeatures = features.filter((f) => f.problemStatementId === psId);
+                        const psTotalMarks = psFeatures.reduce((sum, f) => sum + (f.weight || 0), 0);
+                        return (
+                          <button
+                            key={psIdx}
+                            type="button"
+                            onClick={() => setSelectedFeaturePsIdx(psIdx)}
+                            className={`px-3 py-2 rounded-lg text-xs font-bold transition-all border ${
+                              selectedFeaturePsIdx === psIdx
+                                ? "bg-[#FF006E] text-white border-[#FF006E] shadow-sm"
+                                : "bg-white text-[#475569] border-[#E2E8F0] hover:border-[#FF006E]/40"
+                            }`}
+                          >
+                            <span>{ps.title || `PS #${psIdx + 1}`}</span>
+                            <span className="ml-2 opacity-70">{psFeatures.length} Features • {psTotalMarks} Marks</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
 
-                  <div className="space-y-3">
-                    {features.map((feat, idx) => (
-                      <div key={idx} className="p-3 border border-[#E2E8F0] rounded-xl bg-[#F8FAFC] space-y-3 relative">
-                        <button
-                          type="button"
-                          onClick={() => setFeatures(features.filter((_, i) => i !== idx))}
-                          className="absolute top-3 right-3 text-[#94A3B8] hover:text-[#EF4444]"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pr-6">
-                          <Input
-                            label="Feature Name"
-                            value={feat.name}
-                            onChange={(e) =>
-                              setFeatures(features.map((f, i) => (i === idx ? { ...f, name: e.target.value } : f)))
-                            }
-                            placeholder="e.g. Dashboard Chart"
-                          />
-                          <Input
-                            label="Weightage (Marks)"
-                            type="number"
-                            value={feat.weight}
-                            onChange={(e) =>
-                              setFeatures(features.map((f, i) => (i === idx ? { ...f, weight: Number(e.target.value) } : f)))
-                            }
-                          />
+                  {(() => {
+                    const activePs = problemStatements[selectedFeaturePsIdx] || problemStatements[0];
+                    const activePsId = activePs?.id || activePs?.title || "default";
+                    const filteredFeatures = features
+                      .map((f, originalIdx) => ({ ...f, _originalIdx: originalIdx }))
+                      .filter((f) => f.problemStatementId === activePsId);
+                    const totalMarks = filteredFeatures.reduce((sum, f) => sum + (f.weight || 0), 0);
+
+                    return (
+                      <>
+                        <div className="flex justify-between items-center border-b border-[#F1F5F9] pb-2">
+                          <div>
+                            <h4 className="text-xs font-bold text-[#0F172A]">Required Features for: {activePs?.title || "Problem Statement"}</h4>
+                            <span className="text-[10px] text-[#64748B]">{filteredFeatures.length} Features • {totalMarks} Total Marks</span>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setFeatures([...features, { name: "", description: "", mandatory: false, weight: 5, problemStatementId: activePsId }])}
+                            leftIcon={<Plus className="h-3.5 w-3.5" />}
+                          >
+                            Add Feature
+                          </Button>
                         </div>
-                        <Input
-                          label="Description / Deliverable Specs"
-                          value={feat.description}
-                          onChange={(e) =>
-                            setFeatures(features.map((f, i) => (i === idx ? { ...f, description: e.target.value } : f)))
-                          }
-                          placeholder="What needs to be implemented?"
-                        />
-                        <Checkbox
-                          label="Mandatory Feature (Auto-Fail if missing)"
-                          checked={feat.mandatory}
-                          onChange={(e) =>
-                            setFeatures(features.map((f, i) => (i === idx ? { ...f, mandatory: e.target.checked } : f)))
-                          }
-                        />
-                      </div>
-                    ))}
-                  </div>
+
+                        <div className="space-y-3">
+                          {filteredFeatures.map((feat) => (
+                            <div key={feat._originalIdx} className="p-3 border border-[#E2E8F0] rounded-xl bg-[#F8FAFC] space-y-3 relative">
+                              <button
+                                type="button"
+                                onClick={() => setFeatures(features.filter((_, i) => i !== feat._originalIdx))}
+                                className="absolute top-3 right-3 text-[#94A3B8] hover:text-[#EF4444]"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pr-6">
+                                <Input
+                                  label="Feature Name"
+                                  value={feat.name}
+                                  onChange={(e) =>
+                                    setFeatures(features.map((f, i) => (i === feat._originalIdx ? { ...f, name: e.target.value } : f)))
+                                  }
+                                  placeholder="e.g. Dashboard Chart"
+                                />
+                                <Input
+                                  label="Weightage (Marks)"
+                                  type="number"
+                                  value={feat.weight}
+                                  onChange={(e) =>
+                                    setFeatures(features.map((f, i) => (i === feat._originalIdx ? { ...f, weight: Number(e.target.value) } : f)))
+                                  }
+                                />
+                              </div>
+                              <Input
+                                label="Description / Deliverable Specs"
+                                value={feat.description}
+                                onChange={(e) =>
+                                  setFeatures(features.map((f, i) => (i === feat._originalIdx ? { ...f, description: e.target.value } : f)))
+                                }
+                                placeholder="What needs to be implemented?"
+                              />
+                              <Checkbox
+                                label="Mandatory Feature (Auto-Fail if missing)"
+                                checked={feat.mandatory}
+                                onChange={(e) =>
+                                  setFeatures(features.map((f, i) => (i === feat._originalIdx ? { ...f, mandatory: e.target.checked } : f)))
+                                }
+                              />
+                            </div>
+                          ))}
+                          {filteredFeatures.length === 0 && (
+                            <div className="text-center py-8 text-[#94A3B8] text-xs">
+                              No features configured for this problem statement. Click &quot;Add Feature&quot; to begin.
+                            </div>
+                          )}
+                        </div>
+                      </>
+                    );
+                  })()}
                 </div>
               )}
 

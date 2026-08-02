@@ -10,6 +10,7 @@ export interface QueueJobPayload {
   hackathonId?: string;
   userId?: string;
   submissionId?: string | null;
+  problemStatementId?: string;
   status: "queued" | "processing" | "completed" | "failed";
   retryCount: number;
   maxRetries: number;
@@ -51,7 +52,8 @@ export class InMemoryEvaluationQueue extends EventEmitter {
     submissionId?: string | null,
     blueprintId?: string,
     blueprintVersion?: number,
-    hackathonId?: string
+    hackathonId?: string,
+    problemStatementId?: string
   ): Promise<QueueJobPayload> {
     const job: QueueJobPayload = {
       jobId: `eval_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
@@ -62,6 +64,7 @@ export class InMemoryEvaluationQueue extends EventEmitter {
       hackathonId,
       userId,
       submissionId: submissionId || null,
+      problemStatementId,
       status: "queued",
       retryCount: 0,
       maxRetries: 3,

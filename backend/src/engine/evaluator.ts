@@ -66,6 +66,7 @@ function assertRepoWithinSizeLimit(dir: string): void {
 
 
 export interface ProblemStatementEntry {
+  id?: string;
   title: string;
   description: string;
   background?: string;
@@ -174,6 +175,8 @@ export interface ToolAuditResults {
 // Final Merged Auditable Knowledge Report Card (Zero AI/LLM Dependencies)
 export interface DynamicEvaluationReport {
   hackathonTitle: string;
+  problemStatementId?: string;
+  problemStatementTitle?: string;
   repoUrl: string;
   status: "pass" | "fail";
   scoreSummary: {
@@ -724,6 +727,8 @@ export async function evaluateSubmission(
 
     return {
       hackathonTitle: activeProblem.title,
+      problemStatementId: activeProblem.id || activeProblem.title || "default",
+      problemStatementTitle: activeProblem.title || "Default Problem",
       repoUrl,
       status: faieReport.status,
       scoreSummary: faieReport.scoreSummary,

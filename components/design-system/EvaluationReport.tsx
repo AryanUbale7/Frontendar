@@ -32,6 +32,8 @@ import { Button } from "@/components/ui/button";
 export interface EvaluationReportProps {
   report: {
     hackathonTitle: string;
+    problemStatementId?: string;
+    problemStatementTitle?: string;
     repoUrl: string;
     status: "pass" | "fail" | string;
     timestamp: string;
@@ -186,6 +188,11 @@ export function EvaluationReport({ report }: EvaluationReportProps) {
           <h2 className="font-heading text-xl font-bold leading-tight">
             {report?.hackathonTitle || "Evaluation Knowledge Report"}
           </h2>
+          {report?.problemStatementTitle && (
+            <p className="text-xs text-cyan-400 font-bold">
+              Problem Statement: {report.problemStatementTitle}
+            </p>
+          )}
           <p className="text-xs text-slate-400 font-medium">
             Repository: <a href={report?.repoUrl || "#"} target="_blank" rel="noreferrer" className="underline hover:text-white transition-all">{report?.repoUrl || "N/A"}</a>
           </p>

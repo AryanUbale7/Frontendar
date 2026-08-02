@@ -37,7 +37,21 @@ export class KnowledgeEngine {
   }
 
   public normalizeFeatures(blueprint: KnowledgeBlueprint): ExpectedFeature[] {
-    return blueprint.requiredFeatures.map((f, idx) => {
+    const activeProblem = this.getActiveProblemStatement(blueprint);
+    const activeProblemId = activeProblem?.id || activeProblem?.title || "default";
+
+    // Filter features by problemStatementId (with backward compatibility)
+    const featuresToNormalize = (blueprint.requiredFeatures || []).filter((f: any) => {
+      // If a feature has no problemStatementId, it defaults to the first problem statement's ID
+      if (!f.problemStatementId) {
+        const firstProblem = blueprint.problemStatements?.[0] || blueprint.problemStatement;
+        const firstProblemId = firstProblem?.id || firstProblem?.title || "default";
+        return activeProblemId === firstProblemId;
+      }
+      return f.problemStatementId === activeProblemId;
+    });
+
+    return featuresToNormalize.map((f, idx) => {
       const subFeaturesNormalized: SubFeature[] = Array.isArray(f.subFeatures) && f.subFeatures.length > 0
         ? f.subFeatures.map((sub, sIdx) => ({
             id: sub.id || `sub_${idx + 1}_${sIdx + 1}`,
@@ -55,6 +69,7 @@ export class KnowledgeEngine {
 
       return {
         id: f.id || `feat_${idx + 1}`,
+        problemStatementId: f.problemStatementId || activeProblemId,
         name: f.name,
         description: f.description || "",
         mandatory: !!f.mandatory,

@@ -152,6 +152,40 @@ app.post("/api/blueprints", verifyToken, requireRole(["ADMIN", "SUPER_ADMIN"]), 
     }
   }
 
+  // Validate required features and problem statements
+  const requiredFeatures = blueprint.requiredFeatures || [];
+  const problemStatements = blueprint.problemStatements || [];
+  const psIds = new Set(problemStatements.map((ps: any, idx: number) => ps.id || ps.title || `ps_${idx}`));
+
+  for (const f of requiredFeatures) {
+    if (!f.problemStatementId || !psIds.has(f.problemStatementId)) {
+      return res.status(400).json({
+        error: "VALIDATION_FAILED",
+        message: `Required feature '${f.name || "Unnamed feature"}' is not assigned to a valid Problem Statement.`
+      });
+    }
+  }
+
+  for (const ps of problemStatements) {
+    const psId = ps.id || ps.title;
+    const psFeatures = requiredFeatures.filter((f: any) => f.problemStatementId === psId);
+    if (psFeatures.length === 0) {
+      return res.status(400).json({
+        error: "VALIDATION_FAILED",
+        message: `Problem Statement '${ps.title || "Unnamed option"}' must have at least one required feature.`
+      });
+    }
+  }
+
+  for (const f of requiredFeatures) {
+    if (f.mandatory && (f.weight === undefined || f.weight <= 0 || isNaN(Number(f.weight)))) {
+      return res.status(400).json({
+        error: "VALIDATION_FAILED",
+        message: `Validation Error: Mandatory feature '${f.name || "Unnamed feature"}' must have a valid weight greater than 0.`
+      });
+    }
+  }
+
   const publishAction = action === "publish" || blueprint?.status === "published";
 
   try {
@@ -1300,6 +1334,7 @@ app.get("/api/hackathons/:hackathonId/leaderboard", async (req: Request, res: Re
         projectName: rec.bestSubmission.projectName,
         repoUrl: rec.bestSubmission.repoUrl,
         deploymentUrl: rec.bestSubmission.deploymentUrl,
+        problemStatementId: rec.bestSubmission.problemStatementId,
         score,
         grade: rec.bestSubmission.grade || (score >= 75 ? "PASSED" : "FAILED"),
         status: rec.bestSubmission.status,

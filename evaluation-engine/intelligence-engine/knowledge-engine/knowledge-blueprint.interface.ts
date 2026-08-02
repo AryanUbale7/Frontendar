@@ -1,4 +1,5 @@
 export interface ProblemStatement {
+  id?: string;
   title: string;
   description: string;
   background?: string;
@@ -24,6 +25,7 @@ export interface SubFeature {
 
 export interface ExpectedFeature {
   id?: string;
+  problemStatementId?: string;
   name: string;
   description: string;
   mandatory: boolean;

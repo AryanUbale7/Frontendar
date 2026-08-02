@@ -94,7 +94,19 @@ export async function runEvaluationJob(jobData: EvaluationJobData): Promise<any>
         const idx = pss.findIndex((ps) => ps.id === submission.problemStatementId || ps.title === submission.problemStatementId);
         if (idx !== -1) {
           (blueprint as any).selectedProblemIndex = idx;
+          const selectedPs = pss[idx];
+          const psFeatures = ((blueprint.requiredFeatures as any[]) || []).filter(
+            (f: any) => f.problemStatementId === (selectedPs.id || selectedPs.title)
+          );
+          console.log(`[FAIE] Submission: ${submissionId}`);
+          console.log(`[FAIE] Problem Statement ID: ${submission.problemStatementId}`);
+          console.log(`[FAIE] Problem Statement: ${selectedPs.title || selectedPs.id}`);
+          console.log(`[FAIE] Loaded Required Features: ${psFeatures.length}`);
+        } else {
+          console.warn(`[FAIE] Submission: ${submissionId} — problemStatementId "${submission.problemStatementId}" not found in blueprint PS list.`);
         }
+      } else {
+        console.log(`[FAIE] Submission: ${submissionId} — no problemStatementId set (legacy single-PS).`);
       }
     }
 

@@ -59,6 +59,7 @@ class MemoryEvaluationQueueDriver implements EvaluationQueueDriver {
         hackathonId: job.hackathonId || "",
         blueprintId: job.blueprintId,
         blueprintVersion: job.blueprintVersion,
+        problemStatementId: job.problemStatementId,
         version: 1,
         blueprint: job.blueprint,
       });
@@ -73,7 +74,8 @@ class MemoryEvaluationQueueDriver implements EvaluationQueueDriver {
       data.submissionId,
       data.blueprintId,
       data.blueprintVersion,
-      data.hackathonId
+      data.hackathonId,
+      data.problemStatementId
     );
     return { jobId: job.jobId };
   }

@@ -367,7 +367,10 @@ export default function PlatformAdminDashboardPage() {
   const fetchAdminLeaderboard = async (hackathonId: string) => {
     setLoadingAdminLeaderboard(true);
     try {
-      const res = await fetch(`/api/hackathons/${hackathonId}/leaderboard`);
+      const url = adminLeaderboardFilterPsId && adminLeaderboardFilterPsId !== "all"
+        ? `/api/hackathons/${hackathonId}/leaderboard?problemStatementId=${encodeURIComponent(adminLeaderboardFilterPsId)}`
+        : `/api/hackathons/${hackathonId}/leaderboard`;
+      const res = await fetch(url);
       if (res.ok) {
         const data = await res.json();
         if (data && Array.isArray(data.leaderboard)) {
@@ -433,13 +436,36 @@ export default function PlatformAdminDashboardPage() {
   const [activeManageHackathonId, setActiveManageHackathonId] = useState<string | null>(null);
   const [activePortalTab, setActivePortalTab] = useState<"problem" | "rules" | "resources" | "submissions" | "leaderboard">("problem");
 
+  const [adminLeaderboardFilterPsId, setAdminLeaderboardFilterPsId] = useState<string>("all");
+  const [manageBlueprint, setManageBlueprint] = useState<any>(null);
+
+  React.useEffect(() => {
+    const fetchManageBlueprint = async () => {
+      if (!activeManageHackathonId) {
+        setManageBlueprint(null);
+        return;
+      }
+      try {
+        const res = await fetch(`/api/blueprint?hackathonId=${activeManageHackathonId}&includeDraft=true`);
+        if (res.ok) {
+          const bp = await res.json();
+          setManageBlueprint(bp);
+        }
+      } catch (e) {
+        console.error("Failed to fetch manage blueprint:", e);
+      }
+    };
+    fetchManageBlueprint();
+    setAdminLeaderboardFilterPsId("all");
+  }, [activeManageHackathonId]);
+
   React.useEffect(() => {
     if (activePortalTab === "submissions") {
       fetchAdminSubmissions(activeManageHackathonId || undefined);
     } else if (activePortalTab === "leaderboard" && activeManageHackathonId) {
       fetchAdminLeaderboard(activeManageHackathonId);
     }
-  }, [activePortalTab, activeManageHackathonId]);
+  }, [activePortalTab, activeManageHackathonId, adminLeaderboardFilterPsId]);
 
   React.useEffect(() => {
     if (activeTab === "submissions") {
@@ -1298,7 +1324,25 @@ export default function PlatformAdminDashboardPage() {
                 )}
 
                 {activePortalTab === "leaderboard" && (
-                  <Card className="p-6 bg-white border-[#E2E8F0] shadow-sm rounded-2xl animate-in fade-in duration-200">
+                  <Card className="p-6 bg-white border-[#E2E8F0] shadow-sm rounded-2xl animate-in fade-in duration-200 space-y-4">
+                    {/* Leaderboard Problem Statement Filter */}
+                    {manageBlueprint?.problemStatements && Array.isArray(manageBlueprint.problemStatements) && manageBlueprint.problemStatements.length > 1 && (
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 pb-2 border-b border-[#F1F5F9]">
+                        <span className="text-xs font-bold text-[#475569]">Filter by Problem:</span>
+                        <select
+                          value={adminLeaderboardFilterPsId}
+                          onChange={(e) => setAdminLeaderboardFilterPsId(e.target.value)}
+                          className="flex h-9 w-64 rounded-xl border border-[#E2E8F0] bg-white px-3 text-xs font-bold text-[#0F172A] focus:outline-none shadow-xs"
+                        >
+                          <option value="all">All Problem Statements</option>
+                          {manageBlueprint.problemStatements.map((ps: any, idx: number) => (
+                            <option key={ps.id || idx} value={ps.id || ps.title}>
+                              {ps.title}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
                     {loadingAdminLeaderboard ? (
                       <div className="flex justify-center p-8">
                         <RefreshCw className="h-6 w-6 animate-spin text-[#FF006E]" />
@@ -1317,23 +1361,29 @@ export default function PlatformAdminDashboardPage() {
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-slate-100">
-                            {adminLeaderboard.map((row, idx) => (
-                              <tr key={idx} className="hover:bg-slate-50/50">
-                                <td className="p-3 font-extrabold text-slate-800">Rank {row.rank}</td>
-                                <td className="p-3 font-semibold text-[#0F172A]">{row.projectName}</td>
-                                <td className="p-3">
-                                  <div className="font-medium text-slate-700">{row.participantName}</div>
-                                  <div className="text-[10px] text-slate-400">{row.participantEmail}</div>
-                                </td>
-                                <td className="p-3 font-bold text-[#FF006E]">{row.score}/100</td>
-                                <td className="p-3">
+                            {adminLeaderboard.map((row, idx) => {
+                              const matchedPS = manageBlueprint?.problemStatements?.find((p: any) => p.id === row.problemStatementId || p.title === row.problemStatementId);
+                              const psTitle = matchedPS ? matchedPS.title : row.problemStatementId || "Default Problem";
+                              return (
+                                <tr key={idx} className="hover:bg-slate-50/50">
+                                  <td className="p-3 font-extrabold text-slate-800">Rank {row.rank}</td>
+                                  <td className="p-3">
+                                    <div className="font-semibold text-[#0F172A]">{row.projectName}</div>
+                                    <div className="text-[10px] text-slate-400 font-semibold">{psTitle}</div>
+                                  </td>
+                                  <td className="p-3">
+                                    <div className="font-medium text-slate-700">{row.participantName}</div>
+                                    <div className="text-[10px] text-slate-400">{row.participantEmail}</div>
+                                  </td>
+                                  <td className="p-3 font-bold text-[#FF006E]">{row.score}/100</td>
+                                  <td className="p-3">
                                   <Badge className={row.grade === "PASSED" ? "bg-emerald-50 text-emerald-600 border-emerald-200" : "bg-rose-50 text-rose-600 border-rose-200"}>
                                     {row.grade}
                                   </Badge>
                                 </td>
                                 <td className="p-3 text-slate-500">{new Date(row.timestamp).toLocaleString()}</td>
                               </tr>
-                            ))}
+                            )})}
                           </tbody>
                         </table>
                       </div>

@@ -45,7 +45,21 @@ export class ScoringEngine {
     logs.push("FAIE Scoring Engine v3 Calibrated: Transparent deterministic calculations with full trace.");
 
     // 1. Feature Coverage (marks-based: only features earning marks count as implemented)
-    const totalReqFeatures = blueprint.requiredFeatures.length || 1;
+    const activeProblem = blueprint.problemStatements && blueprint.problemStatements.length > 0
+      ? (blueprint.problemStatements[blueprint.selectedProblemIndex ?? 0] || blueprint.problemStatements[0])
+      : blueprint.problemStatement;
+    const activeProblemId = activeProblem?.id || activeProblem?.title || "default";
+
+    const activeFeatures = (blueprint.requiredFeatures || []).filter((f: any) => {
+      if (!f.problemStatementId) {
+        const firstProblem = blueprint.problemStatements?.[0] || blueprint.problemStatement;
+        const firstProblemId = firstProblem?.id || firstProblem?.title || "default";
+        return activeProblemId === firstProblemId;
+      }
+      return f.problemStatementId === activeProblemId;
+    });
+
+    const totalReqFeatures = activeFeatures.length || 1;
     const implementedCount = featureResults.filter((f) => f.awardedScore > 0).length;
     const featureCoveragePercent = Math.round((implementedCount / totalReqFeatures) * 100);
     logs.push(`Feature Coverage computed: ${featureCoveragePercent}% (${implementedCount}/${totalReqFeatures} features).`);

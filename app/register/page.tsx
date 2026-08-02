@@ -202,6 +202,7 @@ function HackathonRegistrationContent() {
   const [submissionAttempts, setSubmissionAttempts] = useState<any[]>([]);
   const [leaderboardList, setLeaderboardList] = useState<any[]>([]);
   const [loadingLeaderboard, setLoadingLeaderboard] = useState(false);
+  const [leaderboardFilterPsId, setLeaderboardFilterPsId] = useState<string>("all");
 
   useEffect(() => {
     if (blueprint && submissionAttempts.length > 0) {
@@ -338,7 +339,10 @@ function HackathonRegistrationContent() {
       const loadLeaderboard = async () => {
         setLoadingLeaderboard(true);
         try {
-          const res = await fetch(`/api/hackathons/${hackathonId}/leaderboard`);
+          const url = leaderboardFilterPsId && leaderboardFilterPsId !== "all"
+            ? `/api/hackathons/${hackathonId}/leaderboard?problemStatementId=${encodeURIComponent(leaderboardFilterPsId)}`
+            : `/api/hackathons/${hackathonId}/leaderboard`;
+          const res = await fetch(url);
           const data = await res.json();
           if (!cancelled && data && Array.isArray(data.leaderboard)) {
             setLeaderboardList(data.leaderboard);
@@ -356,7 +360,7 @@ function HackathonRegistrationContent() {
         clearInterval(interval);
       };
     }
-  }, [activePortalTab, hackathonId]);
+  }, [activePortalTab, hackathonId, leaderboardFilterPsId]);
 
   const handleMemberEmailChange = (idx: number, val: string) => {
     setMemberEmails(memberEmails.map((email, i) => (i === idx ? val : email)));
@@ -487,6 +491,11 @@ function HackathonRegistrationContent() {
     // Attach which problem statement the participant is solving
     bpData = { ...bpData, selectedProblemIndex: activeProblemIdx };
 
+    // Resolve the problemStatementId for PS-isolated evaluation
+    const bpProblemStatements = bpData.problemStatements || [];
+    const selectedPS = bpProblemStatements[activeProblemIdx] || bpProblemStatements[0];
+    const resolvedProblemStatementId = selectedPS?.id || selectedPS?.title || undefined;
+
     try {
       const response = await fetch("/api/evaluate", {
         method: "POST",
@@ -496,6 +505,7 @@ function HackathonRegistrationContent() {
           deploymentUrl,
           hackathonId: activeHackathon.id,
           userId: user.id,
+          problemStatementId: resolvedProblemStatementId,
           projectName: projectName || "Untitled Project",
           shortDesc: shortDesc || "",
           detailedDesc: detailedDesc || "",
@@ -1597,7 +1607,25 @@ function HackathonRegistrationContent() {
                 )}
 
                 {activePortalTab === "leaderboard" && (
-                  <Card className="p-6 bg-white border-[#E2E8F0] shadow-sm rounded-2xl animate-in fade-in duration-200">
+                  <Card className="p-6 bg-white border-[#E2E8F0] shadow-sm rounded-2xl animate-in fade-in duration-200 space-y-4">
+                    {/* Leaderboard Problem Statement Filter */}
+                    {blueprint?.problemStatements && Array.isArray(blueprint.problemStatements) && blueprint.problemStatements.length > 1 && (
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 pb-2 border-b border-[#F1F5F9]">
+                        <span className="text-xs font-bold text-[#475569]">Filter by Problem:</span>
+                        <select
+                          value={leaderboardFilterPsId}
+                          onChange={(e) => setLeaderboardFilterPsId(e.target.value)}
+                          className="flex h-9 w-64 rounded-xl border border-[#E2E8F0] bg-white px-3 text-xs font-bold text-[#0F172A] focus:outline-none shadow-xs"
+                        >
+                          <option value="all">All Problem Statements</option>
+                          {blueprint.problemStatements.map((ps: any, idx: number) => (
+                            <option key={ps.id || idx} value={ps.id || ps.title}>
+                              {ps.title}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
                     {loadingLeaderboard ? (
                       <div className="flex justify-center p-8">
                         <RefreshCw className="h-6 w-6 animate-spin text-[#FF006E]" />
@@ -1616,10 +1644,16 @@ function HackathonRegistrationContent() {
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-slate-100">
-                            {leaderboardList.map((row, idx) => (
-                              <tr key={idx} className="hover:bg-slate-50/50">
-                                <td className="p-3 font-extrabold text-slate-800">Rank {row.rank}</td>
-                                <td className="p-3 font-semibold text-[#0F172A]">{row.projectName}</td>
+                            {leaderboardList.map((row, idx) => {
+                              const matchedPS = blueprint?.problemStatements?.find((p: any) => p.id === row.problemStatementId || p.title === row.problemStatementId);
+                              const psTitle = matchedPS ? matchedPS.title : row.problemStatementId || "Default Problem";
+                              return (
+                                <tr key={idx} className="hover:bg-slate-50/50">
+                                  <td className="p-3 font-extrabold text-slate-800">Rank {row.rank}</td>
+                                  <td className="p-3">
+                                    <div className="font-semibold text-[#0F172A]">{row.projectName}</div>
+                                    <div className="text-[10px] text-slate-400 font-semibold">{psTitle}</div>
+                                  </td>
                                 <td className="p-3">
                                   <div className="font-medium text-slate-700">{row.participantName}</div>
                                   <div className="text-[10px] text-slate-400">{row.participantEmail}</div>
@@ -1632,7 +1666,8 @@ function HackathonRegistrationContent() {
                                 </td>
                                 <td className="p-3 text-slate-500">{new Date(row.timestamp).toLocaleString()}</td>
                               </tr>
-                            ))}
+                              );
+                            })}
                           </tbody>
                         </table>
                       </div>

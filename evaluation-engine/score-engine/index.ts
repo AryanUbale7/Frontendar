@@ -116,8 +116,22 @@ export class ScoreEngine {
                  (aiReport.requiredFeatures?.score || 0) +
                  (aiReport.innovation?.score || 0);
 
-    // Check if any mandatory feature is missing
-    const missingMandatoryFeatures = blueprint.requiredFeatures
+    // Check if any mandatory feature is missing (PS-isolated)
+    const activeProblem = blueprint.problemStatements && blueprint.problemStatements.length > 0
+      ? (blueprint.problemStatements[blueprint.selectedProblemIndex ?? 0] || blueprint.problemStatements[0])
+      : blueprint.problemStatement;
+    const activeProblemId = (activeProblem as any)?.id || (activeProblem as any)?.title || "default";
+
+    const psFeatures = (blueprint.requiredFeatures || []).filter((f: any) => {
+      if (!f.problemStatementId) {
+        const firstProblem = blueprint.problemStatements?.[0] || blueprint.problemStatement;
+        const firstProblemId = (firstProblem as any)?.id || (firstProblem as any)?.title || "default";
+        return activeProblemId === firstProblemId;
+      }
+      return f.problemStatementId === activeProblemId;
+    });
+
+    const missingMandatoryFeatures = psFeatures
       ?.filter((f: any) => f.mandatory)
       ?.filter((f: any) => aiReport.requiredFeatures?.missing?.includes(f.name));
 
