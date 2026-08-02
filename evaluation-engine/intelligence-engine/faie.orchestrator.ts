@@ -105,7 +105,11 @@ export class FAIEOrchestrator {
     logs.push(`[FAIE v2 1/12] Initializing Frontend Arena Intelligence Engine v2.0 for ${repoUrl}...`);
 
     // 1. Repository Analysis & AST Code Scanning
-    logs.push(`[FAIE v2 2/12] Repository Engine: Scanning framework, dependencies, and AST code patterns...`);
+    if (process.env.ENABLE_AST_EVALUATION === "false") {
+      logs.push(`[FAIE v2 2/12] AST Evaluation disabled via global system configuration.`);
+    } else {
+      logs.push(`[FAIE v2 2/12] Repository Engine: Scanning framework, dependencies, and AST code patterns...`);
+    }
     const repoAnalysis = this.repositoryEngine.analyzeRepository(workspacePath);
     logs.push(`[FAIE v2 2/12] Framework: ${repoAnalysis.framework}. Packages scanned: ${repoAnalysis.allDependencies.length}.`);
 

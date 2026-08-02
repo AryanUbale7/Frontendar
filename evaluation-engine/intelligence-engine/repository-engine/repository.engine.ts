@@ -119,6 +119,9 @@ export class RepositoryEngine {
       }
 
       if ([".ts", ".tsx", ".js", ".jsx", ".vue"].includes(ext)) {
+        if (process.env.ENABLE_AST_EVALUATION === "false") {
+          continue;
+        }
         try {
           const content = fs.readFileSync(file, "utf-8");
 

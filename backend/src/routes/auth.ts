@@ -1,6 +1,7 @@
 import { Router, Request, Response } from "express";
 import { prisma } from "../config/db";
 import * as jwt from "jsonwebtoken";
+import { verifyToken, AuthenticatedRequest } from "../middleware/auth";
 import { OAuth2Client } from "google-auth-library";
 import { hashPassword, verifyPassword, isHashedPassword } from "../engine/password";
 
@@ -14,12 +15,20 @@ export const authRouter = Router();
 
 // Register new user
 authRouter.post("/register", async (req: Request, res: Response) => {
-  const { email, password, role } = req.body;
+  const { email, password } = req.body;
   if (!email || !password) {
     return res.status(400).json({ error: "Email and password are required." });
   }
 
   try {
+    const config = await prisma.systemConfig.findUnique({ where: { id: "global" } });
+    if (config && !config.allowRegistration) {
+      return res.status(403).json({
+        error: "REGISTRATION_DISABLED",
+        message: "New user registrations are currently disabled by the administrator."
+      });
+    }
+
     const existing = await prisma.user.findUnique({ where: { email } });
     if (existing) {
       return res.status(400).json({ error: "User already exists with this email." });
@@ -29,13 +38,36 @@ authRouter.post("/register", async (req: Request, res: Response) => {
       data: {
         email,
         password: hashPassword(password),
-        role: role || "PARTICIPANT"
+        role: "PARTICIPANT" // strictly enforce PARTICIPANT role
       }
     });
 
     res.status(201).json({ id: user.id, email: user.email, role: user.role });
   } catch (err: any) {
     res.status(500).json({ error: "Failed to register: " + err.message });
+  }
+});
+
+// Get current user profile
+authRouter.get("/me", verifyToken, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.user!.id }
+    });
+    if (!user) {
+      return res.status(404).json({ error: "User not found." });
+    }
+    res.json({
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      avatarUrl: user.avatarUrl,
+      emailVerified: user.emailVerified
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: "Failed to fetch profile: " + err.message });
   }
 });
 
@@ -192,6 +224,14 @@ authRouter.post("/google", async (req: Request, res: Response) => {
     const targetRole = shouldBeAdmin ? "ADMIN" : "PARTICIPANT";
 
     if (!user) {
+      const config = await prisma.systemConfig.findUnique({ where: { id: "global" } });
+      if (config && !config.allowRegistration) {
+        return res.status(403).json({
+          error: "REGISTRATION_DISABLED",
+          message: "New user registrations are currently disabled by the administrator."
+        });
+      }
+
       user = await prisma.user.create({
         data: {
           email,
@@ -250,5 +290,50 @@ authRouter.post("/google", async (req: Request, res: Response) => {
     });
   } catch (err: any) {
     res.status(500).json({ error: "Google login failed: " + err.message });
+  }
+});
+
+// Send email verification code
+authRouter.post("/send-verification", verifyToken, async (req: AuthenticatedRequest, res: Response) => {
+  const userId = req.user!.id;
+  try {
+    const code = Math.floor(100000 + Math.random() * 900000).toString(); // 6 digit code
+    await prisma.user.update({
+      where: { id: userId },
+      data: { verificationCode: code }
+    });
+    console.log(`[Auth] Verification code for user ${req.user!.email} is: ${code}`);
+    res.json({ message: "Verification code sent successfully. Check backend console logs.", code });
+  } catch (err: any) {
+    res.status(500).json({ error: "Failed to generate verification code: " + err.message });
+  }
+});
+
+// Verify email address with code
+authRouter.post("/verify-email", verifyToken, async (req: AuthenticatedRequest, res: Response) => {
+  const userId = req.user!.id;
+  const { code } = req.body;
+  if (!code) {
+    return res.status(400).json({ error: "Verification code is required." });
+  }
+
+  try {
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      return res.status(404).json({ error: "User not found." });
+    }
+
+    if (user.verificationCode !== code) {
+      return res.status(400).json({ error: "Invalid verification code." });
+    }
+
+    await prisma.user.update({
+      where: { id: userId },
+      data: { emailVerified: true, verificationCode: null }
+    });
+
+    res.json({ message: "Email verified successfully!", emailVerified: true });
+  } catch (err: any) {
+    res.status(500).json({ error: "Verification failed: " + err.message });
   }
 });

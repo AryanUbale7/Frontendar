@@ -28,6 +28,7 @@ export interface EvaluationJobData {
    * snapshot) so Redis never carries large payloads or stale content.
    */
   blueprint?: unknown;
+  problemStatementId?: string;
   /** Test-only seams used by phase3.test.ts (inert unless present). */
   testDelayedMs?: number;
   testFailFirstAttempt?: boolean;

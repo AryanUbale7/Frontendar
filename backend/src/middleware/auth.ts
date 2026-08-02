@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import * as jwt from "jsonwebtoken";
+import { prisma } from "../config/db";
 
 const JWT_SECRET = process.env.JWT_SECRET || "super-secret-key-frontend-arena";
 
@@ -9,6 +10,39 @@ export interface AuthenticatedRequest extends Request {
     email: string;
     role: "PARTICIPANT" | "ADMIN" | "SUPER_ADMIN" | string;
   };
+}
+
+export async function maintenanceGuard(req: AuthenticatedRequest, res: Response, next: NextFunction) {
+  const isMutation = ["POST", "PUT", "DELETE", "PATCH"].includes(req.method);
+  if (!isMutation) return next();
+
+  const pathLower = req.path.toLowerCase();
+  const isAuthOrConfig = pathLower.includes("/api/auth") || pathLower.includes("/api/system/config");
+  if (isAuthOrConfig) return next();
+
+  try {
+    const config = await prisma.systemConfig.findUnique({ where: { id: "global" } });
+    if (config?.maintenanceMode) {
+      const authHeader = req.headers.authorization;
+      if (authHeader && authHeader.startsWith("Bearer ")) {
+        const token = authHeader.split(" ")[1];
+        try {
+          const decoded = jwt.verify(token, JWT_SECRET) as any;
+          if (decoded.role === "ADMIN" || decoded.role === "SUPER_ADMIN") {
+            req.user = decoded;
+            return next();
+          }
+        } catch {}
+      }
+      return res.status(503).json({
+        error: "MAINTENANCE_MODE",
+        message: "The platform is currently in maintenance mode. Operations are read-only."
+      });
+    }
+  } catch (err) {
+    console.error("Maintenance guard check failed:", err);
+  }
+  next();
 }
 
 export function verifyToken(req: AuthenticatedRequest, res: Response, next: NextFunction) {

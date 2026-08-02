@@ -154,9 +154,51 @@ export default function PlatformAdminDashboardPage() {
         console.error(e);
       }
     };
+    const fetchSystemConfig = async () => {
+      try {
+        const res = await fetch("/api/system/config");
+        if (res.ok) {
+          const config = await res.json();
+          setAllowRegistration(config.allowRegistration);
+          setEnableAstEvaluation(config.enableAstEvaluation);
+          setMaintenanceMode(config.maintenanceMode);
+          setForceEmailVerification(config.forceEmailVerification);
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    };
     fetchHackathons();
     fetchGlobalRegistrations();
+    fetchSystemConfig();
   }, []);
+
+  const handleSaveSystemConfig = async () => {
+    try {
+      const res = await fetch("/api/system/config", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...authHeaders()
+        },
+        body: JSON.stringify({
+          allowRegistration,
+          enableAstEvaluation,
+          maintenanceMode,
+          forceEmailVerification
+        })
+      });
+      if (res.ok) {
+        showToast("System configuration saved successfully!");
+      } else {
+        const err = await res.json();
+        alert("Failed to save config: " + (err.error || err.message));
+      }
+    } catch (e: any) {
+      console.error(e);
+      alert("Error saving config: " + e.message);
+    }
+  };
 
   // Settings Tab States
   const [allowRegistration, setAllowRegistration] = useState(true);
@@ -177,6 +219,132 @@ export default function PlatformAdminDashboardPage() {
   const [selectedSubmissionForReport, setSelectedSubmissionForReport] = useState<any | null>(null);
   const [adminLeaderboard, setAdminLeaderboard] = useState<any[]>([]);
   const [loadingAdminLeaderboard, setLoadingAdminLeaderboard] = useState(false);
+
+  // Virtual Judging Center States
+  const [judgingHackathonId, setJudgingHackathonId] = useState("");
+  const [judgingProblemStatementId, setJudgingProblemStatementId] = useState("");
+  const [judgingStatusFilter, setJudgingStatusFilter] = useState("");
+  const [judgingStats, setJudgingStats] = useState<any>(null);
+  const [judgingSubmissions, setJudgingSubmissions] = useState<any[]>([]);
+  const [loadingJudgingSubmissions, setLoadingJudgingSubmissions] = useState(false);
+  const [loadingJudgingStats, setLoadingJudgingStats] = useState(false);
+  const [selectedHackathonBlueprint, setSelectedHackathonBlueprint] = useState<any>(null);
+
+  const fetchJudgingStats = async (hackathonId: string, problemStatementId: string) => {
+    setLoadingJudgingStats(true);
+    try {
+      const res = await fetch(`/api/judging/stats?hackathonId=${hackathonId}&problemStatementId=${problemStatementId}`, {
+        headers: { ...authHeaders() }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setJudgingStats(data);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoadingJudgingStats(false);
+    }
+  };
+
+  const fetchJudgingSubmissions = async (hackathonId: string, problemStatementId: string, status: string) => {
+    setLoadingJudgingSubmissions(true);
+    try {
+      const res = await fetch(`/api/judging/submissions?hackathonId=${hackathonId}&problemStatementId=${problemStatementId}&status=${status}`, {
+        headers: { ...authHeaders() }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          setJudgingSubmissions(data);
+        }
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoadingJudgingSubmissions(false);
+    }
+  };
+
+  const handleRetryJudgingEvaluation = async (submissionId: string) => {
+    try {
+      const res = await fetch("/api/judging/retry", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...authHeaders()
+        },
+        body: JSON.stringify({ submissionId })
+      });
+      if (res.ok) {
+        showToast("Evaluation retry triggered successfully!");
+        fetchJudgingSubmissions(judgingHackathonId, judgingProblemStatementId, judgingStatusFilter);
+        fetchJudgingStats(judgingHackathonId, judgingProblemStatementId);
+      } else {
+        const err = await res.json();
+        alert("Failed to retry: " + (err.error || err.message));
+      }
+    } catch (e: any) {
+      console.error(e);
+      alert("Error retrying: " + e.message);
+    }
+  };
+
+  React.useEffect(() => {
+    const fetchBlueprintForSelector = async () => {
+      if (!judgingHackathonId) {
+        setSelectedHackathonBlueprint(null);
+        setJudgingProblemStatementId("");
+        return;
+      }
+      try {
+        const res = await fetch(`/api/blueprint?hackathonId=${judgingHackathonId}&includeDraft=true`, {
+          headers: { ...authHeaders() }
+        });
+        if (res.ok) {
+          const bp = await res.json();
+          setSelectedHackathonBlueprint(bp);
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    };
+    fetchBlueprintForSelector();
+  }, [judgingHackathonId]);
+
+  React.useEffect(() => {
+    if (activeTab === "judging" && judgingHackathonId) {
+      fetchJudgingStats(judgingHackathonId, judgingProblemStatementId);
+      fetchJudgingSubmissions(judgingHackathonId, judgingProblemStatementId, judgingStatusFilter);
+    }
+  }, [activeTab, judgingHackathonId, judgingProblemStatementId, judgingStatusFilter]);
+
+  // System Metrics States
+  const [systemMetrics, setSystemMetrics] = useState<any>(null);
+  const [loadingSystemMetrics, setLoadingSystemMetrics] = useState(false);
+
+  const fetchSystemMetrics = async () => {
+    setLoadingSystemMetrics(true);
+    try {
+      const res = await fetch("/api/system/metrics", {
+        headers: { ...authHeaders() }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setSystemMetrics(data);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoadingSystemMetrics(false);
+    }
+  };
+
+  React.useEffect(() => {
+    if (activeTab === "analytics") {
+      fetchSystemMetrics();
+    }
+  }, [activeTab]);
 
   const fetchAdminSubmissions = async (hackathonId?: string) => {
     setLoadingAdminSubmissions(true);
@@ -2054,6 +2222,7 @@ export default function PlatformAdminDashboardPage() {
         );
 
       case "judging":
+        const judgingProblemStatements = (selectedHackathonBlueprint?.problemStatements as any[]) || [];
         return (
           <motion.div
             key="judging"
@@ -2062,23 +2231,209 @@ export default function PlatformAdminDashboardPage() {
             exit={{ opacity: 0, y: -10 }}
             className="space-y-6"
           >
-            <div>
-              <h1 className="font-heading text-2xl font-extrabold text-[#0F172A] flex items-center gap-2">
-                <Scale className="h-6 w-6 text-[#FF006E]" />
-                <span>Virtual Judging Center</span>
-              </h1>
-              <p className="text-xs text-[#475569]">
-                Configure evaluation rubrics, allocate jury pools, and inspect automated scorecard parameters.
-              </p>
+            {/* Header and Selectors */}
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+              <div>
+                <h1 className="font-heading text-2xl font-extrabold text-[#0F172A] flex items-center gap-2">
+                  <Scale className="h-6 w-6 text-[#FF006E]" />
+                  <span>Virtual Judging Center</span>
+                </h1>
+                <p className="text-xs text-[#475569]">
+                  Inspect automated scorecard parameters, retry failed runs, and view live participant reports.
+                </p>
+              </div>
+
+              {/* Filters panel */}
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-[#475569]">Hackathon:</span>
+                  <select
+                    value={judgingHackathonId}
+                    onChange={(e) => {
+                      setJudgingHackathonId(e.target.value);
+                      setJudgingProblemStatementId("");
+                    }}
+                    className="flex h-9 w-48 rounded-xl border border-[#E2E8F0] bg-white px-3 text-xs font-bold text-[#0F172A] focus:outline-hidden shadow-xs"
+                  >
+                    <option value="">Select Hackathon...</option>
+                    {Array.isArray(hackathons) && hackathons.map((h) => (
+                      <option key={h.id} value={h.id}>{h.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {judgingHackathonId && judgingProblemStatements.length > 0 && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-[#475569]">Problem:</span>
+                    <select
+                      value={judgingProblemStatementId}
+                      onChange={(e) => setJudgingProblemStatementId(e.target.value)}
+                      className="flex h-9 w-48 rounded-xl border border-[#E2E8F0] bg-white px-3 text-xs font-bold text-[#0F172A] focus:outline-hidden shadow-xs"
+                    >
+                      <option value="">All Problem Statements</option>
+                      {judgingProblemStatements.map((ps: any, idx: number) => (
+                        <option key={ps.id || idx} value={ps.id || ps.title}>{ps.title}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-[#475569]">Status:</span>
+                  <select
+                    value={judgingStatusFilter}
+                    onChange={(e) => setJudgingStatusFilter(e.target.value)}
+                    className="flex h-9 w-36 rounded-xl border border-[#E2E8F0] bg-white px-3 text-xs font-bold text-[#0F172A] focus:outline-hidden shadow-xs"
+                  >
+                    <option value="">All Statuses</option>
+                    <option value="QUEUED">Queued</option>
+                    <option value="EVALUATING">Evaluating</option>
+                    <option value="COMPLETED">Completed</option>
+                    <option value="FAILED">Failed</option>
+                  </select>
+                </div>
+              </div>
             </div>
 
-            <Card className="p-6">
-              <EmptyState
-                title="No Judging Operations Active"
-                description="Judging nodes are currently sleeping. Create rubrics and launch evaluations when hackathons transition to the assessment phase."
-                icon={<Scale className="h-7 w-7" />}
-              />
-            </Card>
+            {/* Statistics Row */}
+            {judgingHackathonId && judgingStats && (
+              <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                <Card className="p-4 bg-white border-[#E2E8F0] flex flex-col justify-between">
+                  <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Queued</span>
+                  <span className="text-2xl font-black text-[#0F172A] mt-1">{judgingStats.queuedCount}</span>
+                </Card>
+                <Card className="p-4 bg-white border-[#E2E8F0] flex flex-col justify-between">
+                  <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Evaluating</span>
+                  <span className="text-2xl font-black text-[#FF006E] mt-1">{judgingStats.evaluatingCount}</span>
+                </Card>
+                <Card className="p-4 bg-white border-[#E2E8F0] flex flex-col justify-between">
+                  <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Completed</span>
+                  <span className="text-2xl font-black text-emerald-600 mt-1">{judgingStats.completedCount}</span>
+                </Card>
+                <Card className="p-4 bg-white border-[#E2E8F0] flex flex-col justify-between">
+                  <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Failed</span>
+                  <span className="text-2xl font-black text-rose-600 mt-1">{judgingStats.failedCount}</span>
+                </Card>
+                <Card className="p-4 bg-white border-[#E2E8F0] flex flex-col justify-between col-span-1">
+                  <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Average Score</span>
+                  <span className="text-2xl font-black text-[#0F172A] mt-1">{judgingStats.averageScore}/100</span>
+                </Card>
+                <Card className="p-4 bg-white border-[#E2E8F0] flex flex-col justify-between col-span-1">
+                  <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Range (High/Low)</span>
+                  <span className="text-sm font-bold text-[#0F172A] mt-2">
+                    High: <span className="text-emerald-600">{judgingStats.highestScore}</span><br />
+                    Low: <span className="text-rose-600">{judgingStats.lowestScore}</span>
+                  </span>
+                </Card>
+              </div>
+            )}
+
+            {/* Submissions List */}
+            {!judgingHackathonId ? (
+              <Card className="p-8 text-center text-slate-500 italic">
+                Please select a Hackathon to load judging data.
+              </Card>
+            ) : loadingJudgingSubmissions ? (
+              <Card className="p-12 flex items-center justify-center">
+                <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#FF006E] border-t-transparent" />
+              </Card>
+            ) : judgingSubmissions.length === 0 ? (
+              <Card className="p-6">
+                <EmptyState
+                  title="No Submissions Match Filter"
+                  description="No project evaluation logs or records match the selected hackathon/problem filters."
+                  icon={<Scale className="h-7 w-7" />}
+                />
+              </Card>
+            ) : (
+              <Card className="overflow-hidden border border-[#E2E8F0] shadow-xs rounded-[16px]">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead>
+                      <tr className="border-b border-[#E2E8F0] bg-slate-50 font-bold text-[#475569]">
+                        <th className="p-4">Participant / Team</th>
+                        <th className="p-4">Problem Statement</th>
+                        <th className="p-4">Attempt</th>
+                        <th className="p-4">Repository URL</th>
+                        <th className="p-4">Status</th>
+                        <th className="p-4">Score</th>
+                        <th className="p-4">Submitted At</th>
+                        <th className="p-4 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[#E2E8F0]">
+                      {judgingSubmissions.map((sub) => {
+                        const displayName = sub.user 
+                          ? `${sub.user.firstName || ""} ${sub.user.lastName || ""}`.trim() || sub.user.email.split("@")[0]
+                          : "Unknown User";
+                        const displayEmail = sub.user ? sub.user.email : "N/A";
+                        
+                        // Resolve problem statement title
+                        const matchedPS = judgingProblemStatements.find((p: any) => p.id === sub.problemStatementId || p.title === sub.problemStatementId);
+                        const psTitle = matchedPS ? matchedPS.title : sub.problemStatementId || "Default Problem";
+
+                        // Compute duration if completed
+                        let durationStr = "N/A";
+                        if (sub.completedAt) {
+                          const diff = new Date(sub.completedAt).getTime() - new Date(sub.createdAt).getTime();
+                          durationStr = `${Math.round(diff / 1000)}s`;
+                        }
+
+                        return (
+                          <tr key={sub.id} className="hover:bg-slate-50/50 transition-colors">
+                            <td className="p-4">
+                              <div className="font-bold text-[#0F172A]">{displayName}</div>
+                              <div className="text-[10px] text-[#64748B]">{displayEmail}</div>
+                            </td>
+                            <td className="p-4 text-[#475569] max-w-[150px] truncate" title={psTitle}>
+                              {psTitle}
+                            </td>
+                            <td className="p-4 font-bold text-[#0F172A]">v{sub.version}</td>
+                            <td className="p-4">
+                              <a href={sub.repoUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline max-w-[200px] truncate block">
+                                {sub.repoUrl.replace("https://github.com/", "")}
+                              </a>
+                            </td>
+                            <td className="p-4">
+                              {sub.status === "COMPLETED" && <Badge variant="success" size="sm" className="bg-[#D1FAE5] text-[#065F46] border-[#34D399]">Completed</Badge>}
+                              {sub.status === "FAILED" && <Badge variant="error" size="sm" className="bg-[#FEE2E2] text-[#991B1B] border-[#FCA5A5]">Failed</Badge>}
+                              {sub.status === "QUEUED" && <Badge variant="outline" size="sm" className="bg-slate-100 text-slate-700 border-slate-300 animate-pulse">Queued</Badge>}
+                              {sub.status === "EVALUATING" && <Badge variant="outline" size="sm" className="bg-[#FEF3C7] text-[#92400E] border-[#FCD34D] animate-pulse">Evaluating</Badge>}
+                            </td>
+                            <td className="p-4 font-black text-sm text-[#0F172A]">{sub.score !== null ? `${sub.score}/100` : "—"}</td>
+                            <td className="p-4">
+                              <div>{new Date(sub.createdAt).toLocaleDateString()}</div>
+                              <div className="text-[10px] text-[#64748B]">Duration: {durationStr}</div>
+                            </td>
+                            <td className="p-4 text-right">
+                              <div className="flex justify-end gap-1.5">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="h-7 px-2.5 text-[10px] font-bold rounded-lg border-[#E2E8F0] text-slate-700 hover:bg-slate-100"
+                                  onClick={() => setSelectedSubmissionForReport(sub)}
+                                >
+                                  View Report
+                                </Button>
+                                <Button
+                                  variant="default"
+                                  size="sm"
+                                  className={`h-7 px-2.5 text-[10px] font-bold rounded-lg ${sub.status === "FAILED" ? "bg-[#FF006E] hover:bg-[#D8005C] text-white" : "bg-slate-200 text-slate-400 cursor-not-allowed"}`}
+                                  disabled={sub.status !== "FAILED"}
+                                  onClick={() => handleRetryJudgingEvaluation(sub.id)}
+                                >
+                                  Retry
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </Card>
+            )}
           </motion.div>
         );
 
@@ -2257,23 +2612,153 @@ export default function PlatformAdminDashboardPage() {
             exit={{ opacity: 0, y: -10 }}
             className="space-y-6"
           >
-            <div>
-              <h1 className="font-heading text-2xl font-extrabold text-[#0F172A] flex items-center gap-2">
-                <BarChart3 className="h-6 w-6 text-[#FF006E]" />
-                <span>Metrics & Live Logs</span>
-              </h1>
-              <p className="text-xs text-[#475569]">
-                Monitor real-time sandbox runtimes, API traffic, database sockets, and server compute loads.
-              </p>
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="font-heading text-2xl font-extrabold text-[#0F172A] flex items-center gap-2">
+                  <BarChart3 className="h-6 w-6 text-[#FF006E]" />
+                  <span>Metrics & Live Logs</span>
+                </h1>
+                <p className="text-xs text-[#475569]">
+                  Monitor evaluation queue health, worker concurrency, and recent run diagnostics.
+                </p>
+              </div>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={fetchSystemMetrics}
+                className="h-9 px-4 rounded-xl border border-[#E2E8F0] hover:bg-slate-100 font-bold text-xs"
+                disabled={loadingSystemMetrics}
+              >
+                {loadingSystemMetrics ? "Refreshing..." : "Refresh Metrics"}
+              </Button>
             </div>
 
-            <Card className="p-6">
-              <EmptyState
-                title="No Logs Generated"
-                description="Sandbox validator subnets are currently inactive. Logs will populate once repository code checks begin."
-                icon={<BarChart3 className="h-7 w-7" />}
-              />
-            </Card>
+            {loadingSystemMetrics && !systemMetrics ? (
+              <Card className="p-12 flex items-center justify-center">
+                <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#FF006E] border-t-transparent" />
+              </Card>
+            ) : !systemMetrics ? (
+              <Card className="p-8 text-center text-slate-500 italic">
+                Failed to load system metrics. Click refresh to try again.
+              </Card>
+            ) : (
+              <div className="space-y-6">
+                {/* Stats Cards Grid */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* BullMQ Queue Health Card */}
+                  <Card className="p-6 border border-[#E2E8F0] shadow-xs">
+                    <h3 className="text-xs font-black uppercase text-[#64748B] tracking-wider mb-4 flex items-center gap-1.5">
+                      <div className="h-2.5 w-2.5 rounded-full bg-[#FF006E] animate-pulse" />
+                      BullMQ Queue Engine Health
+                    </h3>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between text-xs border-b border-[#F1F5F9] pb-2">
+                        <span className="text-[#64748B]">Driver Connection</span>
+                        <span className="font-bold text-[#0F172A] capitalize">
+                          {systemMetrics.queue ? `${systemMetrics.queue.driver} (connected)` : "In-Memory Fallback"}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-xs border-b border-[#F1F5F9] pb-2">
+                        <span className="text-[#64748B]">Jobs Waiting (Queued)</span>
+                        <span className="font-bold text-[#0F172A]">
+                          {systemMetrics.queue ? systemMetrics.queue.waiting : 0}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-xs border-b border-[#F1F5F9] pb-2">
+                        <span className="text-[#64748B]">Jobs Active (Evaluating)</span>
+                        <span className="font-bold text-[#FF006E]">
+                          {systemMetrics.queue ? systemMetrics.queue.active : 0}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-xs border-b border-[#F1F5F9] pb-2">
+                        <span className="text-[#64748B]">Jobs Completed (Today)</span>
+                        <span className="font-bold text-emerald-600">
+                          {systemMetrics.queue ? systemMetrics.queue.completed : 0}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-xs pb-1">
+                        <span className="text-[#64748B]">Jobs Failed</span>
+                        <span className="font-bold text-rose-600">
+                          {systemMetrics.queue ? systemMetrics.queue.failed : 0}
+                        </span>
+                      </div>
+                    </div>
+                  </Card>
+
+                  {/* DB Auditable Stats */}
+                  <Card className="p-6 border border-[#E2E8F0] shadow-xs">
+                    <h3 className="text-xs font-black uppercase text-[#64748B] tracking-wider mb-4 flex items-center gap-1.5">
+                      <div className="h-2.5 w-2.5 rounded-full bg-emerald-500" />
+                      Database Submission Statistics
+                    </h3>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between text-xs border-b border-[#F1F5F9] pb-2">
+                        <span className="text-[#64748B]">Total Completed Submissions</span>
+                        <span className="font-bold text-emerald-600">{systemMetrics.db.completed}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-xs border-b border-[#F1F5F9] pb-2">
+                        <span className="text-[#64748B]">Total Failed Submissions</span>
+                        <span className="font-bold text-rose-600">{systemMetrics.db.failed}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-xs border-b border-[#F1F5F9] pb-2">
+                        <span className="text-[#64748B]">Total Queued Submissions</span>
+                        <span className="font-bold text-[#0F172A]">{systemMetrics.db.queued}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-xs border-b border-[#F1F5F9] pb-2">
+                        <span className="text-[#64748B]">Total Evaluating Submissions</span>
+                        <span className="font-bold text-[#FF006E]">{systemMetrics.db.evaluating}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-xs pb-1">
+                        <span className="text-[#64748B]">Avg Evaluation Duration</span>
+                        <span className="font-bold text-[#0F172A]">{systemMetrics.db.avgDurationSec} seconds</span>
+                      </div>
+                    </div>
+                  </Card>
+                </div>
+
+                {/* Recent Failures Panel */}
+                <Card className="p-6 border border-[#E2E8F0] shadow-xs rounded-[16px]">
+                  <h3 className="text-xs font-black uppercase text-[#0F172A] tracking-wider mb-3">
+                    Recent Evaluation Diagnostics
+                  </h3>
+                  <p className="text-[11px] text-[#64748B] mb-4">
+                    The following evaluations encountered runtime failures. Detailed errors (e.g. lighthouse timeouts, browser launch issues) can be viewed by inspecting individual reports in the Virtual Judging Center.
+                  </p>
+
+                  {systemMetrics.recentFailures.length === 0 ? (
+                    <div className="text-center py-6 text-xs text-[#64748B] italic bg-slate-50 rounded-xl">
+                      No failed evaluation runs found in the database.
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-xs border-collapse">
+                        <thead>
+                          <tr className="border-b border-[#E2E8F0] bg-slate-50 font-bold text-[#475569]">
+                            <th className="p-3">Submission ID</th>
+                            <th className="p-3">Project Name</th>
+                            <th className="p-3">Repository URL</th>
+                            <th className="p-3">Failed At</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-[#E2E8F0]">
+                          {systemMetrics.recentFailures.map((fail: any) => (
+                            <tr key={fail.id} className="hover:bg-slate-50/50">
+                              <td className="p-3 font-mono text-[10px] text-slate-500">{fail.id}</td>
+                              <td className="p-3 font-bold text-[#0F172A]">{fail.projectName}</td>
+                              <td className="p-3 text-[#475569]">{fail.repoUrl}</td>
+                              <td className="p-3 text-slate-500">
+                                {new Date(fail.failedAt).toLocaleString()}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </Card>
+              </div>
+            )}
           </motion.div>
         );
 
@@ -2335,7 +2820,7 @@ export default function PlatformAdminDashboardPage() {
                 </div>
               </CardContent>
               <CardFooter className="flex justify-end gap-2 bg-[#F8FAFC]/30 border-t border-[#F1F5F9] p-4">
-                <Button className="bg-[#FF006E] text-white hover:bg-[#D8005C] shadow-sm font-bold" size="sm" leftIcon={<Sparkles className="h-4 w-4" />}>
+                <Button onClick={handleSaveSystemConfig} className="bg-[#FF006E] text-white hover:bg-[#D8005C] shadow-sm font-bold" size="sm" leftIcon={<Sparkles className="h-4 w-4" />}>
                   Save System Config
                 </Button>
               </CardFooter>

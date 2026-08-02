@@ -8,17 +8,19 @@ generator client {
 }
 
 model User {
-  id            String         @id @default(uuid())
-  email         String         @unique
-  password      String?
-  firstName     String?
-  lastName      String?
-  avatarUrl     String?
-  role          String         @default("PARTICIPANT") // PARTICIPANT, ADMIN, SUPER_ADMIN
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  refreshTokens RefreshToken[]
-  registrations Registration[]
+  id               String         @id @default(uuid())
+  email            String         @unique
+  password         String?
+  firstName        String?
+  lastName         String?
+  avatarUrl        String?
+  role             String         @default("PARTICIPANT") // PARTICIPANT, ADMIN, SUPER_ADMIN
+  emailVerified    Boolean        @default(false)
+  verificationCode String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  refreshTokens    RefreshToken[]
+  registrations    Registration[]
 }
 
 model RefreshToken {
@@ -98,6 +100,7 @@ model BlueprintVersion {
 model Submission {
   id                  String             @id @default(uuid())
   hackathonId         String
+  problemStatementId  String?
   userId              String
   repoUrl             String
   deploymentUrl       String?
@@ -144,4 +147,13 @@ model Registration {
   updatedAt         DateTime @updatedAt
 
   @@unique([hackathonId, userId])
+}
+
+model SystemConfig {
+  id                     String   @id @default("global")
+  allowRegistration      Boolean  @default(true)
+  enableAstEvaluation    Boolean  @default(true)
+  maintenanceMode        Boolean  @default(false)
+  forceEmailVerification Boolean  @default(false)
+  updatedAt              DateTime @updatedAt
 }

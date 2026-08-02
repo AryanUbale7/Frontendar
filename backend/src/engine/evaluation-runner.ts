@@ -77,9 +77,25 @@ export async function runEvaluationJob(jobData: EvaluationJobData): Promise<any>
   }
 
   try {
+    const config = await prisma.systemConfig.findUnique({ where: { id: "global" } }).catch(() => null);
+    const enableAst = config ? config.enableAstEvaluation : true;
+    process.env.ENABLE_AST_EVALUATION = enableAst ? "true" : "false";
+
     const blueprint = await resolveBlueprintForJob(jobData);
     if (!blueprint) {
       throw new Error("No blueprint available for this evaluation job.");
+    }
+
+    // Set selectedProblemIndex dynamically based on submission's problemStatementId
+    if (submissionId) {
+      const submission = await prisma.submission.findUnique({ where: { id: submissionId } });
+      if (submission && submission.problemStatementId) {
+        const pss = (blueprint.problemStatements as any[]) || [];
+        const idx = pss.findIndex((ps) => ps.id === submission.problemStatementId || ps.title === submission.problemStatementId);
+        if (idx !== -1) {
+          (blueprint as any).selectedProblemIndex = idx;
+        }
+      }
     }
 
     const report = await evaluateSubmission(repoUrl, blueprint, deploymentUrl);

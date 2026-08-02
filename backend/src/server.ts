@@ -4,7 +4,7 @@ import cors from "cors";
 import { Prisma } from "@prisma/client";
 import { prisma } from "./config/db";
 import { authRouter } from "./routes/auth";
-import { verifyToken, optionalAuth, requireRole, AuthenticatedRequest } from "./middleware/auth";
+import { verifyToken, optionalAuth, requireRole, AuthenticatedRequest, maintenanceGuard } from "./middleware/auth";
 import { createEvaluationQueue, EvaluationQueueDriver } from "./engine/queue";
 import { startEvaluationWorker, EvaluationWorkerHandle } from "./worker";
 import { hashPassword } from "./engine/password";
@@ -19,6 +19,7 @@ let combinedWorkerHandle: EvaluationWorkerHandle | null = null;
 app.use(cors());
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
+app.use(maintenanceGuard);
 
 // Auth Router mount
 app.use("/api/auth", authRouter);
@@ -26,6 +27,58 @@ app.use("/api/auth", authRouter);
 // Health check endpoint
 app.get("/health", (req: Request, res: Response) => {
   res.json({ status: "healthy", service: "evaluation-engine", time: new Date() });
+});
+
+async function getSystemConfig() {
+  let config = await prisma.systemConfig.findUnique({ where: { id: "global" } });
+  if (!config) {
+    config = await prisma.systemConfig.create({
+      data: {
+        id: "global",
+        allowRegistration: true,
+        enableAstEvaluation: true,
+        maintenanceMode: false,
+        forceEmailVerification: false
+      }
+    });
+  }
+  return config;
+}
+
+// Fetch system configuration
+app.get("/api/system/config", async (req: Request, res: Response) => {
+  try {
+    const config = await getSystemConfig();
+    res.json(config);
+  } catch (err: any) {
+    res.status(500).json({ error: "Failed to fetch system config: " + err.message });
+  }
+});
+
+// Update system configuration (admin only)
+app.post("/api/system/config", verifyToken, requireRole(["ADMIN", "SUPER_ADMIN"]), async (req: Request, res: Response) => {
+  const { allowRegistration, enableAstEvaluation, maintenanceMode, forceEmailVerification } = req.body;
+  try {
+    const config = await prisma.systemConfig.upsert({
+      where: { id: "global" },
+      update: {
+        allowRegistration: allowRegistration !== undefined ? !!allowRegistration : undefined,
+        enableAstEvaluation: enableAstEvaluation !== undefined ? !!enableAstEvaluation : undefined,
+        maintenanceMode: maintenanceMode !== undefined ? !!maintenanceMode : undefined,
+        forceEmailVerification: forceEmailVerification !== undefined ? !!forceEmailVerification : undefined
+      },
+      create: {
+        id: "global",
+        allowRegistration: allowRegistration !== undefined ? !!allowRegistration : true,
+        enableAstEvaluation: enableAstEvaluation !== undefined ? !!enableAstEvaluation : true,
+        maintenanceMode: maintenanceMode !== undefined ? !!maintenanceMode : false,
+        forceEmailVerification: forceEmailVerification !== undefined ? !!forceEmailVerification : false
+      }
+    });
+    res.json(config);
+  } catch (err: any) {
+    res.status(500).json({ error: "Failed to update system config: " + err.message });
+  }
 });
 
 // Fetch blueprint for a hackathon from PostgreSQL
@@ -204,12 +257,12 @@ app.delete("/api/blueprints/:hackathonId", verifyToken, requireRole(["ADMIN", "S
 });
 
 // Trigger dynamic evaluation (non-blocking: enqueues and returns immediately)
-app.post("/api/evaluate", optionalAuth, async (req: AuthenticatedRequest, res: Response) => {
+app.post("/api/evaluate", verifyToken, async (req: AuthenticatedRequest, res: Response) => {
   const {
     repoUrl,
     deploymentUrl,
     hackathonId,
-    userId,
+    problemStatementId,
     projectName,
     shortDesc,
     detailedDesc,
@@ -225,146 +278,294 @@ app.post("/api/evaluate", optionalAuth, async (req: AuthenticatedRequest, res: R
   if (!repoUrl) {
     return res.status(400).json({ error: "Missing repository URL." });
   }
-
-  // The authenticated user's identity is authoritative when a JWT is present
-  let effectiveUserId = userId;
-  if (req.user) {
-    if (userId && req.user.role === "PARTICIPANT" && userId !== req.user.id) {
-      return res.status(403).json({ error: "Cannot submit on behalf of another user." });
-    }
-    effectiveUserId = req.user.id;
+  if (!hackathonId) {
+    return res.status(400).json({ error: "Missing hackathonId." });
   }
 
-  // 1. Resolve lifecycle + published blueprint from the database (authoritative).
-  //    The client-supplied blueprint is NEVER trusted for hackathon submissions.
-  let blueprint = req.body.blueprint;
-  let blueprintId: string | null = null;
-  let blueprintVersion: number | null = null;
+  const effectiveUserId = req.user!.id;
 
-  if (hackathonId) {
-    const hackathon = await prisma.hackathon.findUnique({ where: { id: hackathonId } });
-    if (!hackathon) {
-      return res.status(404).json({ error: "Hackathon not found." });
-    }
-
-    const lifecycle: LifecycleStatus = resolveLifecycleStatus(hackathon);
-    if (lifecycle === "DRAFT") {
-      return res.status(409).json({ error: "Hackathon is not published yet. Submissions are disabled." });
-    }
-    if (lifecycle === "UPCOMING") {
-      return res.status(409).json({ error: "Submissions are not open yet. The hackathon window has not started." });
-    }
-    if (lifecycle === "COMPLETED") {
-      return res.status(409).json({ error: "Hackathon has ended. New submissions are disabled." });
-    }
-    if (lifecycle === "ARCHIVED") {
-      return res.status(409).json({ error: "Hackathon is archived. Submissions are disabled." });
-    }
-    if (!canAcceptSubmissions(hackathon)) {
-      return res.status(409).json({ error: "Submissions are disabled for this hackathon." });
-    }
-
-    // Deterministic precedence: published blueprint for the submission's hackathon.
-    const dbBlueprint = await prisma.blueprint.findFirst({
-      where: { hackathonId, status: "published" },
-      orderBy: { version: "desc" }
-    });
-    if (!dbBlueprint) {
-      return res.status(400).json({ error: "No published blueprint configured for this hackathon. Evaluation cannot run." });
-    }
-    blueprint = dbBlueprint;
-    blueprintId = dbBlueprint.id;
-    blueprintVersion = dbBlueprint.version;
+  // 1. Verify Hackathon exists
+  const hackathon = await prisma.hackathon.findUnique({ where: { id: hackathonId } });
+  if (!hackathon) {
+    return res.status(404).json({ error: "Hackathon not found." });
   }
 
-  if (!blueprint) {
-    return res.status(400).json({ error: "Missing blueprint configuration." });
+  // 2. Resolve published blueprint
+  const dbBlueprint = await prisma.blueprint.findFirst({
+    where: { hackathonId, status: "published" },
+    orderBy: { version: "desc" }
+  });
+  if (!dbBlueprint) {
+    return res.status(400).json({ error: "No published blueprint configured for this hackathon. Evaluation cannot run." });
   }
 
-  // 2. Persist/update Submission in PostgreSQL under QUEUED status
-  let submission: any;
-  try {
-    if (hackathonId && effectiveUserId) {
-      const existing = await prisma.submission.findFirst({
-        where: { hackathonId, userId: effectiveUserId }
+  // Verify selected Problem Statement (Phase 4)
+  const problemStatements = (dbBlueprint.problemStatements as any[]) || [];
+  let finalProblemStatementId = problemStatementId;
+  
+  if (problemStatements.length > 0) {
+    if (problemStatements.length === 1) {
+      finalProblemStatementId = problemStatements[0].id || problemStatements[0].title;
+    } else {
+      if (!problemStatementId) {
+        return res.status(400).json({ error: "MISSING_PROBLEM_STATEMENT", message: "A problem statement selection is required." });
+      }
+      const matched = problemStatements.find(ps => ps.id === problemStatementId || ps.title === problemStatementId);
+      if (!matched) {
+        return res.status(400).json({ error: "INVALID_PROBLEM_STATEMENT", message: "The selected problem statement is invalid." });
+      }
+      finalProblemStatementId = matched.id || matched.title;
+    }
+  }
+
+  // 3. Verify Submission Window & submissionEnabled flag
+  const lifecycle = resolveLifecycleStatus(hackathon);
+  if (lifecycle === "DRAFT") {
+    return res.status(409).json({ error: "SUBMISSION_DISABLED", message: "Hackathon is not published yet. Submissions are disabled." });
+  }
+  if (lifecycle === "UPCOMING") {
+    return res.status(409).json({ error: "SUBMISSION_NOT_STARTED", message: "Submissions are not open yet. The hackathon window has not started." });
+  }
+  if (lifecycle === "COMPLETED") {
+    return res.status(409).json({ error: "SUBMISSION_CLOSED", message: "Hackathon has ended. New submissions are disabled." });
+  }
+  if (lifecycle === "ARCHIVED") {
+    return res.status(409).json({ error: "SUBMISSION_DISABLED", message: "Hackathon is archived. Submissions are disabled." });
+  }
+  if (!hackathon.submissionEnabled || !canAcceptSubmissions(hackathon)) {
+    return res.status(409).json({ error: "SUBMISSION_DISABLED", message: "Submissions are disabled for this hackathon." });
+  }
+
+  // 4. Verify participant registration eligibility (Phase 2 & 11)
+  const registration = await prisma.registration.findUnique({
+    where: {
+      hackathonId_userId: {
+        hackathonId,
+        userId: effectiveUserId
+      }
+    }
+  });
+  if (!registration) {
+    return res.status(403).json({ error: "NOT_REGISTERED", message: "You must register for this hackathon before submitting." });
+  }
+
+  // 5. Force strict email verification if active
+  const sysConfig = await getSystemConfig();
+  if (sysConfig.forceEmailVerification) {
+    const dbUser = await prisma.user.findUnique({ where: { id: effectiveUserId } });
+    if (!dbUser || !dbUser.emailVerified) {
+      return res.status(403).json({
+        error: "EMAIL_UNVERIFIED",
+        message: "Strict email verification is enabled. Unverified participants cannot submit."
       });
+    }
+  }
 
-      if (existing) {
-        if (existing.status === "QUEUED" || existing.status === "EVALUATING") {
-          return res.status(409).json({ error: "Evaluation already in progress for this hackathon." });
-        }
-        submission = await prisma.submission.update({
-          where: { id: existing.id },
-          data: {
-            repoUrl,
-            deploymentUrl: deploymentUrl || null,
-            projectName: projectName || existing.projectName,
-            shortDesc: shortDesc || existing.shortDesc,
-            detailedDesc: detailedDesc || existing.detailedDesc,
-            problemSolved: problemSolved || existing.problemSolved,
-            features: features || existing.features || [],
-            techStack: techStack || existing.techStack || {},
-            videoUrl: videoUrl || existing.videoUrl || null,
-            presentationPdf: presentationPdf || existing.presentationPdf || null,
-            architectureDiagram: architectureDiagram || existing.architectureDiagram || null,
-            teamContributions: teamContributions || existing.teamContributions || [],
-            status: "QUEUED",
-            score: null,
-            grade: null,
-            blueprintId,
-            blueprintVersion,
-            completedAt: null,
-            version: existing.version + 1
-          }
-        });
-      } else {
-        submission = await prisma.submission.create({
-          data: {
-            hackathonId,
-            userId: effectiveUserId,
-            repoUrl,
-            deploymentUrl: deploymentUrl || null,
-            projectName: projectName || "Untitled Project",
-            shortDesc: shortDesc || "",
-            detailedDesc: detailedDesc || "",
-            problemSolved: problemSolved || "",
-            features: features || [],
-            techStack: techStack || {},
-            videoUrl: videoUrl || null,
-            presentationPdf: presentationPdf || null,
-            architectureDiagram: architectureDiagram || null,
-            teamContributions: teamContributions || [],
-            status: "QUEUED",
-            blueprintId,
-            blueprintVersion,
-            version: 1
-          }
+  // 6. Normalize GitHub URL (Phase 3)
+  function normalizeGithubUrl(urlStr: string): { owner: string; repo: string; normalized: string } {
+    let clean = urlStr.trim().replace(/\/+$/, "");
+    if (clean.endsWith(".git")) {
+      clean = clean.slice(0, -4);
+    }
+    const match = clean.match(/github\.com\/([^\/]+)\/([^\/]+)/i);
+    if (!match) {
+      throw new Error("Invalid GitHub repository URL. Must be a valid github.com repository.");
+    }
+    const owner = match[1].toLowerCase();
+    const repo = match[2].toLowerCase();
+    return {
+      owner,
+      repo,
+      normalized: `https://github.com/${owner}/${repo}`
+    };
+  }
+
+  let normalizedRepo: { owner: string; repo: string; normalized: string };
+  try {
+    normalizedRepo = normalizeGithubUrl(repoUrl);
+  } catch (err: any) {
+    return res.status(400).json({ error: "INVALID_GITHUB_URL", message: err.message });
+  }
+
+  // SSRF check on deploymentUrl (Phase 9)
+  if (deploymentUrl) {
+    try {
+      const parsedUrl = new URL(deploymentUrl.trim());
+      const host = parsedUrl.hostname.toLowerCase();
+      const isPrivate = host === "localhost" ||
+        host === "127.0.0.1" ||
+        host === "::1" ||
+        host.startsWith("10.") ||
+        host.startsWith("192.168.") ||
+        host.startsWith("169.254.") ||
+        /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(host);
+
+      if (isPrivate) {
+        return res.status(400).json({ error: "SSRF_ATTEMPT", message: "Private network URLs are restricted." });
+      }
+    } catch {
+      return res.status(400).json({ error: "INVALID_DEPLOYMENT_URL", message: "Invalid deployment URL." });
+    }
+  }
+
+  // 7. Enforce submissionRequirements deliverable checklist (Phase 5 & 6)
+  const reqChecks = (dbBlueprint.submissionRequirements as any) || {};
+  if (reqChecks.readme && !repoUrl) {
+    return res.status(400).json({ error: "MISSING_DELIVERABLE", message: "Repository URL is required by blueprint checklist." });
+  }
+  if (reqChecks.liveDeployment && !deploymentUrl) {
+    return res.status(400).json({ error: "MISSING_DELIVERABLE", message: "Live deployment URL is required by blueprint checklist." });
+  }
+  if (reqChecks.presentationPdf && !presentationPdf) {
+    return res.status(400).json({ error: "MISSING_DELIVERABLE", message: "Presentation PDF is required by blueprint checklist." });
+  }
+  if (reqChecks.architectureDiagram && !architectureDiagram) {
+    return res.status(400).json({ error: "MISSING_DELIVERABLE", message: "Architecture Diagram is required by blueprint checklist." });
+  }
+
+  // 8. Transactional limits & lock policies (Phase 2 & 3 & 4)
+  const existing = await prisma.submission.findFirst({
+    where: { hackathonId, userId: effectiveUserId }
+  });
+
+  if (existing) {
+    // Lock Problem Statement identity
+    if (existing.problemStatementId && existing.problemStatementId !== finalProblemStatementId) {
+      return res.status(409).json({
+        error: "PROJECT_IDENTITY_LOCKED",
+        message: "You cannot change the problem statement selection after your first submission."
+      });
+    }
+
+    // Lock Repository URL identity (compare normalized forms)
+    let existingNorm: { normalized: string } | null = null;
+    try {
+      existingNorm = normalizeGithubUrl(existing.repoUrl);
+    } catch {}
+
+    if (existingNorm && existingNorm.normalized !== normalizedRepo.normalized) {
+      return res.status(409).json({
+        error: "PROJECT_IDENTITY_LOCKED",
+        message: "Evaluation attempts must use the repository registered during the first submission."
+      });
+    }
+
+    // Count attempts & limit enforcement
+    const maxSub = reqChecks.maxSubmissions || "unlimited";
+    if (maxSub !== "unlimited") {
+      const maxVal = parseInt(maxSub, 10);
+      if (existing.version >= maxVal) {
+        return res.status(409).json({
+          error: "SUBMISSION_LIMIT_REACHED",
+          message: `Maximum ${maxVal} evaluation attempts allowed.`,
+          used: existing.version,
+          max: maxVal,
+          remaining: 0
         });
       }
     }
-  } catch (dbErr: any) {
-    console.error(`[Evaluate] Database error saving submission: ${dbErr.message}`);
+
+    // Enforce resubmission policy
+    if (reqChecks.resubmissionPolicy === false) {
+      return res.status(409).json({
+        error: "RESUBMISSION_DISALLOWED",
+        message: "Resubmissions are disallowed for this hackathon."
+      });
+    }
+
+    // Check concurrency
+    if (existing.status === "QUEUED" || existing.status === "EVALUATING") {
+      return res.status(409).json({ error: "Evaluation already in progress for this hackathon." });
+    }
+  } else {
+    // First Submission Attempt Limit Check
+    const maxSub = reqChecks.maxSubmissions || "unlimited";
+    if (maxSub !== "unlimited") {
+      const maxVal = parseInt(maxSub, 10);
+      if (maxVal <= 0) {
+        return res.status(409).json({
+          error: "SUBMISSION_LIMIT_REACHED",
+          message: `Maximum ${maxVal} evaluation attempts allowed.`,
+          used: 0,
+          max: maxVal,
+          remaining: 0
+        });
+      }
+    }
   }
 
-  if (!submission) {
+  // 9. Update/Create submission row
+  let submission: any;
+  try {
+    if (existing) {
+      submission = await prisma.submission.update({
+        where: { id: existing.id },
+        data: {
+          repoUrl: normalizedRepo.normalized,
+          deploymentUrl: deploymentUrl || null,
+          projectName: projectName || existing.projectName,
+          shortDesc: shortDesc || existing.shortDesc,
+          detailedDesc: detailedDesc || existing.detailedDesc,
+          problemSolved: problemSolved || existing.problemSolved,
+          features: features || existing.features || [],
+          techStack: techStack || existing.techStack || {},
+          videoUrl: videoUrl || existing.videoUrl || null,
+          presentationPdf: presentationPdf || existing.presentationPdf || null,
+          architectureDiagram: architectureDiagram || existing.architectureDiagram || null,
+          teamContributions: teamContributions || existing.teamContributions || [],
+          status: "QUEUED",
+          score: null,
+          grade: null,
+          blueprintId: dbBlueprint.id,
+          blueprintVersion: dbBlueprint.version,
+          completedAt: null,
+          version: existing.version + 1
+        }
+      });
+    } else {
+      submission = await prisma.submission.create({
+        data: {
+          hackathonId,
+          problemStatementId: finalProblemStatementId || null,
+          userId: effectiveUserId,
+          repoUrl: normalizedRepo.normalized,
+          deploymentUrl: deploymentUrl || null,
+          projectName: projectName || "Untitled Project",
+          shortDesc: shortDesc || "",
+          detailedDesc: detailedDesc || "",
+          problemSolved: problemSolved || "",
+          features: features || [],
+          techStack: techStack || {},
+          videoUrl: videoUrl || null,
+          presentationPdf: presentationPdf || null,
+          architectureDiagram: architectureDiagram || null,
+          teamContributions: teamContributions || [],
+          status: "QUEUED",
+          blueprintId: dbBlueprint.id,
+          blueprintVersion: dbBlueprint.version,
+          version: 1
+        }
+      });
+    }
+  } catch (dbErr: any) {
+    console.error(`[Evaluate] Database error saving submission: ${dbErr.message}`);
     return res.status(500).json({ error: "Failed to persist submission. Evaluation was not queued." });
   }
 
-  // 3. Enqueue the evaluation job and return promptly (202).
-  //    Durable driver (BullMQ/Redis or explicit in-memory dev fallback) —
-  //    the HTTP request NEVER waits for clone/install/build/Lighthouse/FAIE.
+  // 10. Enqueue BullMQ Evaluation Job
   const job = await evaluationQueue.enqueue({
     submissionId: submission.id,
-    repoUrl,
+    repoUrl: normalizedRepo.normalized,
     deploymentUrl: deploymentUrl || undefined,
     userId: effectiveUserId,
-    hackathonId: hackathonId || "",
-    blueprintId: blueprintId || undefined,
-    blueprintVersion: blueprintVersion || undefined,
+    hackathonId,
+    blueprintId: dbBlueprint.id,
+    blueprintVersion: dbBlueprint.version,
     version: submission.version,
+    problemStatementId: finalProblemStatementId || undefined
   });
 
-  console.log(`[Evaluate] Enqueued FAIE evaluation job ${job.jobId} (driver=${evaluationQueue.name}) for repository: ${repoUrl}`);
+  console.log(`[Evaluate] Enqueued FAIE evaluation job ${job.jobId} (driver=${evaluationQueue.name}) for repository: ${normalizedRepo.normalized}`);
 
   res.status(202).json({
     jobId: job.jobId,
@@ -383,6 +584,207 @@ app.get("/api/queue/metrics", verifyToken, requireRole(["ADMIN", "SUPER_ADMIN"])
     res.json(metrics);
   } catch (err: any) {
     res.status(500).json({ error: "Failed to read queue metrics: " + err.message });
+  }
+});
+
+// Virtual Judging Center: Fetch all submissions with optional filters (admin only)
+app.get("/api/judging/submissions", verifyToken, requireRole(["ADMIN", "SUPER_ADMIN"]), async (req: Request, res: Response) => {
+  const { hackathonId, problemStatementId, status } = req.query;
+  try {
+    const whereClause: any = {};
+    if (hackathonId) whereClause.hackathonId = String(hackathonId);
+    if (problemStatementId) whereClause.problemStatementId = String(problemStatementId);
+    if (status) whereClause.status = String(status);
+
+    const submissions = await prisma.submission.findMany({
+      where: whereClause,
+      orderBy: { createdAt: "desc" }
+    });
+
+    const enrichedSubmissions = await Promise.all(
+      submissions.map(async (sub) => {
+        const user = await prisma.user.findUnique({
+          where: { id: sub.userId },
+          select: { firstName: true, lastName: true, email: true }
+        });
+        const hackathon = await prisma.hackathon.findUnique({
+          where: { id: sub.hackathonId },
+          select: { name: true }
+        });
+        const reports = await prisma.evaluationReport.findMany({
+          where: { submissionId: sub.id }
+        });
+        return {
+          ...sub,
+          user: user || { firstName: "Unknown", lastName: "User", email: "unknown@example.com" },
+          hackathonName: hackathon ? hackathon.name : "Unknown Hackathon",
+          reports
+        };
+      })
+    );
+    res.json(enrichedSubmissions);
+  } catch (err: any) {
+    res.status(500).json({ error: "Failed to fetch judging submissions: " + err.message });
+  }
+});
+
+// Virtual Judging Center: Fetch evaluation stats (admin only)
+app.get("/api/judging/stats", verifyToken, requireRole(["ADMIN", "SUPER_ADMIN"]), async (req: Request, res: Response) => {
+  const { hackathonId, problemStatementId } = req.query;
+  try {
+    const whereClause: any = {};
+    if (hackathonId) whereClause.hackathonId = String(hackathonId);
+    if (problemStatementId) whereClause.problemStatementId = String(problemStatementId);
+
+    const submissions = await prisma.submission.findMany({ where: whereClause });
+
+    let queuedCount = 0;
+    let evaluatingCount = 0;
+    let completedCount = 0;
+    let failedCount = 0;
+    let totalScore = 0;
+    let highestScore = 0;
+    let lowestScore = 100;
+    let scoredCount = 0;
+
+    submissions.forEach(sub => {
+      if (sub.status === "QUEUED") queuedCount++;
+      else if (sub.status === "EVALUATING") evaluatingCount++;
+      else if (sub.status === "COMPLETED") completedCount++;
+      else if (sub.status === "FAILED") failedCount++;
+
+      if (sub.score !== null && sub.score !== undefined) {
+        totalScore += sub.score;
+        scoredCount++;
+        if (sub.score > highestScore) highestScore = sub.score;
+        if (sub.score < lowestScore) lowestScore = sub.score;
+      }
+    });
+
+    if (scoredCount === 0) {
+      lowestScore = 0;
+    }
+
+    const averageScore = scoredCount > 0 ? Math.round(totalScore / scoredCount) : 0;
+
+    res.json({
+      queuedCount,
+      evaluatingCount,
+      completedCount,
+      failedCount,
+      averageScore,
+      highestScore,
+      lowestScore
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: "Failed to fetch judging stats: " + err.message });
+  }
+});
+
+// Virtual Judging Center: Retry a failed submission evaluation (admin only)
+app.post("/api/judging/retry", verifyToken, requireRole(["ADMIN", "SUPER_ADMIN"]), async (req: Request, res: Response) => {
+  const { submissionId } = req.body;
+  if (!submissionId) {
+    return res.status(400).json({ error: "Missing submissionId." });
+  }
+
+  try {
+    const submission = await prisma.submission.findUnique({ where: { id: submissionId } });
+    if (!submission) {
+      return res.status(404).json({ error: "Submission not found." });
+    }
+
+    if (submission.status === "COMPLETED") {
+      return res.status(400).json({ error: "SUBMISSION_COMPLETED", message: "Completed evaluations cannot be retried." });
+    }
+
+    // Reset status to QUEUED
+    const updated = await prisma.submission.update({
+      where: { id: submissionId },
+      data: { status: "QUEUED", completedAt: null, score: null, grade: null }
+    });
+
+    // Enqueue
+    const job = await evaluationQueue.enqueue({
+      submissionId: updated.id,
+      repoUrl: updated.repoUrl,
+      deploymentUrl: updated.deploymentUrl || undefined,
+      userId: updated.userId,
+      hackathonId: updated.hackathonId,
+      blueprintId: updated.blueprintId || undefined,
+      blueprintVersion: updated.blueprintVersion || undefined,
+      version: updated.version,
+      problemStatementId: updated.problemStatementId || undefined
+    });
+
+    res.json({ message: "Retrying evaluation. Re-queued job.", jobId: job.jobId, submission: updated });
+  } catch (err: any) {
+    res.status(500).json({ error: "Failed to retry evaluation: " + err.message });
+  }
+});
+
+// Fetch system dashboard metrics (admin only)
+app.get("/api/system/metrics", verifyToken, requireRole(["ADMIN", "SUPER_ADMIN"]), async (req: Request, res: Response) => {
+  try {
+    const queueStats = await evaluationQueue.getMetrics().catch(() => null);
+
+    const submissions = await prisma.submission.findMany({
+      orderBy: { createdAt: "desc" }
+    });
+
+    let queuedCount = 0;
+    let evaluatingCount = 0;
+    let completedCount = 0;
+    let failedCount = 0;
+    let totalDur = 0;
+    let completedWithDur = 0;
+
+    const failures: any[] = [];
+
+    submissions.forEach(sub => {
+      if (sub.status === "QUEUED") queuedCount++;
+      else if (sub.status === "EVALUATING") evaluatingCount++;
+      else if (sub.status === "COMPLETED") {
+        completedCount++;
+        if (sub.completedAt) {
+          totalDur += new Date(sub.completedAt).getTime() - new Date(sub.createdAt).getTime();
+          completedWithDur++;
+        }
+      }
+      else if (sub.status === "FAILED") {
+        failedCount++;
+        if (failures.length < 10) {
+          failures.push({
+            id: sub.id,
+            projectName: sub.projectName,
+            repoUrl: sub.repoUrl,
+            failedAt: sub.updatedAt
+          });
+        }
+      }
+    });
+
+    const avgDurationSec = completedWithDur > 0 ? Math.round((totalDur / completedWithDur) / 1000) : 0;
+
+    res.json({
+      queue: queueStats ? {
+        driver: queueStats.driver,
+        waiting: queueStats.counts.waiting,
+        active: queueStats.counts.active,
+        completed: queueStats.counts.completed,
+        failed: queueStats.counts.failed
+      } : null,
+      db: {
+        queued: queuedCount,
+        evaluating: evaluatingCount,
+        completed: completedCount,
+        failed: failedCount,
+        avgDurationSec
+      },
+      recentFailures: failures
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: "Failed to fetch system metrics: " + err.message });
   }
 });
 
@@ -576,18 +978,15 @@ app.delete("/api/hackathons/:id", verifyToken, requireRole(["ADMIN", "SUPER_ADMI
 });
 
 // Fetch registrations for a particular hackathon
-app.get("/api/registrations", optionalAuth, async (req: AuthenticatedRequest, res: Response) => {
+app.get("/api/registrations", verifyToken, async (req: AuthenticatedRequest, res: Response) => {
   const { hackathonId, userId } = req.query;
   try {
     const whereClause: any = {};
     if (hackathonId) whereClause.hackathonId = String(hackathonId);
 
     // Participants can only read their own registrations
-    if (req.user && req.user.role !== "ADMIN" && req.user.role !== "SUPER_ADMIN") {
-      if (userId && String(userId) !== req.user.id) {
-        return res.status(403).json({ error: "Cannot view another user's registrations." });
-      }
-      whereClause.userId = req.user.id;
+    if (req.user!.role !== "ADMIN" && req.user!.role !== "SUPER_ADMIN") {
+      whereClause.userId = req.user!.id;
     } else if (userId) {
       whereClause.userId = String(userId);
     }
@@ -612,15 +1011,12 @@ app.get("/api/registrations", optionalAuth, async (req: AuthenticatedRequest, re
 });
 
 // Create or update a registration (authenticated user identity is authoritative)
-app.post("/api/registrations", optionalAuth, async (req: AuthenticatedRequest, res: Response) => {
+app.post("/api/registrations", verifyToken, async (req: AuthenticatedRequest, res: Response) => {
   const { hackathonId, collegeName, teamName, participationMode, userEmail } = req.body;
-  const userId = req.user?.id || req.body.userId;
+  const userId = req.user!.id;
 
   if (!hackathonId || !userId) {
     return res.status(400).json({ error: "Missing hackathonId or userId." });
-  }
-  if (req.user && req.user.role === "PARTICIPANT" && req.body.userId && req.body.userId !== req.user.id) {
-    return res.status(403).json({ error: "Cannot register on behalf of another user." });
   }
 
   // Lifecycle gate: registrations only for published (UPCOMING/ACTIVE) hackathons.
@@ -719,18 +1115,15 @@ app.put("/api/registrations/:id", verifyToken, requireRole(["ADMIN", "SUPER_ADMI
 });
 
 // Fetch submissions with manual user/hackathon enrichment
-app.get("/api/submissions", optionalAuth, async (req: AuthenticatedRequest, res: Response) => {
+app.get("/api/submissions", verifyToken, async (req: AuthenticatedRequest, res: Response) => {
   const { hackathonId, userId } = req.query;
   try {
     const whereClause: any = {};
     if (hackathonId) whereClause.hackathonId = String(hackathonId);
 
     // Participants can only read their own submissions
-    if (req.user && req.user.role !== "ADMIN" && req.user.role !== "SUPER_ADMIN") {
-      if (userId && String(userId) !== req.user.id) {
-        return res.status(403).json({ error: "Cannot view another user's submissions." });
-      }
-      whereClause.userId = req.user.id;
+    if (req.user!.role !== "ADMIN" && req.user!.role !== "SUPER_ADMIN") {
+      whereClause.userId = req.user!.id;
     } else if (userId) {
       whereClause.userId = String(userId);
     }
@@ -771,75 +1164,126 @@ app.get("/api/submissions", optionalAuth, async (req: AuthenticatedRequest, res:
 // PostgreSQL-backed Hackathon Leaderboard Endpoint
 app.get("/api/hackathons/:hackathonId/leaderboard", async (req: Request, res: Response) => {
   const { hackathonId } = req.params;
+  const { problemStatementId } = req.query;
+
   if (!hackathonId) {
     return res.status(400).json({ error: "Missing hackathonId parameter." });
   }
 
   try {
+    const whereClause: any = { hackathonId, status: "COMPLETED" };
+    if (problemStatementId) {
+      whereClause.problemStatementId = String(problemStatementId);
+    }
+
     const submissions = await prisma.submission.findMany({
-      where: { hackathonId, status: "COMPLETED" },
-      include: { reports: true }
+      where: whereClause,
+      orderBy: { createdAt: "desc" }
     });
 
-    // Deterministic ranking: higher score wins. Ties are broken by
-    // evaluation completion time (earlier = better), then stable submission ID.
-    // FAILED/non-COMPLETED submissions are excluded above and cannot outrank.
-    submissions.sort((a, b) => {
-      const scoreA = a.score ?? 0;
-      const scoreB = b.score ?? 0;
-      if (scoreB !== scoreA) {
-        return scoreB - scoreA;
+    // Group submissions by userId (Phase 8 best-score policy)
+    const userGroups: Record<string, typeof submissions> = {};
+    submissions.forEach(sub => {
+      if (!userGroups[sub.userId]) {
+        userGroups[sub.userId] = [];
       }
-
-      const timeA = a.completedAt ? new Date(a.completedAt).getTime() : Number.MAX_SAFE_INTEGER;
-      const timeB = b.completedAt ? new Date(b.completedAt).getTime() : Number.MAX_SAFE_INTEGER;
-      if (timeA !== timeB) {
-        return timeA - timeB;
-      }
-
-      return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+      userGroups[sub.userId].push(sub);
     });
 
-    // Generate ranks (computed synchronously before any async enrichment)
-    let currentRank = 0;
-    let lastScore: number | null = null;
-    const ranked = submissions.map((sub, idx) => {
-      if (lastScore === null || sub.score !== lastScore) {
-        currentRank = idx + 1;
-        lastScore = sub.score;
-      }
-      return { sub, rank: currentRank };
-    });
+    const userBestRecords = await Promise.all(
+      Object.keys(userGroups).map(async (uid) => {
+        const userSubs = userGroups[uid];
+        const attemptCount = userSubs.length;
 
-    const rankedLeaderboard = await Promise.all(
-      ranked.map(async ({ sub, rank }) => {
-        // Enrich user details
+        // Find the best attempt
+        let bestSub = userSubs[0];
+        userSubs.forEach(s => {
+          const scoreS = s.score ?? 0;
+          const scoreBest = bestSub.score ?? 0;
+          if (scoreS > scoreBest) {
+            bestSub = s;
+          } else if (scoreS === scoreBest) {
+            const timeS = s.completedAt ? new Date(s.completedAt).getTime() : Number.MAX_SAFE_INTEGER;
+            const timeBest = bestSub.completedAt ? new Date(bestSub.completedAt).getTime() : Number.MAX_SAFE_INTEGER;
+            if (timeS < timeBest) {
+              bestSub = s;
+            }
+          }
+        });
+
+        // Find the latest attempt
+        let latestSub = userSubs[0];
+        userSubs.forEach(s => {
+          if (new Date(s.createdAt) > new Date(latestSub.createdAt)) {
+            latestSub = s;
+          }
+        });
+
         const user = await prisma.user.findUnique({
-          where: { id: sub.userId },
+          where: { id: uid },
           select: { firstName: true, lastName: true, email: true }
         });
 
         return {
-          rank,
-          submissionId: sub.id,
-          participantId: sub.userId,
+          userId: uid,
           participantName: user ? `${user.firstName || ""} ${user.lastName || ""}`.trim() : "Unknown Participant",
           participantEmail: user ? user.email : "unknown@example.com",
-          projectName: sub.projectName,
-          repoUrl: sub.repoUrl,
-          deploymentUrl: sub.deploymentUrl,
-          score: sub.score ?? 0,
-          grade: sub.grade || (sub.score && sub.score >= 75 ? "PASSED" : "FAILED"),
-          status: sub.status,
-          timestamp: sub.updatedAt
+          bestSubmission: bestSub,
+          latestSubmission: latestSub,
+          attemptCount
         };
       })
     );
 
+    // Sort by best score descending, then earliest completedAt, then userId
+    userBestRecords.sort((a, b) => {
+      const scoreA = a.bestSubmission.score ?? 0;
+      const scoreB = b.bestSubmission.score ?? 0;
+      if (scoreB !== scoreA) {
+        return scoreB - scoreA;
+      }
+
+      const timeA = a.bestSubmission.completedAt ? new Date(a.bestSubmission.completedAt).getTime() : Number.MAX_SAFE_INTEGER;
+      const timeB = b.bestSubmission.completedAt ? new Date(b.bestSubmission.completedAt).getTime() : Number.MAX_SAFE_INTEGER;
+      if (timeA !== timeB) {
+        return timeA - timeB;
+      }
+
+      return a.userId < b.userId ? -1 : a.userId > b.userId ? 1 : 0;
+    });
+
+    // Assign ranks
+    let currentRank = 0;
+    let lastScore: number | null = null;
+    const leaderboard = userBestRecords.map((rec, idx) => {
+      const score = rec.bestSubmission.score ?? 0;
+      if (lastScore === null || score !== lastScore) {
+        currentRank = idx + 1;
+        lastScore = score;
+      }
+
+      return {
+        rank: currentRank,
+        submissionId: rec.bestSubmission.id,
+        participantId: rec.userId,
+        participantName: rec.participantName,
+        participantEmail: rec.participantEmail,
+        projectName: rec.bestSubmission.projectName,
+        repoUrl: rec.bestSubmission.repoUrl,
+        deploymentUrl: rec.bestSubmission.deploymentUrl,
+        score,
+        grade: rec.bestSubmission.grade || (score >= 75 ? "PASSED" : "FAILED"),
+        status: rec.bestSubmission.status,
+        timestamp: rec.bestSubmission.updatedAt,
+        attemptCount: rec.attemptCount,
+        latestAttemptVersion: rec.latestSubmission.version
+      };
+    });
+
     res.json({
       hackathonId,
-      totalEntries: rankedLeaderboard.length,
-      leaderboard: rankedLeaderboard
+      totalEntries: leaderboard.length,
+      leaderboard
     });
   } catch (err: any) {
     res.status(500).json({ error: "Failed to fetch PostgreSQL leaderboard: " + err.message });

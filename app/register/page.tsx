@@ -93,6 +93,50 @@ function HackathonRegistrationContent() {
   const [blueprint, setBlueprint] = useState<any>(null);
   const [activeProblemIdx, setActiveProblemIdx] = useState<number>(0);
   
+  // System Config & Email Verification States
+  const [systemConfig, setSystemConfig] = useState<any>(null);
+  const [profileVerified, setProfileVerified] = useState(false);
+  const [verificationCodeInput, setVerificationCodeInput] = useState("");
+  const [verificationSent, setVerificationSent] = useState(false);
+  const [verifyingEmailState, setVerifyingEmailState] = useState(false);
+
+  const handleSendVerificationCode = async () => {
+    try {
+      const res = await fetch("/api/auth/send-verification", { method: "POST" });
+      if (res.ok) {
+        setVerificationSent(true);
+        alert("Verification code has been logged to the server console!");
+      } else {
+        const err = await res.json();
+        alert("Failed to send code: " + (err.error || err.message));
+      }
+    } catch (e: any) {
+      alert("Error sending code: " + e.message);
+    }
+  };
+
+  const handleVerifyEmail = async () => {
+    setVerifyingEmailState(true);
+    try {
+      const res = await fetch("/api/auth/verify-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: verificationCodeInput })
+      });
+      if (res.ok) {
+        setProfileVerified(true);
+        alert("Email verified successfully!");
+      } else {
+        const err = await res.json();
+        alert("Verification failed: " + (err.error || err.message));
+      }
+    } catch (e: any) {
+      alert("Error verifying email: " + e.message);
+    } finally {
+      setVerifyingEmailState(false);
+    }
+  };
+  
   // If ?workspace=true, go straight to workspace tab (skip form)
   const [showRegistrationForm, setShowRegistrationForm] = useState(false);
   const [activePortalTab, setActivePortalTab] = useState<"problem" | "rules" | "resources" | "submit" | "leaderboard">(goToWorkspace ? "submit" : "problem");
@@ -122,6 +166,8 @@ function HackathonRegistrationContent() {
       isMountedRef.current = false;
     };
   }, []);
+
+
   
   // Submission Workspace Wizard States
   const [submissionStep, setSubmissionStep] = useState(1);
@@ -157,6 +203,19 @@ function HackathonRegistrationContent() {
   const [leaderboardList, setLeaderboardList] = useState<any[]>([]);
   const [loadingLeaderboard, setLoadingLeaderboard] = useState(false);
 
+  useEffect(() => {
+    if (blueprint && submissionAttempts.length > 0) {
+      const existing = submissionAttempts[0];
+      if (existing && existing.problemStatementId) {
+        const stmts = blueprint.problemStatements || [];
+        const matchedIdx = stmts.findIndex((p: any) => p.id === existing.problemStatementId || p.title === existing.problemStatementId);
+        if (matchedIdx !== -1) {
+          setActiveProblemIdx(matchedIdx);
+        }
+      }
+    }
+  }, [blueprint, submissionAttempts]);
+
   // Load Hackathon details and check registration status
   useEffect(() => {
     // If coming from "View Workspace", assume already registered to skip form instantly
@@ -183,6 +242,26 @@ function HackathonRegistrationContent() {
               })
               .catch((err) => console.warn("Failed to load blueprint: ", err));
 
+            // Fetch system configuration
+            fetch("/api/system/config")
+              .then((r) => r.json())
+              .then((cfg) => {
+                if (cfg && !cfg.error) {
+                  setSystemConfig(cfg);
+                }
+              })
+              .catch(() => {});
+
+            // Fetch current user details for emailVerified
+            fetch("/api/auth/me")
+              .then((r) => r.json())
+              .then((usr) => {
+                if (usr && usr.emailVerified) {
+                  setProfileVerified(true);
+                }
+              })
+              .catch(() => {});
+
             // Check if user is enrolled
             if (user) {
               fetch(`/api/registrations?hackathonId=${found.id}&userId=${user.id}`)
@@ -200,6 +279,7 @@ function HackathonRegistrationContent() {
                         .then((subs) => {
                           if (Array.isArray(subs)) {
                             const formatted = subs.map((sub, idx) => ({
+                              ...sub,
                               version: sub.version || idx + 1,
                               time: new Date(sub.updatedAt).toLocaleString(),
                               status: sub.status,
@@ -209,6 +289,9 @@ function HackathonRegistrationContent() {
                               reports: sub.reports
                             }));
                             setSubmissionAttempts(formatted);
+                            if (formatted.length > 0) {
+                              setRepoUrl(formatted[0].repoUrl);
+                            }
 
                             const newestSub = subs[0];
                             if (newestSub && (newestSub.status === "QUEUED" || newestSub.status === "EVALUATING")) {
@@ -455,6 +538,7 @@ function HackathonRegistrationContent() {
             setEvaluatingSubmission(subs[0]);
             
             const formatted = subs.map((sub: any, idx: number) => ({
+              ...sub,
               version: sub.version || idx + 1,
               time: new Date(sub.updatedAt).toLocaleString(),
               status: sub.status,
@@ -464,6 +548,9 @@ function HackathonRegistrationContent() {
               reports: sub.reports
             }));
             setSubmissionAttempts(formatted);
+            if (formatted.length > 0) {
+              setRepoUrl(formatted[0].repoUrl);
+            }
           }
         }
 
@@ -491,6 +578,7 @@ function HackathonRegistrationContent() {
 
           // Format all submissions for the history timeline
           const formatted = subs.map((sub: any, idx: number) => ({
+            ...sub,
             version: sub.version || idx + 1,
             time: new Date(sub.updatedAt).toLocaleString(),
             status: sub.status,
@@ -500,6 +588,9 @@ function HackathonRegistrationContent() {
             reports: sub.reports
           }));
           setSubmissionAttempts(formatted);
+          if (formatted.length > 0) {
+            setRepoUrl(formatted[0].repoUrl);
+          }
 
           if (latest.status === "COMPLETED" && latest.reports && latest.reports.length > 0) {
             setEvaluationReport(latest.reports[0].payload);
@@ -783,12 +874,18 @@ function HackathonRegistrationContent() {
                               <button
                                 key={sIdx}
                                 type="button"
-                                onClick={() => setActiveProblemIdx(sIdx)}
+                                onClick={() => {
+                                  if (submissionAttempts.length > 0) {
+                                    alert("Problem statement choice is locked after your first submission.");
+                                    return;
+                                  }
+                                  setActiveProblemIdx(sIdx);
+                                }}
                                 className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
                                   activeProblemIdx === sIdx
                                     ? "bg-[#FF006E] text-white shadow-sm"
                                     : "bg-[#F8FAFC] text-[#475569] border border-[#E2E8F0] hover:bg-[#FF006E]/5 hover:text-[#FF006E]"
-                                }`}
+                                } ${submissionAttempts.length > 0 ? "opacity-75 cursor-not-allowed" : ""}`}
                               >
                                 Problem #{sIdx + 1}
                               </button>
@@ -1124,6 +1221,48 @@ function HackathonRegistrationContent() {
                       </div>
                     ) : (
                       <div className="space-y-6">
+                        {/* Email Verification Banner */}
+                        {systemConfig?.forceEmailVerification && !profileVerified && (
+                          <div className="p-4 bg-rose-50 border border-rose-200 rounded-xl space-y-3">
+                            <div className="text-xs font-bold text-rose-800 flex items-center gap-1.5">
+                              <AlertCircle className="h-4 w-4 text-rose-600" />
+                              Strict Email Verification Required
+                            </div>
+                            <p className="text-[11px] text-rose-600">
+                              The administrator requires verified emails before project submission.
+                            </p>
+                            <div className="flex flex-wrap items-center gap-3">
+                              {!verificationSent ? (
+                                <Button
+                                  type="button"
+                                  className="bg-rose-600 hover:bg-rose-700 text-white font-bold text-[10px] h-8 px-3 rounded-lg"
+                                  onClick={handleSendVerificationCode}
+                                >
+                                  Request Verification Code
+                                </Button>
+                              ) : (
+                                <div className="flex items-center gap-2">
+                                  <input
+                                    type="text"
+                                    placeholder="Enter 6-digit code"
+                                    value={verificationCodeInput}
+                                    onChange={(e) => setVerificationCodeInput(e.target.value)}
+                                    className="h-8 w-36 px-2 text-xs border border-rose-300 rounded-lg focus:outline-hidden text-slate-900"
+                                  />
+                                  <Button
+                                    type="button"
+                                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-[10px] h-8 px-3 rounded-lg"
+                                    onClick={handleVerifyEmail}
+                                    disabled={verifyingEmailState}
+                                  >
+                                    Verify Code
+                                  </Button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
                         {/* STEP 1: REPO & BRANCH */}
                         {submissionStep === 1 && (
                           <div className="space-y-4 max-w-lg">
@@ -1133,7 +1272,8 @@ function HackathonRegistrationContent() {
                               onChange={(e) => setRepoUrl(e.target.value)}
                               placeholder="https://github.com/username/project"
                               required
-                              helperText="Provide a public GitHub link."
+                              disabled={submissionAttempts.length > 0}
+                              helperText={submissionAttempts.length > 0 ? "Repository URL is locked after your first submission." : "Provide a public GitHub link."}
                             />
                             <Input
                               label="Branch Detection"
@@ -1147,6 +1287,7 @@ function HackathonRegistrationContent() {
                                 type="button"
                                 className="bg-[#FF006E] text-white font-bold"
                                 onClick={() => setSubmissionStep(2)}
+                                disabled={systemConfig?.forceEmailVerification && !profileVerified}
                               >
                                 Next Step
                               </Button>
@@ -1391,7 +1532,7 @@ function HackathonRegistrationContent() {
                                 className="bg-[#FF006E] text-white font-bold"
                                 loading={submittingProject}
                                 onClick={handleProjectSubmit}
-                                disabled={!checklistRepo || !checklistDeploy || !checklistReadme || !!evaluatingSubmission}
+                                disabled={!checklistRepo || !checklistDeploy || !checklistReadme || !!evaluatingSubmission || (systemConfig?.forceEmailVerification && !profileVerified)}
                               >
                                 {evaluatingSubmission ? "Evaluation In Progress" : "Submit & Evaluate Project"}
                               </Button>
