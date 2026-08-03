@@ -24,16 +24,16 @@ async function runLighthouseAudit(
   deploymentUrl: string,
   logs?: string[]
 ): Promise<{
-  performance: number;
-  accessibility: number;
-  seo: number;
-  bestPractices: number;
+  performance: number | "UNAVAILABLE";
+  accessibility: number | "UNAVAILABLE";
+  seo: number | "UNAVAILABLE";
+  bestPractices: number | "UNAVAILABLE";
   errorReason?: string | null;
 }> {
   let targetUrl = deploymentUrl.trim();
 
   if (!/^https?:\/\//i.test(targetUrl)) {
-    return { performance: 0, accessibility: 0, seo: 0, bestPractices: 0, errorReason: "INVALID_DEPLOYMENT_URL" };
+    return { performance: "UNAVAILABLE", accessibility: "UNAVAILABLE", seo: "UNAVAILABLE", bestPractices: "UNAVAILABLE", errorReason: "INVALID_DEPLOYMENT_URL" };
   }
 
   try {
@@ -42,29 +42,43 @@ async function runLighthouseAudit(
       new Promise<never>((_, reject) => setTimeout(() => reject(new Error("Timeout")), 8000))
     ]);
     if (!checkRes.ok) {
-      return { performance: 0, accessibility: 0, seo: 0, bestPractices: 0, errorReason: "DEPLOYMENT_UNREACHABLE" };
+      return { performance: "UNAVAILABLE", accessibility: "UNAVAILABLE", seo: "UNAVAILABLE", bestPractices: "UNAVAILABLE", errorReason: "DEPLOYMENT_UNREACHABLE" };
     }
   } catch (err: any) {
-    return { performance: 0, accessibility: 0, seo: 0, bestPractices: 0, errorReason: "DEPLOYMENT_UNREACHABLE" };
+    return { performance: "UNAVAILABLE", accessibility: "UNAVAILABLE", seo: "UNAVAILABLE", bestPractices: "UNAVAILABLE", errorReason: "DEPLOYMENT_UNREACHABLE" };
   }
 
   const tempJsonPath = require("path").join(require("os").tmpdir(), `lh_report_${Date.now()}_${Math.random().toString(36).substring(2, 6)}.json`);
 
-  let lighthousePerf = 0;
-  let lighthouseAccess = 0;
-  let lighthouseSeo = 0;
-  let lighthouseBest = 0;
+  let lighthousePerf: number | "UNAVAILABLE" = "UNAVAILABLE";
+  let lighthouseAccess: number | "UNAVAILABLE" = "UNAVAILABLE";
+  let lighthouseSeo: number | "UNAVAILABLE" = "UNAVAILABLE";
+  let lighthouseBest: number | "UNAVAILABLE" = "UNAVAILABLE";
   let errorReason: string | null = null;
+
+  const executionTimeoutMs = intFromEnv("LIGHTHOUSE_EXECUTION_TIMEOUT_MS", 120000);
+  const startTime = Date.now();
 
   try {
     const { execSync } = require("child_process");
-    const lhCmd = `npx -y lighthouse "${targetUrl}" --output=json --output-path="${tempJsonPath}" --chrome-flags="--headless --no-sandbox --disable-gpu" --quiet`;
+    const lhCmd = `npx lighthouse "${targetUrl}" --output=json --output-path="${tempJsonPath}" --chrome-flags="--headless --no-sandbox --disable-gpu" --quiet`;
 
     try {
-      execSync(lhCmd, { timeout: 8000, stdio: "ignore" });
-    } catch {}
+      execSync(lhCmd, { timeout: executionTimeoutMs, stdio: "pipe" });
+    } catch (execErr: any) {
+      const duration = Date.now() - startTime;
+      console.error(
+        `[LighthouseWorker] CLI Execution failed. ` +
+        `Audited URL: ${targetUrl}, Duration: ${duration}ms, Timeout: ${executionTimeoutMs}ms. ` +
+        `Status: ${execErr.status}, Signal: ${execErr.signal}, Message: ${execErr.message}`
+      );
+      if (execErr.stderr) {
+        console.error(`[LighthouseWorker] CLI Stderr: ${execErr.stderr.toString()}`);
+      }
+      errorReason = "LIGHTHOUSE_EXECUTION_FAILED";
+    }
 
-    if (require("fs").existsSync(tempJsonPath)) {
+    if (!errorReason && require("fs").existsSync(tempJsonPath)) {
       try {
         const rawReport = JSON.parse(require("fs").readFileSync(tempJsonPath, "utf-8"));
         if (rawReport.categories) {
@@ -72,12 +86,18 @@ async function runLighthouseAudit(
           lighthouseAccess = Math.round((rawReport.categories.accessibility?.score || 0.90) * 100);
           lighthouseSeo = Math.round((rawReport.categories.seo?.score || 0.85) * 100);
           lighthouseBest = Math.round((rawReport.categories["best-practices"]?.score || 0.90) * 100);
+        } else {
+          errorReason = "LIGHTHOUSE_INVALID_LHR";
         }
-      } catch {}
-    } else {
+      } catch (parseErr: any) {
+        console.error(`[LighthouseWorker] Failed to parse LHR JSON: ${parseErr.message}`);
+        errorReason = "LIGHTHOUSE_INVALID_LHR";
+      }
+    } else if (!errorReason) {
       errorReason = "LIGHTHOUSE_EXECUTION_FAILED";
     }
   } catch (e: any) {
+    console.error(`[LighthouseWorker] Unexpected exception during audit: ${e.message}`);
     errorReason = "LIGHTHOUSE_EXECUTION_FAILED";
   } finally {
     if (require("fs").existsSync(tempJsonPath)) {
@@ -94,7 +114,61 @@ async function runLighthouseAudit(
   };
 }
 
-async function runLighthouseJob(data: { submissionId: string; repoUrl: string; deploymentUrl: string; version: number }): Promise<any> {
+async function finalizeWithUnavailableLighthouse(submissionId: string, errorMsg: string) {
+  try {
+    const submission = await prisma.submission.findUnique({ where: { id: submissionId } });
+    if (!submission) return;
+
+    const report = await prisma.evaluationReport.findUnique({ where: { submissionId } });
+    if (!report) return;
+
+    const existingReport = report.payload as any;
+
+    existingReport.toolAudits.performance.lighthouseScore = "UNAVAILABLE";
+    existingReport.toolAudits.performance.accessibilityScore = "UNAVAILABLE";
+    existingReport.toolAudits.performance.seoScore = "UNAVAILABLE";
+    existingReport.toolAudits.performance.bestPracticesScore = "UNAVAILABLE";
+    existingReport.toolAudits.performance.passedMinChecks = false;
+    existingReport.toolAudits.performance.errorReason = "LIGHTHOUSE_EXECUTION_FAILED";
+
+    const lhMetrics = existingReport.toolAudits.performance.evidence.metrics || [];
+    const newMetrics = [
+      `Lighthouse Performance audit failed: ${errorMsg}`,
+      `Lighthouse metrics marked as UNAVAILABLE.`
+    ];
+    existingReport.toolAudits.performance.evidence.metrics = [
+      ...lhMetrics.filter((m: string) => !m.includes("deferred") && !m.includes("failed")),
+      ...newMetrics
+    ];
+    existingReport.toolAudits.performance.evidence.deductions.push(`Lighthouse audit failed: ${errorMsg}`);
+
+    const finalScore = existingReport.scoreSummary.finalScore;
+    existingReport.status = finalScore >= 75 ? "pass" : "fail";
+
+    await prisma.submission.update({
+      where: { id: submissionId },
+      data: {
+        status: "COMPLETED",
+        score: finalScore,
+        grade: finalScore >= 75 ? "PASSED" : "FAILED",
+        completedAt: new Date(),
+      },
+    });
+
+    await prisma.evaluationReport.upsert({
+      where: { submissionId },
+      update: { payload: existingReport },
+      create: { submissionId, payload: existingReport },
+    });
+  } catch (err: any) {
+    console.error(`[LighthouseWorker] Failed to finalize fallback for ${submissionId}: ${err.message}`);
+  }
+}
+
+async function runLighthouseJob(
+  job: any,
+  data: { submissionId: string; repoUrl: string; deploymentUrl: string; version: number }
+): Promise<any> {
   const { submissionId, deploymentUrl } = data;
 
   const submission = await prisma.submission.findUnique({ where: { id: submissionId } });
@@ -130,32 +204,37 @@ async function runLighthouseJob(data: { submissionId: string; repoUrl: string; d
 
     const lhResult = await runLighthouseAudit(deploymentUrl);
 
-    existingReport.toolAudits.performance.lighthouseScore = lhResult.performance;
-    existingReport.toolAudits.performance.accessibilityScore = lhResult.accessibility;
-    existingReport.toolAudits.performance.seoScore = lhResult.seo;
-    existingReport.toolAudits.performance.bestPracticesScore = lhResult.bestPractices;
+    if (lhResult.errorReason || lhResult.performance === "UNAVAILABLE") {
+      throw new Error(`Lighthouse audit failed with reason: ${lhResult.errorReason || "UNAVAILABLE"}`);
+    }
+
+    const perf = lhResult.performance as number;
+    const access = lhResult.accessibility as number;
+    const seo = lhResult.seo as number;
+    const best = lhResult.bestPractices as number;
+
+    existingReport.toolAudits.performance.lighthouseScore = perf;
+    existingReport.toolAudits.performance.accessibilityScore = access;
+    existingReport.toolAudits.performance.seoScore = seo;
+    existingReport.toolAudits.performance.bestPracticesScore = best;
     existingReport.toolAudits.performance.passedMinChecks =
-      lhResult.performance >= blueprint.performanceRules.lighthouseMin &&
-      lhResult.accessibility >= blueprint.performanceRules.accessibilityMin &&
-      lhResult.seo >= blueprint.performanceRules.seoMin &&
-      lhResult.bestPractices >= blueprint.performanceRules.bestPracticesMin;
-    existingReport.toolAudits.performance.errorReason = lhResult.errorReason;
+      perf >= blueprint.performanceRules.lighthouseMin &&
+      access >= blueprint.performanceRules.accessibilityMin &&
+      seo >= blueprint.performanceRules.seoMin &&
+      best >= blueprint.performanceRules.bestPracticesMin;
+    existingReport.toolAudits.performance.errorReason = null;
 
     const lhMetrics = existingReport.toolAudits.performance.evidence.metrics || [];
     const newMetrics = [
-      `Lighthouse Performance audit (deferred): ${lhResult.performance}/100`,
-      `Lighthouse Accessibility audit (deferred): ${lhResult.accessibility}/100`,
-      `Lighthouse SEO audit (deferred): ${lhResult.seo}/100`,
-      `Lighthouse Best Practices audit (deferred): ${lhResult.bestPractices}/100`,
+      `Lighthouse Performance audit (deferred): ${perf}/100`,
+      `Lighthouse Accessibility audit (deferred): ${access}/100`,
+      `Lighthouse SEO audit (deferred): ${seo}/100`,
+      `Lighthouse Best Practices audit (deferred): ${best}/100`,
     ];
     existingReport.toolAudits.performance.evidence.metrics = [...lhMetrics.filter((m: string) => !m.includes("deferred")), ...newMetrics];
 
-    if (lhResult.errorReason) {
-      existingReport.toolAudits.performance.evidence.deductions.push(`Lighthouse audit failed: ${lhResult.errorReason}`);
-    }
-
     const finalScore = Math.round(
-      (existingReport.scoreSummary.finalScore + lhResult.performance + lhResult.accessibility + lhResult.seo + lhResult.bestPractices) / 2
+      (existingReport.scoreSummary.finalScore + perf + access + seo + best) / 2
     );
 
     existingReport.scoreSummary.finalScore = finalScore;
@@ -177,15 +256,23 @@ async function runLighthouseJob(data: { submissionId: string; repoUrl: string; d
       create: { submissionId, payload: existingReport },
     });
 
-    return { lighthousePerf: lhResult.performance, lighthouseAccess: lhResult.accessibility, lighthouseSeo: lhResult.seo, lighthouseBest: lhResult.bestPractices, errorReason: lhResult.errorReason };
+    return { status: "SUCCESS", lighthousePerf: perf, lighthouseAccess: access, lighthouseSeo: seo, lighthouseBest: best };
   } catch (err: any) {
-    await prisma.submission.update({
-      where: { id: submissionId },
-      data: { status: "FAILED", score: 0, grade: "FAILED" },
-    }).catch(() => {});
-    throw err;
+    const attemptsMade = job.attemptsMade ?? 0;
+    const maxAttempts = job.opts?.attempts ?? 1;
+
+    if (attemptsMade + 1 < maxAttempts) {
+      console.warn(`[LighthouseWorker] Job ${job.id} failed attempt ${attemptsMade + 1}/${maxAttempts}. Retrying... Error: ${err.message}`);
+      throw err;
+    }
+
+    console.error(`[LighthouseWorker] Job ${job.id} failed all ${maxAttempts} attempts. Finalizing with UNAVAILABLE metrics. Error: ${err.message}`);
+    await finalizeWithUnavailableLighthouse(submissionId, err.message || "LIGHTHOUSE_EXECUTION_FAILED");
+
+    return { status: "FAILED", error: err.message };
   }
 }
+
 export async function startLighthouseWorker(): Promise<{ worker: Worker; close: () => Promise<void> }> {
 
   const { connection } = getSharedRedisConfig();
@@ -194,10 +281,10 @@ export async function startLighthouseWorker(): Promise<{ worker: Worker; close: 
 
   console.log(`[LighthouseWorker] Starting (concurrency=${concurrency}, jobTimeout=${jobTimeoutMs}ms)`);
 
-const worker = new Worker(
+  const worker = new Worker(
      LIGHTHOUSE_QUEUE_NAME,
      (job) => {
-       return withJobTimeout(runLighthouseJob(job.data as any), jobTimeoutMs);
+       return withJobTimeout(runLighthouseJob(job, job.data as any), jobTimeoutMs);
      },
      {
        connection,
@@ -208,17 +295,16 @@ const worker = new Worker(
      }
    );
 
-   // QueueEvents for observability — does not affect job processing.
    let queueEvents: QueueEvents | null = null;
    try {
      queueEvents = createLighthouseQueueEvents();
-     queueEvents.on("completed", (jobId) => {
+     queueEvents.on("completed", ({ jobId }) => {
        console.log(`[QueueEvents] Lighthouse job ${jobId} completed.`);
      });
-queueEvents.on("failed", (args) => {
-        console.error(`[QueueEvents] Lighthouse job ${args.jobId} failed: ${args.failedReason}`);
-      });
-     queueEvents.on("stalled", (jobId) => {
+     queueEvents.on("failed", (args) => {
+       console.error(`[QueueEvents] Lighthouse job ${args.jobId} failed: ${args.failedReason}`);
+     });
+     queueEvents.on("stalled", ({ jobId }) => {
        console.warn(`[QueueEvents] Lighthouse job ${jobId} stalled.`);
      });
    } catch (err: any) {
