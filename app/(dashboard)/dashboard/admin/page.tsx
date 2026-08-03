@@ -528,6 +528,7 @@ export default function PlatformAdminDashboardPage() {
       const res = await fetch(`/api/hackathons/${id}`, { method: "DELETE", headers: { ...authHeaders() } });
       if (res.ok) {
         setHackathons((prev) => prev.filter((h) => h.id !== id));
+        localStorage.removeItem(`fa_blueprint_${id}`);
       } else {
         const err = await res.json();
         alert(err.error || "Failed to delete hackathon.");

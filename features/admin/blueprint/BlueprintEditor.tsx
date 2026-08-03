@@ -293,10 +293,11 @@ export function BlueprintEditor({ hackathonId, onClose }: { hackathonId?: string
     setProblemTitle(h.problemTitle || h.name || "");
     setProblemDescription(h.problemDescription || h.description || "");
 
+    const defaultPsId = `ps_${Date.now()}`;
     // Set default problemStatements list
     setProblemStatements([
       {
-        id: `ps_${Date.now()}`,
+        id: defaultPsId,
         title: h.problemTitle || h.name || "",
         description: h.problemDescription || h.description || "",
         background: "",
@@ -417,6 +418,88 @@ export function BlueprintEditor({ hackathonId, onClose }: { hackathonId?: string
       }
       setAutoRules(bpData.autoPassFailRules || autoRules);
       setBonusRules(bpData.bonusRules || bonusRules);
+    } else {
+      setBlueprintStatus("draft");
+      setVersion(1);
+      setFeatures([
+        { name: "Authentication", description: "Secure User login/signup panel", mandatory: true, weight: 15, problemStatementId: defaultPsId },
+        { name: "Responsive Dashboard", description: "Glassmorphic analytic charts page", mandatory: true, weight: 10, problemStatementId: defaultPsId },
+      ]);
+      setAllowedTech("React, Next.js, TypeScript, TailwindCSS");
+      setPreferredTech("Next.js App Router, Zustand, Framer Motion");
+      setRestrictedTech("jQuery, Bootstrap, plain HTML");
+      setFrameworkRequirements("React-based framework required.");
+      setDatabaseRequirements("In-memory or mock db allowed.");
+      setHostingRequirements("Vercel or Netlify deployment link required.");
+      setSubmissionsCheck({
+        githubRepo: true,
+        liveDeployment: true,
+        readme: true,
+        videoDemo: false,
+        presentationPdf: false,
+        architectureDiagram: false,
+        apiDocs: false,
+        installationGuide: true,
+        envVarsGuide: false,
+      });
+      setSubmissionEnabled(true);
+      setSubmissionStart("");
+      setSubmissionEnd("");
+      setAllowMultiple(true);
+      setMaxSubmissions("unlimited");
+      setLatePolicy("allowed");
+      setResubmissionPolicy(true);
+      setFinalLock(false);
+      setEvaluationMode("immediate");
+      setCodeQuality({
+        readmeQuality: 10,
+        folderStructure: 10,
+        namingConvention: 10,
+        comments: 10,
+        reusableComponents: 15,
+        cleanArchitecture: 20,
+        typescriptUsage: 25,
+      });
+      setLighthouseMin(70);
+      setAccessibilityMin(60);
+      setSeoMin(70);
+      setBestPracticesMin(70);
+      setPerfWeight(15);
+      setResponsiveCheck({
+        desktop: true,
+        laptop: true,
+        tablet: true,
+        mobile: true,
+        ultraWide: false,
+      });
+      setSecurityCheck({
+        secretsDetection: true,
+        npmAudit: true,
+        vulnerabilitiesLimit: true,
+        envVariablesShield: true,
+        authSecurity: true,
+      });
+      setInnovationWeight(15);
+      setCreativityWeight(5);
+      setUniqueFeaturesWeight(5);
+      setExtraFuncCheck(true);
+      setBonusPointsMax(5);
+      setAiPrompt(
+        `You are evaluating projects submitted for Frontend Arena. Focus on:\n- Problem Statement Alignment\n- User Experience\n- Visual Quality\n- Animations\n- Code Architecture\n- Innovation\nIgnore backend complexity. Award bonus points for unique user experience.`
+      );
+      setCategories(DEFAULT_CATEGORIES);
+      setAutoRules([
+        { rule: "No GitHub Repository URL", action: "fail" },
+        { rule: "No Live Deployment Link", action: "fail" },
+        { rule: "Lighthouse Score Below 70", action: "deduct", points: 15 },
+        { rule: "Accessibility Score Below 60", action: "deduct", points: 20 },
+      ]);
+      setBonusRules([
+        { name: "Best UI Design", points: 2 },
+        { name: "Best Micro-Animations", points: 2 },
+        { name: "Best README Documentation", points: 1 },
+      ]);
+      setSelectedFeaturePsIdx(0);
     }
   };
 
@@ -575,11 +658,38 @@ export function BlueprintEditor({ hackathonId, onClose }: { hackathonId?: string
     fileReader.onload = (event) => {
       try {
         const bp = JSON.parse(event.target?.result as string);
-        if (bp.problemStatement) setProblemTitle(bp.problemStatement.title || "");
-        if (bp.problemStatement) setProblemDescription(bp.problemStatement.description || "");
-        if (bp.problemStatement) setBackground(bp.problemStatement.background || "");
-        if (bp.problemStatement) setObjectives(bp.problemStatement.objectives || "");
-        if (bp.problemStatement) setExpectedSolution(bp.problemStatement.expectedSolution || "");
+        if (bp.problemStatements && Array.isArray(bp.problemStatements) && bp.problemStatements.length > 0) {
+          const hydratedPS = bp.problemStatements.map((ps: any, idx: number) => ({
+            ...ps,
+            id: ps.id || `ps_${Date.now()}_${idx}`,
+          }));
+          setProblemStatements(hydratedPS);
+          if (bp.problemStatements[0]) {
+            setProblemTitle(bp.problemStatements[0].title || "");
+            setProblemDescription(bp.problemStatements[0].description || "");
+            setBackground(bp.problemStatements[0].background || "");
+            setObjectives(bp.problemStatements[0].objectives || "");
+            setExpectedSolution(bp.problemStatements[0].expectedSolution || "");
+            setDifficulty(bp.problemStatements[0].difficulty || "Intermediate");
+          }
+        } else if (bp.problemStatement) {
+          const stmt = {
+            id: bp.problemStatement.id || `ps_${Date.now()}`,
+            title: bp.problemStatement.title || bp.problemStatement.name || "",
+            description: bp.problemStatement.description || "",
+            background: bp.problemStatement.background || "",
+            objectives: bp.problemStatement.objectives || "",
+            expectedSolution: bp.problemStatement.expectedSolution || "",
+            difficulty: bp.problemStatement.difficulty || "Intermediate",
+          };
+          setProblemStatements([stmt]);
+          setProblemTitle(stmt.title);
+          setProblemDescription(stmt.description);
+          setBackground(stmt.background);
+          setObjectives(stmt.objectives);
+          setExpectedSolution(stmt.expectedSolution);
+          setDifficulty(stmt.difficulty);
+        }
         if (bp.requiredFeatures) {
           const importPS = Array.isArray(bp.problemStatements) && bp.problemStatements.length > 0
             ? bp.problemStatements
@@ -972,7 +1082,15 @@ export function BlueprintEditor({ hackathonId, onClose }: { hackathonId?: string
                         {problemStatements.length > 1 && (
                           <button
                             type="button"
-                            onClick={() => setProblemStatements(problemStatements.filter((_, i) => i !== idx))}
+                            onClick={() => {
+                              const targetPs = problemStatements[idx];
+                              const targetPsId = targetPs?.id || targetPs?.title;
+                              setProblemStatements(problemStatements.filter((_, i) => i !== idx));
+                              if (targetPsId) {
+                                setFeatures(features.filter((f) => f.problemStatementId !== targetPsId));
+                              }
+                              setSelectedFeaturePsIdx((prev) => Math.max(0, Math.min(prev, problemStatements.length - 2)));
+                            }}
                             className="absolute top-3 right-3 text-[#94A3B8] hover:text-[#EF4444]"
                           >
                             <Trash2 className="h-4 w-4" />
