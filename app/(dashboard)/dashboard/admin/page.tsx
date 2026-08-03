@@ -789,16 +789,23 @@ export default function PlatformAdminDashboardPage() {
     }
 
     try {
-      await fetch("/api/hackathons", {
+      const createRes = await fetch("/api/hackathons", {
         method: "POST",
         headers: { "Content-Type": "application/json", ...authHeaders() },
         body: JSON.stringify(newHackathon)
       });
+      if (!createRes.ok) {
+        const err = await createRes.json().catch(() => ({ error: "Unknown error" }));
+        alert(`Failed to create hackathon: ${err.error || createRes.statusText}`);
+        return;
+      }
       const refreshRes = await fetch("/api/hackathons", { headers: { ...authHeaders() } });
       const list = await refreshRes.json();
       if (Array.isArray(list)) setHackathons(list);
     } catch (e) {
       console.error("Failed to create hackathon:", e);
+      alert("Failed to create hackathon: " + (e instanceof Error ? e.message : "Network error"));
+      return;
     }
 
     setIsCreatingHackathon(false);

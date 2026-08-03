@@ -74,6 +74,7 @@ export function requireRole(allowedRoles: string[]) {
 export function optionalAuth(req: AuthenticatedRequest, res: Response, next: NextFunction) {
   const authHeader = req.headers.authorization;
   if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    // No token provided at all → true anonymous access (public browsing).
     return next();
   }
 
@@ -83,7 +84,10 @@ export function optionalAuth(req: AuthenticatedRequest, res: Response, next: Nex
     req.user = decoded;
     next();
   } catch (err) {
-    // If the token is invalid or expired, proceed anonymously rather than blocking with a 401
-    next();
+    // Token WAS provided but is invalid/expired. Return 401 so the upstream
+    // proxy (Vercel backend-proxy.ts) can trigger automatic token refresh
+    // using the refresh-token cookie. Without this, expired admin sessions
+    // silently downgrade to anonymous, hiding draft/unpublished hackathons.
+    return res.status(401).json({ error: "Token expired or invalid." });
   }
 }
