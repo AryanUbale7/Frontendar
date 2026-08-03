@@ -50,6 +50,35 @@ async function runLighthouseAudit(
 
   const tempJsonPath = require("path").join(require("os").tmpdir(), `lh_report_${Date.now()}_${Math.random().toString(36).substring(2, 6)}.json`);
 
+  // Resolve Playwright Chromium path programmatically
+  let chromePath = "";
+  try {
+    process.env.PLAYWRIGHT_BROWSERS_PATH = "0"; // Force local project directory cache
+    const playwright = require("playwright");
+    if (playwright && playwright.chromium) {
+      chromePath = playwright.chromium.executablePath();
+    }
+  } catch (err: any) {
+    console.error(`[LighthouseWorker] Playwright dependency not loadable: ${err.message}`);
+  }
+
+  const fs = require("fs");
+  const chromeExists = chromePath ? fs.existsSync(chromePath) : false;
+
+  console.log(`[LighthouseWorker] Chromium executable resolved: ${chromePath || "none"}`);
+  console.log(`[LighthouseWorker] Chromium executable exists: ${chromeExists}`);
+
+  if (!chromePath || !chromeExists) {
+    console.error(`[LighthouseWorker] Chromium executable is not available at path: ${chromePath}`);
+    return {
+      performance: "UNAVAILABLE",
+      accessibility: "UNAVAILABLE",
+      seo: "UNAVAILABLE",
+      bestPractices: "UNAVAILABLE",
+      errorReason: "CHROMIUM_NOT_AVAILABLE"
+    };
+  }
+
   let lighthousePerf: number | "UNAVAILABLE" = "UNAVAILABLE";
   let lighthouseAccess: number | "UNAVAILABLE" = "UNAVAILABLE";
   let lighthouseSeo: number | "UNAVAILABLE" = "UNAVAILABLE";
@@ -64,7 +93,12 @@ async function runLighthouseAudit(
     const lhCmd = `npx lighthouse "${targetUrl}" --output=json --output-path="${tempJsonPath}" --chrome-flags="--headless --no-sandbox --disable-gpu" --quiet`;
 
     try {
-      execSync(lhCmd, { timeout: executionTimeoutMs, stdio: "pipe" });
+      const childEnv = {
+        ...process.env,
+        PLAYWRIGHT_BROWSERS_PATH: "0",
+        CHROME_PATH: chromePath
+      };
+      execSync(lhCmd, { timeout: executionTimeoutMs, stdio: "pipe", env: childEnv });
     } catch (execErr: any) {
       const duration = Date.now() - startTime;
       console.error(
