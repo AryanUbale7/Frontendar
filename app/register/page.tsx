@@ -577,7 +577,7 @@ function HackathonRegistrationContent() {
     }
   };
 
-  const pollForEvaluationResult = async (hackathonId: string, userId: string, attemptsLeft = 60) => {
+  const pollForEvaluationResult = async (hackathonId: string, userId: string, attemptsLeft = 60, pollIntervalMs = 4000) => {
     if (!isMountedRef.current) return;
     try {
       const res = await fetch(`/api/submissions?hackathonId=${hackathonId}&userId=${userId}`);
@@ -634,11 +634,13 @@ function HackathonRegistrationContent() {
     }
 
     if (isMountedRef.current && attemptsLeft > 0) {
+      // Exponential backoff: start at pollIntervalMs, cap at 30s, increase by 1.5x each attempt
+      const nextInterval = Math.min(pollIntervalMs * 1.5, 30000);
       setTimeout(() => {
         if (isMountedRef.current) {
-          pollForEvaluationResult(hackathonId, userId, attemptsLeft - 1);
+          pollForEvaluationResult(hackathonId, userId, attemptsLeft - 1, nextInterval);
         }
-      }, 4000);
+      }, nextInterval);
     }
   };
 

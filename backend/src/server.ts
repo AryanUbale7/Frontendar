@@ -1,6 +1,7 @@
 import "dotenv/config";
 import express, { Request, Response } from "express";
 import cors from "cors";
+import rateLimit from "express-rate-limit";
 import { Prisma } from "@prisma/client";
 import { prisma } from "./config/db";
 import { authRouter } from "./routes/auth";
@@ -12,6 +13,15 @@ import { resolveLifecycleStatus, lifecycleToPersisted, canAcceptSubmissions, can
 
 const app = express();
 const PORT = process.env.PORT || 4000;
+
+const submissionLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "RATE_LIMITED", message: "Too many submission requests. Please wait before trying again." },
+  skipSuccessfulRequests: false,
+});
 
 let evaluationQueue: EvaluationQueueDriver;
 let combinedWorkerHandle: EvaluationWorkerHandle | null = null;
@@ -320,7 +330,8 @@ app.delete("/api/blueprints/:hackathonId", verifyToken, requireRole(["ADMIN", "S
 });
 
 // Trigger dynamic evaluation (non-blocking: enqueues and returns immediately)
-app.post("/api/evaluate", verifyToken, async (req: AuthenticatedRequest, res: Response) => {
+// Rate-limited to prevent submission spam.
+app.post("/api/evaluate", verifyToken, submissionLimiter, async (req: AuthenticatedRequest, res: Response) => {
   const {
     repoUrl,
     deploymentUrl,
@@ -616,6 +627,7 @@ app.post("/api/evaluate", verifyToken, async (req: AuthenticatedRequest, res: Re
   }
 
   // 10. Enqueue BullMQ Evaluation Job
+  const useDeferredLighthouse = evaluationQueue.name === "redis";
   const job = await evaluationQueue.enqueue({
     submissionId: submission.id,
     repoUrl: normalizedRepo.normalized,
@@ -625,7 +637,8 @@ app.post("/api/evaluate", verifyToken, async (req: AuthenticatedRequest, res: Re
     blueprintId: dbBlueprint.id,
     blueprintVersion: dbBlueprint.version,
     version: submission.version,
-    problemStatementId: finalProblemStatementId || undefined
+    problemStatementId: finalProblemStatementId || undefined,
+    lighthouseMode: useDeferredLighthouse ? "defer" : "in-process",
   });
 
   console.log(`[Evaluate] Enqueued FAIE evaluation job ${job.jobId} (driver=${evaluationQueue.name}) for repository: ${normalizedRepo.normalized}`);
@@ -745,7 +758,8 @@ app.get("/api/judging/stats", verifyToken, requireRole(["ADMIN", "SUPER_ADMIN"])
 });
 
 // Virtual Judging Center: Retry a failed submission evaluation (admin only)
-app.post("/api/judging/retry", verifyToken, requireRole(["ADMIN", "SUPER_ADMIN"]), async (req: Request, res: Response) => {
+// Rate-limited to prevent retry flooding.
+app.post("/api/judging/retry", verifyToken, requireRole(["ADMIN", "SUPER_ADMIN"]), submissionLimiter, async (req: Request, res: Response) => {
   const { submissionId } = req.body;
   if (!submissionId) {
     return res.status(400).json({ error: "Missing submissionId." });
@@ -777,7 +791,8 @@ app.post("/api/judging/retry", verifyToken, requireRole(["ADMIN", "SUPER_ADMIN"]
       blueprintId: updated.blueprintId || undefined,
       blueprintVersion: updated.blueprintVersion || undefined,
       version: updated.version,
-      problemStatementId: updated.problemStatementId || undefined
+      problemStatementId: updated.problemStatementId || undefined,
+      lighthouseMode: evaluationQueue.name === "redis" ? "defer" : "in-process",
     });
 
     res.json({ message: "Retrying evaluation. Re-queued job.", jobId: job.jobId, submission: updated });
@@ -1388,7 +1403,12 @@ async function boot(): Promise<void> {
   // (EVALUATION_QUEUE_DRIVER=redis is enforced) and the SAME Phase 3
   // processor. Concurrency defaults to 1 unless EVALUATION_WORKER_CONCURRENCY
   // is set. The independent `npm run worker` process remains fully supported.
-  if (process.env.RUN_EVALUATION_WORKER_IN_WEB === "true") {
+  //
+  // PRODUCTION RECOMMENDATION: Set RUN_EVALUATION_WORKER_IN_WEB=false (or
+  // omit it) and run `npm run worker` as a separate Render Background Worker
+  // service. This isolates API latency from evaluation CPU/memory pressure.
+  const runWorkerInWeb = (process.env.RUN_EVALUATION_WORKER_IN_WEB || "false").toLowerCase() === "true";
+  if (runWorkerInWeb) {
     if ((process.env.EVALUATION_QUEUE_DRIVER || "redis").toLowerCase() !== "redis") {
       throw new Error(
         "RUN_EVALUATION_WORKER_IN_WEB=true requires EVALUATION_QUEUE_DRIVER=redis. " +
@@ -1401,6 +1421,11 @@ async function boot(): Promise<void> {
       `[Server] Combined mode active — exactly one evaluation worker running in the web process ` +
         `(duplicate-worker prevention: worker created only when RUN_EVALUATION_WORKER_IN_WEB=true, and only once).`
     );
+  } else {
+    console.log(
+      `[Server] API-only mode — evaluation worker runs in a separate process ` +
+        `(npm run worker). Set RUN_EVALUATION_WORKER_IN_WEB=true to run the worker in this process.`
+    );
   }
 
   const server = app.listen(PORT, async () => {
@@ -1412,13 +1437,14 @@ async function boot(): Promise<void> {
     }
   });
 
-  // Graceful shutdown order (combined mode): close the BullMQ worker first
-  // (stops accepting new jobs and finishes/safely releases active ones), then
-  // stop the HTTP server (stop accepting new requests), then close the
-  // queue/Redis connections, then disconnect Prisma.
+  // Graceful shutdown order: stop accepting new HTTP requests, then
+  // close the BullMQ worker (stops accepting new jobs and finishes/safely
+  // releases active ones), then close the queue/Redis connections, then
+  // disconnect Prisma.
   const shutdown = (signal: string) => {
     console.log(`[Server] ${signal} received — shutting down gracefully...`);
     server.close(async () => {
+      console.log("[Server] HTTP server closed (no new connections).");
       if (combinedWorkerHandle) {
         try {
           await combinedWorkerHandle.close();
@@ -1430,11 +1456,13 @@ async function boot(): Promise<void> {
       }
       try {
         await evaluationQueue.close();
+        console.log("[Server] Queue closed.");
       } catch (err: any) {
         console.error(`[Server] Error closing queue: ${err.message}`);
       }
       try {
         await prisma.$disconnect();
+        console.log("[Server] Prisma disconnected.");
       } catch (err: any) {
         console.error(`[Server] Error closing Prisma: ${err.message}`);
       }

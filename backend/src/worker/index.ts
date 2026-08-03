@@ -27,11 +27,12 @@
  *  - data.testFailFirstAttempt   → fail attempt 0 deterministically
  */
 import "dotenv/config";
-import { Worker } from "bullmq";
+import { Worker, QueueEvents } from "bullmq";
 import { prisma } from "../config/db";
 import { runEvaluationJob } from "../engine/evaluation-runner";
 import { EVALUATION_QUEUE_NAME } from "../engine/queue/queue-constants";
-import { parseRedisConnection, intFromEnv } from "../engine/queue/redis-config";
+import { getSharedRedisConfig, intFromEnv } from "../engine/queue/redis-connection";
+import { createEvaluationQueueEvents } from "../engine/queue/queue-events";
 import { EvaluationJobData } from "../engine/queue/types";
 
 function sleep(ms: number): Promise<void> {
@@ -85,8 +86,8 @@ export interface EvaluationWorkerHandle {
  * exactly-one-worker semantics.
  */
 export async function startEvaluationWorker(opts: StartEvaluationWorkerOptions = {}): Promise<EvaluationWorkerHandle> {
-  const combined = opts.combinedMode === true;
-  const { connection } = parseRedisConnection();
+   const combined = opts.combinedMode === true;
+   const { connection } = getSharedRedisConfig();
 
   // Combined mode is resource-constrained (free/small Render web service):
   // concurrency defaults to 1 unless explicitly overridden.
@@ -102,42 +103,62 @@ export async function startEvaluationWorker(opts: StartEvaluationWorkerOptions =
     console.log(`[Worker] Starting evaluation worker (queue=${EVALUATION_QUEUE_NAME}, concurrency=${concurrency}, jobTimeout=${jobTimeoutMs}ms, lockDuration=${lockDuration}ms, stalledInterval=${stalledInterval}ms)`);
   }
 
-  const worker = new Worker(
-    EVALUATION_QUEUE_NAME,
-    (job) => {
-      const data = (job.data ?? {}) as EvaluationJobData;
+const worker = new Worker(
+     EVALUATION_QUEUE_NAME,
+     (job) => {
+       const data = (job.data ?? {}) as EvaluationJobData;
 
-      // The hard timeout covers the ENTIRE processing run, including the
-      // test seams — nothing can run past EVALUATION_JOB_TIMEOUT_MS.
-      return withJobTimeout(
-        (async () => {
-          // Test seams (documented; inert unless present in the payload).
-          if (data.testDelayedMs && data.testDelayedMs > 0) {
-            await sleep(data.testDelayedMs);
-          }
-          if (data.testSkipEvaluation) {
-            return { skipped: true };
-          }
-          if (data.testFailFirstAttempt && job.attemptsMade === 0) {
-            throw new Error("Test seam: failing first attempt deterministically.");
-          }
-          return runEvaluationJob(data);
-        })(),
-        jobTimeoutMs
-      );
-    },
-    {
-      connection: connection,
-      concurrency,
-      lockDuration,
-      maxStalledCount: 1,
-      stalledInterval,
-    }
-  );
+       // The hard timeout covers the ENTIRE processing run, including the
+       // test seams — nothing can run past EVALUATION_JOB_TIMEOUT_MS.
+       return withJobTimeout(
+         (async () => {
+           // Test seams (documented; inert unless present in the payload).
+           if (data.testDelayedMs && data.testDelayedMs > 0) {
+             await sleep(data.testDelayedMs);
+           }
+           if (data.testSkipEvaluation) {
+             return { skipped: true };
+           }
+           if (data.testFailFirstAttempt && job.attemptsMade === 0) {
+             throw new Error("Test seam: failing first attempt deterministically.");
+           }
+           return runEvaluationJob(data);
+         })(),
+         jobTimeoutMs
+       );
+     },
+     {
+       connection: connection,
+       concurrency,
+       lockDuration,
+       maxStalledCount: 1,
+       stalledInterval,
+     }
+   );
 
-  worker.on("ready", () => {
-    console.log("WORKER READY");
-  });
+   // QueueEvents for observability — does not affect job processing.
+   let queueEvents: QueueEvents | null = null;
+   try {
+     queueEvents = createEvaluationQueueEvents();
+     queueEvents.on("completed", (jobId) => {
+       console.log(`[QueueEvents] Job ${jobId} completed.`);
+     });
+queueEvents.on("failed", (args) => {
+        console.error(`[QueueEvents] Job ${args.jobId} failed: ${args.failedReason}`);
+      });
+     queueEvents.on("stalled", (jobId) => {
+       console.warn(`[QueueEvents] Job ${jobId} stalled.`);
+     });
+     queueEvents.on("progress", (jobId, progress) => {
+       console.log(`[QueueEvents] Job ${jobId} progress: ${progress}%`);
+     });
+   } catch (err: any) {
+     console.warn(`[Worker] QueueEvents setup skipped: ${err.message}`);
+   }
+
+   worker.on("ready", () => {
+     console.log("WORKER READY");
+   });
 
   worker.on("completed", (job) => {
     if (job) console.log(`[Worker] Job ${job.id} completed (attempt ${job.attemptsMade + 1}).`);
@@ -166,13 +187,23 @@ export async function startEvaluationWorker(opts: StartEvaluationWorkerOptions =
     console.error(`[Worker] Worker error: ${err.message}`);
   });
 
-  return {
-    worker,
-    close: async () => {
-      await worker.close();
-    },
-  };
-}
+  // Stalled job handler: when a job stalls (worker crashes without releasing
+  // the lock), BullMQ will re-activate it after the stalledInterval. The
+  // worker's maxStalledCount=1 means it will only be retried once.
+  worker.on("stalled", (jobId) => {
+    console.warn(`[Worker] Job ${jobId} stalled — will be retried once.`);
+  });
+
+return {
+     worker,
+     close: async () => {
+       await worker.close();
+       if (queueEvents) {
+         try { await queueEvents.close(); } catch {}
+       }
+     },
+   };
+ }
 
 /**
  * Standalone entrypoint (`npm run worker`).

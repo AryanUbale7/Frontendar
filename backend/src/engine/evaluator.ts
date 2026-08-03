@@ -248,7 +248,7 @@ async function runLighthouseAudit(
         logs?.push(`[Lighthouse] validation failed: Invalid URL format`);
         return { scores: "UNAVAILABLE", errorReason: "DEPLOYMENT_UNREACHABLE" };
       }
-      
+
       // Perform simple fetch check
       try {
         const checkRes = await Promise.race([
@@ -437,222 +437,271 @@ function detectPackageManager(tempDir: string): "npm" | "yarn" | "pnpm" | "bun" 
   return "npm";
 }
 
-// Deterministic Static Scanner (Zero AI)
+export type LighthouseMode = "in-process" | "defer";
+
 async function runToolAudits(
-  tempDir: string,
-  blueprint: Blueprint,
-  deploymentUrl?: string | null,
-  logs?: string[]
-): Promise<ToolAuditResults> {
-  const readmePath = path.join(tempDir, "README.md");
-  let hasReadme = false;
-  let readmeSize = 0;
-  let readmeLog = "README.md file missing from repository root.";
-  if (fs.existsSync(readmePath)) {
-    hasReadme = true;
-    const content = fs.readFileSync(readmePath, "utf-8");
-    readmeSize = content.length;
-    
-    const hasInstall = content.toLowerCase().includes("install") || content.toLowerCase().includes("npm i");
-    const hasUsage = content.toLowerCase().includes("run") || content.toLowerCase().includes("start");
-    
-    readmeLog = `Parsed README.md file. Size: ${readmeSize} bytes. ` +
-      (hasInstall ? "Installation guide detected. " : "Installation instructions missing. ") +
-      (hasUsage ? "Usage guide detected." : "Usage guide missing.");
-  }
+   tempDir: string,
+   blueprint: Blueprint,
+   deploymentUrl?: string | null,
+   logs?: string[],
+   lighthouseMode: LighthouseMode = "in-process"
+ ): Promise<ToolAuditResults> {
+   const readmePath = path.join(tempDir, "README.md");
+   let hasReadme = false;
+   let readmeSize = 0;
+   let readmeLog = "README.md file missing from repository root.";
+   if (fs.existsSync(readmePath)) {
+     hasReadme = true;
+     const content = fs.readFileSync(readmePath, "utf-8");
+     readmeSize = content.length;
 
-  const allFiles = getAllFiles(tempDir);
-  const detectedFilesCount = allFiles.length;
-  
-  const secretsFound: string[] = [];
-  const secretPatterns = [
-    /gsk_[a-zA-Z0-9]{48}/,       // Groq key pattern
-    /AIzaSy[a-zA-Z0-9-_]{35}/,   // Google key pattern
-    /GOCSPX-[a-zA-Z0-9-_]{28}/,  // Google OAuth Secret pattern
-    /sk-[a-zA-Z0-9]{48}/         // OpenAI key pattern
-  ];
+     const hasInstall = content.toLowerCase().includes("install") || content.toLowerCase().includes("npm i");
+     const hasUsage = content.toLowerCase().includes("run") || content.toLowerCase().includes("start");
 
-  let totalCommentsCount = 0;
-  let totalLinesCount = 0;
-  let tsCount = 0;
-  let jsCount = 0;
+     readmeLog = `Parsed README.md file. Size: ${readmeSize} bytes. ` +
+       (hasInstall ? "Installation guide detected. " : "Installation instructions missing. ") +
+       (hasUsage ? "Usage guide detected." : "Usage guide missing.");
+   }
 
-  allFiles.forEach((file) => {
-    const ext = path.extname(file);
-    if (ext === ".ts" || ext === ".tsx") tsCount++;
-    if (ext === ".js" || ext === ".jsx") jsCount++;
+   const allFiles = getAllFiles(tempDir);
+   const detectedFilesCount = allFiles.length;
 
-    if ([".ts", ".tsx", ".js", ".jsx", ".json", ".md", ".env", ".local"].includes(ext)) {
-      try {
-        // Per-file read cap: pathological/huge files are skipped from content
-        // scanning (size counter above is unaffected).
-        if (fs.statSync(file).size > MAX_SCANNED_FILE_BYTES) return;
-        const content = fs.readFileSync(file, "utf-8");
-        const lines = content.split("\n");
-        totalLinesCount += lines.length;
+   const secretsFound: string[] = [];
+   const secretPatterns = [
+     /gsk_[a-zA-Z0-9]{48}/,
+     /AIzaSy[a-zA-Z0-9-_]{35}/,
+     /GOCSPX-[a-zA-Z0-9-_]{28}/,
+     /sk-[a-zA-Z0-9]{48}/
+   ];
 
-        lines.forEach((line, index) => {
-          secretPatterns.forEach((pat) => {
-            if (pat.test(line)) {
-              secretsFound.push(`File: ${path.basename(file)}:L${index + 1} leaked potential API key.`);
-            }
-          });
-          
-          if (line.trim().startsWith("//") || line.trim().startsWith("/*") || line.includes(" * ")) {
-            totalCommentsCount++;
-          }
-        });
-      } catch {}
-    }
-  });
+   let totalCommentsCount = 0;
+   let totalLinesCount = 0;
+   let tsCount = 0;
+   let jsCount = 0;
 
-  const commentsDensityPercent = totalLinesCount > 0 
-    ? Math.round((totalCommentsCount / totalLinesCount) * 100) 
-    : 10;
-  const typescriptUsagePercent = (tsCount + jsCount) > 0 
-    ? Math.round((tsCount / (tsCount + jsCount)) * 100) 
-    : 0;
+   allFiles.forEach((file) => {
+     const ext = path.extname(file);
+     if (ext === ".ts" || ext === ".tsx") tsCount++;
+     if (ext === ".js" || ext === ".jsx") jsCount++;
 
-  let buildSuccess = false;
-  let distDir = path.join(tempDir, "dist");
-  const packageJsonPath = path.join(tempDir, "package.json");
+     if ([".ts", ".tsx", ".js", ".jsx", ".json", ".md", ".env", ".local"].includes(ext)) {
+       try {
+         if (fs.statSync(file).size > MAX_SCANNED_FILE_BYTES) return;
+         const content = fs.readFileSync(file, "utf-8");
+         const lines = content.split("\n");
+         totalLinesCount += lines.length;
 
-  if (fs.existsSync(packageJsonPath)) {
-    const pm = detectPackageManager(tempDir);
-    logs?.push(`[Build] package manager: ${pm}`);
-    
-    try {
-      logs?.push(`[Build] running dependency installation: ${pm} install`);
-      execFileSync(commandBin(pm), ["install"], { cwd: tempDir, stdio: "pipe", timeout: 60000 });
-      
-      logs?.push(`[Build] command: ${pm} run build`);
-      try {
-        execFileSync(commandBin(pm), ["run", "build"], { cwd: tempDir, stdio: "pipe", timeout: 45000 });
-        if (!fs.existsSync(distDir)) {
-          if (fs.existsSync(path.join(tempDir, "build"))) {
-            distDir = path.join(tempDir, "build");
-          } else if (fs.existsSync(path.join(tempDir, ".next"))) {
-            distDir = path.join(tempDir, ".next");
-          }
-        }
-        buildSuccess = fs.existsSync(distDir) && fs.readdirSync(distDir).length > 0;
-        if (buildSuccess) {
-          logs?.push(`[Build] status: PASSED`);
-        } else {
-          logs?.push(`[Build] status: FAILED (missing or empty build output directory)`);
-        }
-      } catch (buildErr: any) {
-        buildSuccess = false;
-        const exitCode = buildErr.status !== undefined ? buildErr.status : 1;
-        const stderrOutput = buildErr.stderr ? buildErr.stderr.toString("utf-8") : (buildErr.message || "");
-        logs?.push(`[Build] status: FAILED`);
-        logs?.push(`[Build] exit code: ${exitCode}`);
-        const safeDiag = stderrOutput.split("\n").slice(0, 10).join("\n");
-        logs?.push(`[Build] diagnostics:\n${safeDiag}`);
-      }
-    } catch (installErr: any) {
-      buildSuccess = false;
-      const exitCode = installErr.status !== undefined ? installErr.status : 1;
-      const stderrOutput = installErr.stderr ? installErr.stderr.toString("utf-8") : (installErr.message || "");
-      logs?.push(`[Build] dependency installation failed`);
-      logs?.push(`[Build] status: FAILED`);
-      logs?.push(`[Build] exit code: ${exitCode}`);
-      const safeDiag = stderrOutput.split("\n").slice(0, 5).join("\n");
-      logs?.push(`[Build] diagnostics:\n${safeDiag}`);
-    }
-  } else {
-    logs?.push(`[Build] package.json not found in repository root.`);
-  }
+         lines.forEach((line, index) => {
+           secretPatterns.forEach((pat) => {
+             if (pat.test(line)) {
+               secretsFound.push(`File: ${path.basename(file)}:L${index + 1} leaked potential API key.`);
+             }
+           });
 
-  // Real Lighthouse Execution: Decouple from local build if deploymentUrl is present
-  let auditRes;
-  if (deploymentUrl) {
-    auditRes = await runLighthouseAudit(distDir, deploymentUrl, logs);
-  } else {
-    auditRes = buildSuccess
-      ? await runLighthouseAudit(distDir, null, logs)
-      : { scores: "UNAVAILABLE" as const, errorReason: "BUILD_FAILED" };
-  }
-  const lhResult = auditRes.scores;
-  const errorReason = auditRes.errorReason;
+           if (line.trim().startsWith("//") || line.trim().startsWith("/*") || line.includes(" * ")) {
+             totalCommentsCount++;
+           }
+         });
+       } catch {}
+     }
+   });
 
-  let lighthouseScore: number | "UNAVAILABLE" = "UNAVAILABLE";
-  let accessibilityScore: number | "UNAVAILABLE" = "UNAVAILABLE";
-  let seoScore: number | "UNAVAILABLE" = "UNAVAILABLE";
-  let bestPracticesScore: number | "UNAVAILABLE" = "UNAVAILABLE";
+   const commentsDensityPercent = totalLinesCount > 0
+     ? Math.round((totalCommentsCount / totalLinesCount) * 100)
+     : 10;
+   const typescriptUsagePercent = (tsCount + jsCount) > 0
+     ? Math.round((tsCount / (tsCount + jsCount)) * 100)
+     : 0;
 
-  if (lhResult !== "UNAVAILABLE") {
-    lighthouseScore = lhResult.performance;
-    accessibilityScore = lhResult.accessibility;
-    seoScore = lhResult.seo;
-    bestPracticesScore = lhResult.bestPractices;
-  }
+   let buildSuccess = false;
+   let distDir = path.join(tempDir, "dist");
+   const packageJsonPath = path.join(tempDir, "package.json");
 
-  const passedPerf = lighthouseScore === "UNAVAILABLE" || lighthouseScore >= blueprint.performanceRules.lighthouseMin;
-  const passedAccess = accessibilityScore === "UNAVAILABLE" || accessibilityScore >= blueprint.performanceRules.accessibilityMin;
-  const passedSeo = seoScore === "UNAVAILABLE" || seoScore >= blueprint.performanceRules.seoMin;
-  const passedBest = bestPracticesScore === "UNAVAILABLE" || bestPracticesScore >= blueprint.performanceRules.bestPracticesMin;
+   if (fs.existsSync(packageJsonPath)) {
+     const pm = detectPackageManager(tempDir);
+     logs?.push(`[Build] package manager: ${pm}`);
 
-  const performanceDeductions: string[] = [];
-  if (lighthouseScore !== "UNAVAILABLE" && !passedPerf) {
-    performanceDeductions.push(`Performance score (${lighthouseScore}) below minimum required (${blueprint.performanceRules.lighthouseMin}).`);
-  }
-  if (accessibilityScore !== "UNAVAILABLE" && !passedAccess) {
-    performanceDeductions.push(`Accessibility score (${accessibilityScore}) below minimum required (${blueprint.performanceRules.accessibilityMin}).`);
-  }
+     try {
+       logs?.push(`[Build] running dependency installation: ${pm} install`);
+       execFileSync(commandBin(pm), ["install"], { cwd: tempDir, stdio: "pipe", timeout: 60000 });
 
-  const metrics = [
-    `Lighthouse Performance audit: ${lighthouseScore === "UNAVAILABLE" ? "LIGHTHOUSE_STATUS = UNAVAILABLE" : lighthouseScore + "/100"}`,
-    `Lighthouse Accessibility audit: ${accessibilityScore === "UNAVAILABLE" ? "LIGHTHOUSE_STATUS = UNAVAILABLE" : accessibilityScore + "/100"}`,
-    `Lighthouse SEO audit: ${seoScore === "UNAVAILABLE" ? "LIGHTHOUSE_STATUS = UNAVAILABLE" : seoScore + "/100"}`,
-    `Lighthouse Best Practices audit: ${bestPracticesScore === "UNAVAILABLE" ? "LIGHTHOUSE_STATUS = UNAVAILABLE" : bestPracticesScore + "/100"}`
-  ];
+       logs?.push(`[Build] command: ${pm} run build`);
+       try {
+         execFileSync(commandBin(pm), ["run", "build"], { cwd: tempDir, stdio: "pipe", timeout: 45000 });
+         if (!fs.existsSync(distDir)) {
+           if (fs.existsSync(path.join(tempDir, "build"))) {
+             distDir = path.join(tempDir, "build");
+           } else if (fs.existsSync(path.join(tempDir, ".next"))) {
+             distDir = path.join(tempDir, ".next");
+           }
+         }
+         buildSuccess = fs.existsSync(distDir) && fs.readdirSync(distDir).length > 0;
+         if (buildSuccess) {
+           logs?.push(`[Build] status: PASSED`);
+         } else {
+           logs?.push(`[Build] status: FAILED (missing or empty build output directory)`);
+         }
+       } catch (buildErr: any) {
+         buildSuccess = false;
+         const exitCode = buildErr.status !== undefined ? buildErr.status : 1;
+         const stderrOutput = buildErr.stderr ? buildErr.stderr.toString("utf-8") : (buildErr.message || "");
+         logs?.push(`[Build] status: FAILED`);
+         logs?.push(`[Build] exit code: ${exitCode}`);
+         const safeDiag = stderrOutput.split("\n").slice(0, 10).join("\n");
+         logs?.push(`[Build] diagnostics:\n${safeDiag}`);
+       }
+     } catch (installErr: any) {
+       buildSuccess = false;
+       const exitCode = installErr.status !== undefined ? installErr.status : 1;
+       const stderrOutput = installErr.stderr ? installErr.stderr.toString("utf-8") : (installErr.message || "");
+       logs?.push(`[Build] dependency installation failed`);
+       logs?.push(`[Build] status: FAILED`);
+       logs?.push(`[Build] exit code: ${exitCode}`);
+       const safeDiag = stderrOutput.split("\n").slice(0, 5).join("\n");
+       logs?.push(`[Build] diagnostics:\n${safeDiag}`);
+     }
+   } else {
+     logs?.push(`[Build] package.json not found in repository root.`);
+   }
 
-  return {
-    performance: {
-      lighthouseScore,
-      accessibilityScore,
-      seoScore,
-      bestPracticesScore,
-      passedMinChecks: passedPerf && passedAccess && passedSeo && passedBest,
-      errorReason: errorReason || null,
-      evidence: {
-        metrics,
-        deductions: performanceDeductions,
-      }
-    },
-    security: {
-      vulnerabilities: [],
-      secretsFound,
-      passedScan: secretsFound.length === 0,
-      evidence: {
-        vulnerabilitySummary: buildSuccess ? "Dependency scan: package configuration cleanly structured." : "Dependency scan: missing build script.",
-        secretsLog: secretsFound.length === 0 
-          ? "Secrets scan: Checked all source files. No leaked API credentials detected."
-          : `Secrets scan warning: Found potential API key leaks: [${secretsFound.join("; ")}].`
-      }
-    },
-    codeQuality: {
-      detectedFilesCount,
-      typescriptUsagePercent,
-      readmeSize,
-      commentsDensityPercent,
-      folderStructureValid: fs.existsSync(path.join(tempDir, "src")) || fs.existsSync(path.join(tempDir, "app")),
-      evidence: {
-        structureLog: fs.existsSync(path.join(tempDir, "src")) || fs.existsSync(path.join(tempDir, "app"))
-          ? "Detected standard frontend project structure."
-          : "Detected standard root layout files.",
-        typescriptLog: `TypeScript implementation: ${typescriptUsagePercent}%.`,
-        documentationLog: readmeLog
-      }
-    },
-    gitHealth: {
-      isPublic: true,
-      hasGitHistory: true,
-      hasReadme,
-    }
-  };
-}
+   if (lighthouseMode === "defer") {
+     return {
+       performance: {
+         lighthouseScore: "UNAVAILABLE",
+         accessibilityScore: "UNAVAILABLE",
+         seoScore: "UNAVAILABLE",
+         bestPracticesScore: "UNAVAILABLE",
+         passedMinChecks: false,
+         errorReason: "LIGHTHOUSE_DEFERRED",
+         evidence: {
+           metrics: [
+             "Lighthouse audit deferred to dedicated Lighthouse worker.",
+             "Performance, Accessibility, SEO, and Best Practices scores will be finalized after Lighthouse completes."
+           ],
+           deductions: []
+         }
+       },
+       security: {
+         vulnerabilities: [],
+         secretsFound,
+         passedScan: secretsFound.length === 0,
+         evidence: {
+           vulnerabilitySummary: buildSuccess ? "Dependency scan: package configuration cleanly structured." : "Dependency scan: missing build script.",
+           secretsLog: secretsFound.length === 0
+             ? "Secrets scan: Checked all source files. No leaked API credentials detected."
+             : `Secrets scan warning: Found potential API key leaks: [${secretsFound.join("; ")}].`
+         }
+       },
+       codeQuality: {
+         detectedFilesCount,
+         typescriptUsagePercent,
+         readmeSize,
+         commentsDensityPercent,
+         folderStructureValid: fs.existsSync(path.join(tempDir, "src")) || fs.existsSync(path.join(tempDir, "app")),
+         evidence: {
+           structureLog: fs.existsSync(path.join(tempDir, "src")) || fs.existsSync(path.join(tempDir, "app"))
+             ? "Detected standard frontend project structure."
+             : "Detected standard root layout files.",
+           typescriptLog: `TypeScript implementation: ${typescriptUsagePercent}%.`,
+           documentationLog: readmeLog
+         }
+       },
+       gitHealth: {
+         isPublic: true,
+         hasGitHistory: true,
+         hasReadme,
+       }
+     };
+   }
+
+   let auditRes;
+   if (deploymentUrl) {
+     auditRes = await runLighthouseAudit(distDir, deploymentUrl, logs);
+   } else {
+     auditRes = buildSuccess
+       ? await runLighthouseAudit(distDir, null, logs)
+       : { scores: "UNAVAILABLE" as const, errorReason: "BUILD_FAILED" };
+   }
+   const lhResult = auditRes.scores;
+   const errorReason = auditRes.errorReason;
+
+   let lighthouseScore: number | "UNAVAILABLE" = "UNAVAILABLE";
+   let accessibilityScore: number | "UNAVAILABLE" = "UNAVAILABLE";
+   let seoScore: number | "UNAVAILABLE" = "UNAVAILABLE";
+   let bestPracticesScore: number | "UNAVAILABLE" = "UNAVAILABLE";
+
+   if (lhResult !== "UNAVAILABLE") {
+     lighthouseScore = lhResult.performance;
+     accessibilityScore = lhResult.accessibility;
+     seoScore = lhResult.seo;
+     bestPracticesScore = lhResult.bestPractices;
+   }
+
+   const passedPerf = lighthouseScore === "UNAVAILABLE" || lighthouseScore >= blueprint.performanceRules.lighthouseMin;
+   const passedAccess = accessibilityScore === "UNAVAILABLE" || accessibilityScore >= blueprint.performanceRules.accessibilityMin;
+   const passedSeo = seoScore === "UNAVAILABLE" || seoScore >= blueprint.performanceRules.seoMin;
+   const passedBest = bestPracticesScore === "UNAVAILABLE" || bestPracticesScore >= blueprint.performanceRules.bestPracticesMin;
+
+   const performanceDeductions: string[] = [];
+   if (lighthouseScore !== "UNAVAILABLE" && !passedPerf) {
+     performanceDeductions.push(`Performance score (${lighthouseScore}) below minimum required (${blueprint.performanceRules.lighthouseMin}).`);
+   }
+   if (accessibilityScore !== "UNAVAILABLE" && !passedAccess) {
+     performanceDeductions.push(`Accessibility score (${accessibilityScore}) below minimum required (${blueprint.performanceRules.accessibilityMin}).`);
+   }
+
+   const metrics = [
+     `Lighthouse Performance audit: ${lighthouseScore === "UNAVAILABLE" ? "LIGHTHOUSE_STATUS = UNAVAILABLE" : lighthouseScore + "/100"}`,
+     `Lighthouse Accessibility audit: ${accessibilityScore === "UNAVAILABLE" ? "LIGHTHOUSE_STATUS = UNAVAILABLE" : accessibilityScore + "/100"}`,
+     `Lighthouse SEO audit: ${seoScore === "UNAVAILABLE" ? "LIGHTHOUSE_STATUS = UNAVAILABLE" : seoScore + "/100"}`,
+     `Lighthouse Best Practices audit: ${bestPracticesScore === "UNAVAILABLE" ? "LIGHTHOUSE_STATUS = UNAVAILABLE" : bestPracticesScore + "/100"}`
+   ];
+
+   return {
+     performance: {
+       lighthouseScore,
+       accessibilityScore,
+       seoScore,
+       bestPracticesScore,
+       passedMinChecks: passedPerf && passedAccess && passedSeo && passedBest,
+       errorReason: errorReason || null,
+       evidence: {
+         metrics,
+         deductions: performanceDeductions,
+       }
+     },
+     security: {
+       vulnerabilities: [],
+       secretsFound,
+       passedScan: secretsFound.length === 0,
+       evidence: {
+         vulnerabilitySummary: buildSuccess ? "Dependency scan: package configuration cleanly structured." : "Dependency scan: missing build script.",
+         secretsLog: secretsFound.length === 0
+           ? "Secrets scan: Checked all source files. No leaked API credentials detected."
+           : `Secrets scan warning: Found potential API key leaks: [${secretsFound.join("; ")}].`
+       }
+     },
+     codeQuality: {
+       detectedFilesCount,
+       typescriptUsagePercent,
+       readmeSize,
+       commentsDensityPercent,
+       folderStructureValid: fs.existsSync(path.join(tempDir, "src")) || fs.existsSync(path.join(tempDir, "app")),
+       evidence: {
+         structureLog: fs.existsSync(path.join(tempDir, "src")) || fs.existsSync(path.join(tempDir, "app"))
+           ? "Detected standard frontend project structure."
+           : "Detected standard root layout files.",
+         typescriptLog: `TypeScript implementation: ${typescriptUsagePercent}%.`,
+         documentationLog: readmeLog
+       }
+     },
+     gitHealth: {
+       isPublic: true,
+       hasGitHistory: true,
+       hasReadme,
+     }
+   };
+ }
 
 function getAllFiles(dir: string, fileList: string[] = []): string[] {
   if (!fs.existsSync(dir)) return [];
@@ -671,88 +720,89 @@ function getAllFiles(dir: string, fileList: string[] = []): string[] {
 }
 
 export async function evaluateSubmission(
-  repoUrl: string,
-  blueprint: Blueprint,
-  deploymentUrl?: string | null
-): Promise<DynamicEvaluationReport> {
-  const logs: string[] = [];
-  logs.push(`[1/10] Submission received: ${repoUrl}`);
-  const activeProblem = resolveActiveProblem(blueprint);
-  logs.push(`[2/10] Loaded Knowledge Blueprint: "${activeProblem.title}"`);
+   repoUrl: string,
+   blueprint: Blueprint,
+   deploymentUrl?: string | null,
+   lighthouseMode: LighthouseMode = "in-process"
+ ): Promise<DynamicEvaluationReport> {
+   const logs: string[] = [];
+   logs.push(`[1/10] Submission received: ${repoUrl}`);
+   const activeProblem = resolveActiveProblem(blueprint);
+   logs.push(`[2/10] Loaded Knowledge Blueprint: "${activeProblem.title}"`);
 
-  // Clone Repository
-  logs.push(`[3/10] Cloning repository to temporary workspace...`);
-  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "faie-v2-eval-"));
-  const safeRepoUrl = validateRepoUrl(repoUrl);
-  
-  let cloneSuccess = false;
-  try {
-    execFileSync("git", ["clone", "--depth", "1", safeRepoUrl, tempDir], { stdio: "ignore", timeout: 20000 });
-    cloneSuccess = true;
-    logs.push(`[3/10] Successfully cloned repository.`);
-  } catch (err: any) {
-    logs.push(`[3/10] Error cloning repository: ${err.message}`);
-  }
+   // Clone Repository
+   logs.push(`[3/10] Cloning repository to temporary workspace...`);
+   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "faie-v2-eval-"));
+   const safeRepoUrl = validateRepoUrl(repoUrl);
 
-  if (!cloneSuccess) {
-    try {
-      if (fs.existsSync(tempDir)) {
-        fs.rmSync(tempDir, { recursive: true, force: true });
-      }
-    } catch {}
-    throw new Error(`Failed to clone git repository from URL: ${repoUrl}`);
-  }
+   let cloneSuccess = false;
+   try {
+     execFileSync("git", ["clone", "--depth", "1", safeRepoUrl, tempDir], { stdio: "ignore", timeout: 20000 });
+     cloneSuccess = true;
+     logs.push(`[3/10] Successfully cloned repository.`);
+   } catch (err: any) {
+     logs.push(`[3/10] Error cloning repository: ${err.message}`);
+   }
 
-  // Repository size limit (untrusted input: a bloated repo can exhaust disk).
-  try {
-    assertRepoWithinSizeLimit(tempDir);
-  } catch (sizeErr: any) {
-    try {
-      fs.rmSync(tempDir, { recursive: true, force: true });
-    } catch {}
-    throw sizeErr;
-  }
+   if (!cloneSuccess) {
+     try {
+       if (fs.existsSync(tempDir)) {
+         fs.rmSync(tempDir, { recursive: true, force: true });
+       }
+     } catch {}
+     throw new Error(`Failed to clone git repository from URL: ${repoUrl}`);
+   }
 
-  try {
-    // 1. Tool Audits
-    logs.push(`[4/10] Running static code quality and security scans...`);
-    const toolResults = await runToolAudits(tempDir, blueprint, deploymentUrl);
+   // Repository size limit (untrusted input: a bloated repo can exhaust disk).
+   try {
+     assertRepoWithinSizeLimit(tempDir);
+   } catch (sizeErr: any) {
+     try {
+       fs.rmSync(tempDir, { recursive: true, force: true });
+     } catch {}
+     throw sizeErr;
+   }
 
-    // 2. Dispatch to Frontend Arena Intelligence Engine (FAIE v2)
-    logs.push(`[5/10] Dispatching workspace to Frontend Arena Intelligence Engine (FAIE v2)...`);
-    const faieOrchestrator = new FAIEOrchestrator(blueprint.synonymDictionary, blueprint.confidenceThreshold || 75);
-    const faieReport = await faieOrchestrator.evaluate(tempDir, repoUrl, blueprint, undefined, toolResults);
+   try {
+     // 1. Tool Audits
+     logs.push(`[4/10] Running static code quality and security scans...`);
+     const toolResults = await runToolAudits(tempDir, blueprint, deploymentUrl, logs, lighthouseMode);
 
-    logs.push(`[10/10] FAIE v2 evaluation completed. Final Score: ${faieReport.scoreSummary.finalScore}/100.`);
+     // 2. Dispatch to Frontend Arena Intelligence Engine (FAIE v2)
+     logs.push(`[5/10] Dispatching workspace to Frontend Arena Intelligence Engine (FAIE v2)...`);
+     const faieOrchestrator = new FAIEOrchestrator(blueprint.synonymDictionary, blueprint.confidenceThreshold || 75);
+     const faieReport = await faieOrchestrator.evaluate(tempDir, repoUrl, blueprint, undefined, toolResults);
 
-    return {
-      hackathonTitle: activeProblem.title,
-      problemStatementId: activeProblem.id || activeProblem.title || "default",
-      problemStatementTitle: activeProblem.title || "Default Problem",
-      repoUrl,
-      status: faieReport.status,
-      scoreSummary: faieReport.scoreSummary,
-      faieEvaluation: {
-        engineName: "Frontend Arena Intelligence Engine (FAIE v2)",
-        version: "v2.0 (Multi-Evidence Cross-Validation)",
-        status: faieReport.status.toUpperCase(),
-        summary: `Evaluated ${faieReport.scoringDetails.length} categories with hierarchical sub-features and Playwright UI navigation. Zero AI/LLM models.`,
-      },
-      projectClassification: faieReport.projectClassification,
-      featureTreeEvaluations: faieReport.featureTreeEvaluations,
-      rejectedClaims: faieReport.rejectedClaims,
-      screenshots: faieReport.screenshots,
-      toolAudits: toolResults,
-      scoringDetails: faieReport.scoringDetails,
-      logs: [...logs, ...faieReport.logs],
-      auditableReportId: faieReport.auditableReportId,
-      timestamp: faieReport.timestamp,
-    };
-  } finally {
-    try {
-      if (fs.existsSync(tempDir)) {
-        fs.rmSync(tempDir, { recursive: true, force: true });
-      }
-    } catch {}
-  }
-}
+     logs.push(`[10/10] FAIE v2 evaluation completed. Final Score: ${faieReport.scoreSummary.finalScore}/100.`);
+
+     return {
+       hackathonTitle: activeProblem.title,
+       problemStatementId: activeProblem.id || activeProblem.title || "default",
+       problemStatementTitle: activeProblem.title || "Default Problem",
+       repoUrl,
+       status: faieReport.status,
+       scoreSummary: faieReport.scoreSummary,
+       faieEvaluation: {
+         engineName: "Frontend Arena Intelligence Engine (FAIE v2)",
+         version: "v2.0 (Multi-Evidence Cross-Validation)",
+         status: faieReport.status.toUpperCase(),
+         summary: `Evaluated ${faieReport.scoringDetails.length} categories with hierarchical sub-features and Playwright UI navigation. Zero AI/LLM models.`,
+       },
+       projectClassification: faieReport.projectClassification,
+       featureTreeEvaluations: faieReport.featureTreeEvaluations,
+       rejectedClaims: faieReport.rejectedClaims,
+       screenshots: faieReport.screenshots,
+       toolAudits: toolResults,
+       scoringDetails: faieReport.scoringDetails,
+       logs: [...logs, ...faieReport.logs],
+       auditableReportId: faieReport.auditableReportId,
+       timestamp: faieReport.timestamp,
+     };
+   } finally {
+     try {
+       if (fs.existsSync(tempDir)) {
+         fs.rmSync(tempDir, { recursive: true, force: true });
+       }
+     } catch {}
+   }
+ }

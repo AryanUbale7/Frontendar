@@ -11,36 +11,33 @@ import Redis from "ioredis";
 import { InMemoryEvaluationQueue } from "../in-memory-queue.system";
 import { runEvaluationJob } from "../evaluation-runner";
 import { RedisEvaluationQueueDriver } from "./redis-queue.system";
-import { parseRedisConnection, intFromEnv, RedisConnectionConfig } from "./redis-config";
+import { LighthouseQueue } from "./lighthouse-queue.system";
+import { getSharedRedisConfig, intFromEnv } from "./redis-connection";
 import { EvaluationJobData, EvaluationQueueDriver, QueueMetrics, SanitizedJobInfo } from "./types";
 
 export type { EvaluationJobData, EvaluationQueueDriver, QueueMetrics, SanitizedJobInfo };
+export { LighthouseQueue, getSharedRedisConfig };
 
 async function verifyRedisAvailable(): Promise<void> {
-  const { connection, display } = parseRedisConnection();
-  // Attach a no-op "error" listener BEFORE connect(): ioredis emits an "error"
-  // event on connection failure. With lazyConnect + a listener, the failure is
-  // surfaced via the connect()/ping() rejection below instead of an unhandled
-  // `[ioredis] Unhandled error event` crash. The real error is still included
-  // in the thrown message so genuine failures are never hidden.
-  const probe = new Redis({ ...connection, lazyConnect: true });
-  probe.on("error", () => {
-    /* handled via the connect()/ping() rejection below */
-  });
-  try {
-    await probe.connect();
-    await probe.ping();
-  } catch (err) {
-    throw new Error(
-      `Redis is unavailable at ${display} but EVALUATION_QUEUE_DRIVER=redis is configured. ` +
-        `Start Redis (or fix REDIS_URL/REDIS_HOST/REDIS_PORT) before booting. ` +
-        `For local development only you may set EVALUATION_QUEUE_DRIVER=memory — this is NEVER allowed in production. ` +
-        `Details: ${(err as Error).message}`
-    );
-  } finally {
-    probe.disconnect();
-  }
-}
+   const { connection, display } = getSharedRedisConfig();
+   const probe = new Redis({ ...connection, lazyConnect: true });
+   probe.on("error", () => {
+     /* handled via the connect()/ping() rejection below */
+   });
+   try {
+     await probe.connect();
+     await probe.ping();
+   } catch (err) {
+     throw new Error(
+       `Redis is unavailable at ${display} but EVALUATION_QUEUE_DRIVER=redis is configured. ` +
+         `Start Redis (or fix REDIS_URL/REDIS_HOST/REDIS_PORT) before booting. ` +
+         `For local development only you may set EVALUATION_QUEUE_DRIVER=memory — this is NEVER allowed in production. ` +
+         `Details: ${(err as Error).message}`
+     );
+   } finally {
+     probe.disconnect();
+   }
+ }
 
 class MemoryEvaluationQueueDriver implements EvaluationQueueDriver {
   readonly name = "memory" as const;

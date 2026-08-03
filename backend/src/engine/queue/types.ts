@@ -33,6 +33,8 @@ export interface EvaluationJobData {
   testDelayedMs?: number;
   testFailFirstAttempt?: boolean;
   testSkipEvaluation?: boolean;
+  /** When "defer", Lighthouse audit is deferred to the dedicated Lighthouse worker. */
+  lighthouseMode?: "in-process" | "defer";
 }
 
 export interface SanitizedJobInfo {

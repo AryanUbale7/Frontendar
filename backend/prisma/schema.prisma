@@ -124,6 +124,12 @@ model Submission {
   createdAt           DateTime           @default(now())
   updatedAt           DateTime           @updatedAt
   reports             EvaluationReport[]
+
+  @@index([hackathonId])
+  @@index([userId])
+  @@index([status])
+  @@index([hackathonId, userId])
+  @@index([hackathonId, status])
 }
 
 model EvaluationReport {

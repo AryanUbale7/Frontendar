@@ -3,14 +3,16 @@
  *
  * - Jobs are persisted in Redis and survive API server restarts.
  * - The worker is an independent process (backend/src/worker).
- * - Stable job identity: `<submissionId>_v<version>` â€” re-enqueuing the same
+ * - Stable job identity: `<submissionId>_v<version>` — re-enqueuing the same
  *   submission version is deduplicated by BullMQ (idempotent enqueue).
  * - Retry policy: attempts + exponential backoff (env-configurable).
  * - Per-job processing timeout is passed as a BullMQ job option.
+ * - Queue backpressure: enqueue rejects when queue depth exceeds
+ *   EVALUATION_QUEUE_MAX_DEPTH (default 10000).
  */
 import { Queue } from "bullmq";
 import { EVALUATION_QUEUE_NAME } from "./queue-constants";
-import { parseRedisConnection, intFromEnv, RedisConnectionConfig } from "./redis-config";
+import { getSharedRedisConfig, intFromEnv } from "./redis-connection";
 import {
   EvaluationJobData,
   EvaluationQueueDriver,
@@ -18,22 +20,20 @@ import {
   SanitizedJobInfo,
 } from "./types";
 
+const DEFAULT_QUEUE_MAX_DEPTH = 10000;
+
 export class RedisEvaluationQueueDriver implements EvaluationQueueDriver {
   readonly name = "redis" as const;
 
   private queue: Queue;
-  private redisHost: string;
-  private redisPort: number;
+  private maxDepth: number;
 
   constructor() {
-    const { connection } = parseRedisConnection();
-    this.redisHost = (connection.host as string) || "127.0.0.1";
-    this.redisPort = (connection.port as number) || 6379;
+    const { connection, display } = getSharedRedisConfig();
+    this.maxDepth = intFromEnv("EVALUATION_QUEUE_MAX_DEPTH", DEFAULT_QUEUE_MAX_DEPTH);
 
-    // NOTE: job-level timeout is enforced by the WORKER (Promise.race) because
-    // BullMQ 6.0.x does not expose a `timeout` job option.
     this.queue = new Queue(EVALUATION_QUEUE_NAME, {
-      connection: connection,
+      connection,
       defaultJobOptions: {
         attempts: intFromEnv("EVALUATION_MAX_ATTEMPTS", 3),
         backoff: { type: "exponential", delay: intFromEnv("EVALUATION_BACKOFF_MS", 2000) },
@@ -42,19 +42,52 @@ export class RedisEvaluationQueueDriver implements EvaluationQueueDriver {
       },
     });
 
-    // Handle ioredis/BullMQ "error" events post-boot cleanly (message only —
-    // never the connection string/credentials) so a Redis outage after startup
-    // logs a clear error instead of crashing with an unhandled "error" event.
     this.queue.on("error", (err) => {
       console.error(`[Queue] Redis/BullMQ error: ${err.message}`);
     });
+  }
+
+  /**
+   * Returns the approximate number of jobs waiting in the queue.
+   * Used for backpressure checks and observability.
+   */
+  async getWaitingCount(): Promise<number> {
+    try {
+      const counts = await this.queue.getJobCounts("waiting");
+      return counts.waiting ?? 0;
+    } catch {
+      return 0;
+    }
+  }
+
+  /**
+   * Returns the total number of active (processing) jobs.
+   */
+  async getActiveCount(): Promise<number> {
+    try {
+      const counts = await this.queue.getJobCounts("active");
+      return counts.active ?? 0;
+    } catch {
+      return 0;
+    }
   }
 
   async enqueue(data: EvaluationJobData): Promise<{ jobId: string }> {
     const version = data.version ?? 1;
     // BullMQ forbids ":" in custom job IDs (Redis key separator), so use "_v".
     const jobId = `${data.submissionId}_v${version}`;
-    // Same jobId + data â†’ BullMQ returns the existing job instead of duplicating.
+
+    // Backpressure check: if the queue is too deep, reject new submissions
+    // to protect Redis memory and prevent unbounded queue growth.
+    const waitingCount = await this.getWaitingCount();
+    if (waitingCount >= this.maxDepth) {
+      throw new Error(
+        `Queue backpressure: ${waitingCount} jobs waiting (max ${this.maxDepth}). ` +
+          `Try again shortly or contact the platform administrator.`
+      );
+    }
+
+    // Same jobId + data → BullMQ returns the existing job instead of duplicating.
     const job = await this.queue.add("evaluation", data, { jobId });
     return { jobId: job.id || jobId };
   }
@@ -87,7 +120,6 @@ export class RedisEvaluationQueueDriver implements EvaluationQueueDriver {
 
     return {
       driver: "redis",
-      redis: { host: this.redisHost, port: this.redisPort, connected },
       counts: {
         waiting: counts.waiting ?? 0,
         active: counts.active ?? 0,
