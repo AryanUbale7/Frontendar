@@ -654,6 +654,143 @@ app.post("/api/evaluate", verifyToken, submissionLimiter, async (req: Authentica
   });
 });
 
+// Secure internal callback from GitHub Actions for asynchronous Lighthouse results
+app.post("/api/internal/lighthouse-result", async (req: Request, res: Response) => {
+  const authHeader = req.headers.authorization;
+  const secret = process.env.LIGHTHOUSE_CALLBACK_SECRET;
+  if (!secret || !authHeader || authHeader !== `Bearer ${secret}`) {
+    return res.status(401).json({ error: "Unauthorized callback request." });
+  }
+
+  const { submissionId, performance, accessibility, bestPractices, seo, status, errorReason } = req.body;
+  if (!submissionId) {
+    return res.status(400).json({ error: "Missing submissionId." });
+  }
+
+  console.log(`[LighthouseCallback] Results received for submission ${submissionId}`);
+
+  try {
+    const submission = await prisma.submission.findUnique({ where: { id: submissionId } });
+    if (!submission) {
+      return res.status(404).json({ error: "Submission not found." });
+    }
+
+    const report = await prisma.evaluationReport.findUnique({ where: { submissionId } });
+    if (!report) {
+      return res.status(404).json({ error: "Evaluation report not found." });
+    }
+
+    const existingReport = report.payload as any;
+    const blueprintId = submission.blueprintId;
+    let blueprint: any = null;
+
+    if (blueprintId) {
+      blueprint = await prisma.blueprint.findUnique({ where: { id: blueprintId } });
+    }
+
+    if (status === "UNAVAILABLE" || errorReason) {
+      existingReport.toolAudits.performance.lighthouseScore = "UNAVAILABLE";
+      existingReport.toolAudits.performance.accessibilityScore = "UNAVAILABLE";
+      existingReport.toolAudits.performance.seoScore = "UNAVAILABLE";
+      existingReport.toolAudits.performance.bestPracticesScore = "UNAVAILABLE";
+      existingReport.toolAudits.performance.passedMinChecks = false;
+      existingReport.toolAudits.performance.errorReason = errorReason || "LIGHTHOUSE_EXECUTION_FAILED";
+
+      const lhMetrics = existingReport.toolAudits.performance.evidence.metrics || [];
+      existingReport.toolAudits.performance.evidence.metrics = [
+        ...lhMetrics.filter((m: string) => !m.includes("deferred") && !m.includes("failed") && !m.includes("UNAVAILABLE")),
+        `Lighthouse audit failed: ${errorReason || "LIGHTHOUSE_EXECUTION_FAILED"}`
+      ];
+
+      const deductions = existingReport.toolAudits.performance.evidence.deductions || [];
+      const failMsg = `Lighthouse audit failed: ${errorReason || "LIGHTHOUSE_EXECUTION_FAILED"}`;
+      if (!deductions.includes(failMsg)) {
+        deductions.push(failMsg);
+      }
+      existingReport.toolAudits.performance.evidence.deductions = deductions;
+    } else {
+      // Lighthouse audit succeeded
+      const perf = Number(performance);
+      const access = Number(accessibility);
+      const seoVal = Number(seo);
+      const best = Number(bestPractices);
+
+      existingReport.toolAudits.performance.lighthouseScore = perf;
+      existingReport.toolAudits.performance.accessibilityScore = access;
+      existingReport.toolAudits.performance.seoScore = seoVal;
+      existingReport.toolAudits.performance.bestPracticesScore = best;
+
+      const passedMin = blueprint ? (
+        perf >= (blueprint.performanceRules?.lighthouseMin ?? 70) &&
+        access >= (blueprint.performanceRules?.accessibilityMin ?? 60) &&
+        seoVal >= (blueprint.performanceRules?.seoMin ?? 70) &&
+        best >= (blueprint.performanceRules?.bestPracticesMin ?? 70)
+      ) : false;
+
+      existingReport.toolAudits.performance.passedMinChecks = passedMin;
+      existingReport.toolAudits.performance.errorReason = null;
+
+      const lhMetrics = existingReport.toolAudits.performance.evidence.metrics || [];
+      const newMetrics = [
+        `Lighthouse Performance audit: ${perf}/100`,
+        `Lighthouse Accessibility audit: ${access}/100`,
+        `Lighthouse SEO audit: ${seoVal}/100`,
+        `Lighthouse Best Practices audit: ${best}/100`,
+      ];
+      existingReport.toolAudits.performance.evidence.metrics = [
+        ...lhMetrics.filter((m: string) => !m.includes("deferred")),
+        ...newMetrics
+      ];
+    }
+
+    // Recompute final score if Lighthouse succeeded
+    let finalScore = existingReport.scoreSummary.finalScore;
+    if (status !== "UNAVAILABLE" && !errorReason) {
+      const perf = Number(performance);
+      const access = Number(accessibility);
+      const seoVal = Number(seo);
+      const best = Number(bestPractices);
+
+      const codeScore = existingReport.scoreSummary.codeScore !== undefined
+        ? existingReport.scoreSummary.codeScore
+        : existingReport.scoreSummary.finalScore;
+
+      const lhAverage = (perf + access + seoVal + best) / 4;
+      finalScore = Math.round((codeScore + lhAverage) / 2);
+    } else {
+      // Restore intermediate code score if Lighthouse is unavailable
+      finalScore = existingReport.scoreSummary.codeScore !== undefined
+        ? existingReport.scoreSummary.codeScore
+        : existingReport.scoreSummary.finalScore;
+    }
+
+    existingReport.scoreSummary.finalScore = finalScore;
+    existingReport.status = finalScore >= 75 ? "pass" : "fail";
+
+    await prisma.submission.update({
+      where: { id: submissionId },
+      data: {
+        status: "COMPLETED",
+        score: finalScore,
+        grade: finalScore >= 75 ? "PASSED" : "FAILED",
+        completedAt: new Date(),
+      },
+    });
+
+    await prisma.evaluationReport.upsert({
+      where: { submissionId },
+      update: { payload: existingReport },
+      create: { submissionId, payload: existingReport },
+    });
+
+    console.log(`[LighthouseCallback] Lighthouse metrics persisted for submission ${submissionId}`);
+    return res.json({ message: "Lighthouse results persisted successfully." });
+  } catch (err: any) {
+    console.error(`[LighthouseCallback] Error processing callback: ${err.message}`);
+    return res.status(500).json({ error: "Internal server error processing callback." });
+  }
+});
+
 // Queue observability (admin only): counts + recent jobs. Never exposes
 // secrets or environment variables — only job identity, timing and failure reason.
 app.get("/api/queue/metrics", verifyToken, requireRole(["ADMIN", "SUPER_ADMIN"]), async (req: Request, res: Response) => {

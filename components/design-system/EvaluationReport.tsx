@@ -24,6 +24,7 @@ import {
   Monitor,
   Smartphone,
   Tablet,
+  RefreshCw,
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -465,15 +466,32 @@ export function EvaluationReport({ report }: EvaluationReportProps) {
               </div>
             </div>
 
-            {/* Show any Lighthouse unreachable / unavailable warning */}
+            {/* Show any Lighthouse unreachable / unavailable warning / running status */}
             {(report.toolAudits.performance.lighthouseScore === "UNAVAILABLE" || report.toolAudits.performance.errorReason) && (
-              <div className="p-4 border border-amber-200 rounded-xl bg-amber-50 text-xs text-amber-800 space-y-1.5 shadow-2xs">
-                <p className="font-bold flex items-center gap-1.5 text-amber-900">
-                  <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
-                  <span>Lighthouse Metrics Limited</span>
+              <div className={`p-4 border rounded-xl text-xs space-y-1.5 shadow-2xs ${
+                report.toolAudits.performance.errorReason === "LIGHTHOUSE_DEFERRED"
+                  ? "border-blue-200 bg-blue-50 text-blue-800"
+                  : "border-amber-200 bg-amber-50 text-amber-800"
+              }`}>
+                <p className={`font-bold flex items-center gap-1.5 ${
+                  report.toolAudits.performance.errorReason === "LIGHTHOUSE_DEFERRED" ? "text-blue-900" : "text-amber-900"
+                }`}>
+                  {report.toolAudits.performance.errorReason === "LIGHTHOUSE_DEFERRED" ? (
+                    <>
+                      <RefreshCw className="h-4 w-4 text-blue-600 shrink-0 animate-spin" />
+                      <span>Lighthouse Audit: RUNNING</span>
+                    </>
+                  ) : (
+                    <>
+                      <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
+                      <span>Lighthouse Metrics Limited</span>
+                    </>
+                  )}
                 </p>
                 <p className="text-[11px] leading-relaxed text-slate-600">
-                  {report.toolAudits.performance.errorReason || "Lighthouse could not analyze the submitted deployment because the URL was unreachable or the browser runtime was unavailable during evaluation."}
+                  {report.toolAudits.performance.errorReason === "LIGHTHOUSE_DEFERRED"
+                    ? "Lighthouse audit has been queued and is running asynchronously in GitHub Actions. Your performance scores will automatically update once the audit is complete."
+                    : report.toolAudits.performance.errorReason || "Lighthouse could not analyze the submitted deployment because the URL was unreachable or the browser runtime was unavailable during evaluation."}
                 </p>
               </div>
             )}

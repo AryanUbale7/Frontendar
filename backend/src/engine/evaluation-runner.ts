@@ -39,10 +39,20 @@ async function persistIntermediateReport(
   report: any,
   jobData: EvaluationJobData
 ): Promise<void> {
+  const intermediateScore = Math.round(report.scoreSummary.finalScore);
+  
+  // Store original code score for callback idempotency
+  if (report.scoreSummary) {
+    report.scoreSummary.codeScore = intermediateScore;
+  }
+
   await prisma.submission.update({
     where: { id: submissionId },
     data: {
-      status: "EVALUATING",
+      status: "COMPLETED",
+      score: intermediateScore,
+      grade: intermediateScore >= PASS_GRADE_THRESHOLD ? "PASSED" : "FAILED",
+      completedAt: new Date(),
       ...(jobData.blueprintId ? { blueprintId: jobData.blueprintId } : {}),
       ...(jobData.blueprintVersion ? { blueprintVersion: jobData.blueprintVersion } : {}),
     },

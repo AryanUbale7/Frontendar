@@ -16,9 +16,7 @@ jobs:
   lighthouse:
     name: Lighthouse Audit
     runs-on: ubuntu-latest
-
     timeout-minutes: 5
-
     steps:
       - name: Show audit information
         run: |
@@ -34,50 +32,109 @@ jobs:
         run: npm install -g lighthouse
 
       - name: Run Lighthouse
+        id: run_lh
         run: |
           lighthouse "${{ inputs.deployment_url }}" \
             --output=json \
             --output-path=./lighthouse-report.json \
             --chrome-flags="--headless --no-sandbox --disable-gpu" \
-            --quiet
+            --quiet || echo "LIGHTHOUSE_FAILED=true" >> $GITHUB_ENV
 
-      - name: Extract Lighthouse Scores
+      - name: Process Results and Callback
+        env:
+          RENDER_BACKEND_URL: ${{ secrets.RENDER_BACKEND_URL }}
+          LIGHTHOUSE_CALLBACK_SECRET: ${{ secrets.LIGHTHOUSE_CALLBACK_SECRET }}
+          SUBMISSION_ID: ${{ inputs.submission_id }}
         run: |
           node <<'NODE'
           const fs = require("fs");
+          const submissionId = process.env.SUBMISSION_ID;
+          const backendUrl = process.env.RENDER_BACKEND_URL;
+          const secret = process.env.LIGHTHOUSE_CALLBACK_SECRET;
 
-          const report = JSON.parse(
-            fs.readFileSync("lighthouse-report.json", "utf8")
-          );
+          async function sendCallback(payload) {
+            console.log("Sending callback to Render backend...");
+            const res = await fetch(`${backendUrl}/api/internal/lighthouse-result`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${secret}`
+              },
+              body: JSON.stringify(payload)
+            });
+            if (!res.ok) {
+              const text = await res.text();
+              throw new Error(`Callback failed with status ${res.status}: ${text}`);
+            }
+            console.log("Callback successfully accepted.");
+          }
 
-          const scores = {
-            performance:
-              Math.round(report.categories.performance.score * 100),
+          async function main() {
+            if (process.env.LIGHTHOUSE_FAILED === "true" || !fs.existsSync("lighthouse-report.json")) {
+              console.log("Lighthouse audit failed.");
+              await sendCallback({
+                submissionId,
+                status: "UNAVAILABLE",
+                errorReason: "LIGHTHOUSE_EXECUTION_FAILED"
+              });
+              process.exit(0);
+            }
 
-            accessibility:
-              Math.round(report.categories.accessibility.score * 100),
+            try {
+              const report = JSON.parse(fs.readFileSync("lighthouse-report.json", "utf8"));
+              
+              const perf = report.categories.performance?.score;
+              const access = report.categories.accessibility?.score;
+              const best = report.categories["best-practices"]?.score;
+              const seo = report.categories.seo?.score;
 
-            bestPractices:
-              Math.round(report.categories["best-practices"].score * 100),
+              if (perf === undefined || access === undefined || best === undefined || seo === undefined) {
+                console.log("Lighthouse scores missing or invalid.");
+                await sendCallback({
+                  submissionId,
+                  status: "UNAVAILABLE",
+                  errorReason: "LIGHTHOUSE_INVALID_LHR"
+                });
+                process.exit(0);
+              }
 
-            seo:
-              Math.round(report.categories.seo.score * 100)
-          };
+              const scores = {
+                performance: Math.round(perf * 100),
+                accessibility: Math.round(access * 100),
+                bestPractices: Math.round(best * 100),
+                seo: Math.round(seo * 100)
+              };
 
-          console.log("================================");
-          console.log("FAIE LIGHTHOUSE RESULTS");
-          console.log("================================");
-          console.log(scores);
-          console.log("================================");
+              console.log("Parsed Lighthouse Scores:", scores);
+              fs.writeFileSync("lighthouse-scores.json", JSON.stringify(scores, null, 2));
 
-          fs.writeFileSync(
-            "lighthouse-scores.json",
-            JSON.stringify(scores, null, 2)
-          );
+              await sendCallback({
+                submissionId,
+                performance: scores.performance,
+                accessibility: scores.accessibility,
+                bestPractices: scores.bestPractices,
+                seo: scores.seo
+              });
+
+            } catch (err) {
+              console.error("Exception in processing:", err.message);
+              await sendCallback({
+                submissionId,
+                status: "UNAVAILABLE",
+                errorReason: "LIGHTHOUSE_EXECUTION_FAILED"
+              });
+            }
+          }
+
+          main().catch(err => {
+            console.error("Fatal error:", err);
+            process.exit(1);
+          });
           NODE
 
       - name: Upload Lighthouse Result
         uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: lighthouse-${{ inputs.submission_id }}
           path: |
