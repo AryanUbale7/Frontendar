@@ -1,0 +1,86 @@
+name: FAIE Lighthouse Audit
+
+on:
+  workflow_dispatch:
+    inputs:
+      deployment_url:
+        description: "Participant deployment URL"
+        required: true
+        type: string
+      submission_id:
+        description: "FAIE Submission ID"
+        required: true
+        type: string
+
+jobs:
+  lighthouse:
+    name: Lighthouse Audit
+    runs-on: ubuntu-latest
+
+    timeout-minutes: 5
+
+    steps:
+      - name: Show audit information
+        run: |
+          echo "Submission: ${{ inputs.submission_id }}"
+          echo "Auditing deployment..."
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install Lighthouse
+        run: npm install -g lighthouse
+
+      - name: Run Lighthouse
+        run: |
+          lighthouse "${{ inputs.deployment_url }}" \
+            --output=json \
+            --output-path=./lighthouse-report.json \
+            --chrome-flags="--headless --no-sandbox --disable-gpu" \
+            --quiet
+
+      - name: Extract Lighthouse Scores
+        run: |
+          node <<'NODE'
+          const fs = require("fs");
+
+          const report = JSON.parse(
+            fs.readFileSync("lighthouse-report.json", "utf8")
+          );
+
+          const scores = {
+            performance:
+              Math.round(report.categories.performance.score * 100),
+
+            accessibility:
+              Math.round(report.categories.accessibility.score * 100),
+
+            bestPractices:
+              Math.round(report.categories["best-practices"].score * 100),
+
+            seo:
+              Math.round(report.categories.seo.score * 100)
+          };
+
+          console.log("================================");
+          console.log("FAIE LIGHTHOUSE RESULTS");
+          console.log("================================");
+          console.log(scores);
+          console.log("================================");
+
+          fs.writeFileSync(
+            "lighthouse-scores.json",
+            JSON.stringify(scores, null, 2)
+          );
+          NODE
+
+      - name: Upload Lighthouse Result
+        uses: actions/upload-artifact@v4
+        with:
+          name: lighthouse-${{ inputs.submission_id }}
+          path: |
+            lighthouse-report.json
+            lighthouse-scores.json
+          retention-days: 1
