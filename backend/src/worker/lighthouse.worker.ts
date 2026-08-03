@@ -186,8 +186,8 @@ async function runLighthouseJob(data: { submissionId: string; repoUrl: string; d
     throw err;
   }
 }
+export async function startLighthouseWorker(): Promise<{ worker: Worker; close: () => Promise<void> }> {
 
-async function startLighthouseWorker(): Promise<{ worker: Worker; close: () => Promise<void> }> {
   const { connection } = getSharedRedisConfig();
   const concurrency = intFromEnv("LIGHTHOUSE_WORKER_CONCURRENCY", 1);
   const jobTimeoutMs = intFromEnv("LIGHTHOUSE_JOB_TIMEOUT_MS", 120000);

@@ -8,6 +8,7 @@ import { authRouter } from "./routes/auth";
 import { verifyToken, optionalAuth, requireRole, AuthenticatedRequest, maintenanceGuard } from "./middleware/auth";
 import { createEvaluationQueue, EvaluationQueueDriver } from "./engine/queue";
 import { startEvaluationWorker, EvaluationWorkerHandle } from "./worker";
+import { startLighthouseWorker } from "./worker/lighthouse.worker";
 import { hashPassword } from "./engine/password";
 import { resolveLifecycleStatus, lifecycleToPersisted, canAcceptSubmissions, canAcceptRegistrations, LifecycleStatus } from "./engine/lifecycle";
 
@@ -25,6 +26,7 @@ const submissionLimiter = rateLimit({
 
 let evaluationQueue: EvaluationQueueDriver;
 let combinedWorkerHandle: EvaluationWorkerHandle | null = null;
+let combinedLighthouseWorkerHandle: { close: () => Promise<void> } | null = null;
 
 app.use(cors());
 app.use(express.json({ limit: "50mb" }));
@@ -1398,38 +1400,42 @@ async function boot(): Promise<void> {
   evaluationQueue = await createEvaluationQueue();
   console.log(`[Queue] Evaluation queue driver active: ${evaluationQueue.name}`);
 
-  // Combined deployment mode (low-cost/testing): start EXACTLY ONE BullMQ
-  // evaluation worker inside this same web process. Uses the SAME Redis queue
-  // (EVALUATION_QUEUE_DRIVER=redis is enforced) and the SAME Phase 3
-  // processor. Concurrency defaults to 1 unless EVALUATION_WORKER_CONCURRENCY
-  // is set. The independent `npm run worker` process remains fully supported.
-  //
-  // PRODUCTION RECOMMENDATION: Set RUN_EVALUATION_WORKER_IN_WEB=false (or
-  // omit it) and run `npm run worker` as a separate Render Background Worker
-  // service. This isolates API latency from evaluation CPU/memory pressure.
-  const runWorkerInWeb = (process.env.RUN_EVALUATION_WORKER_IN_WEB || "false").toLowerCase() === "true";
+  const runWorkerInWeb =
+    (process.env.RUN_EVALUATION_WORKER_IN_WEB || "false").toLowerCase() === "true";
+
   if (runWorkerInWeb) {
-    if ((process.env.EVALUATION_QUEUE_DRIVER || "redis").toLowerCase() !== "redis") {
+    if (
+      (process.env.EVALUATION_QUEUE_DRIVER || "redis").toLowerCase() !== "redis"
+    ) {
       throw new Error(
-        "RUN_EVALUATION_WORKER_IN_WEB=true requires EVALUATION_QUEUE_DRIVER=redis. " +
-          "The in-memory queue must never be used in production, and combined mode " +
-          "must consume jobs from the same durable Redis queue the web enqueues into."
+        "RUN_EVALUATION_WORKER_IN_WEB=true requires EVALUATION_QUEUE_DRIVER=redis."
       );
     }
-    combinedWorkerHandle = await startEvaluationWorker({ combinedMode: true });
+
+    // Start FAIE evaluation worker
+    combinedWorkerHandle = await startEvaluationWorker({
+      combinedMode: true,
+    });
+
+    // Start Lighthouse worker
+    combinedLighthouseWorkerHandle = await startLighthouseWorker();
+
     console.log(
-      `[Server] Combined mode active — exactly one evaluation worker running in the web process ` +
-        `(duplicate-worker prevention: worker created only when RUN_EVALUATION_WORKER_IN_WEB=true, and only once).`
+      `[Server] Combined mode active — FAIE worker + Lighthouse worker running in web process ` +
+        `(FAIE concurrency=${process.env.EVALUATION_WORKER_CONCURRENCY || "1"}, ` +
+        `Lighthouse concurrency=${process.env.LIGHTHOUSE_WORKER_CONCURRENCY || "1"}).`
     );
   } else {
     console.log(
-      `[Server] API-only mode — evaluation worker runs in a separate process ` +
-        `(npm run worker). Set RUN_EVALUATION_WORKER_IN_WEB=true to run the worker in this process.`
+      `[Server] API-only mode — evaluation workers run in separate processes ` +
+        `(npm run worker + npm run lighthouse-worker). ` +
+        `Set RUN_EVALUATION_WORKER_IN_WEB=true to run both workers in this process.`
     );
   }
 
   const server = app.listen(PORT, async () => {
     console.log(`Frontend Arena Evaluation Engine running on port ${PORT}`);
+
     try {
       await ensureDemoUsers();
     } catch (err: any) {
@@ -1437,48 +1443,88 @@ async function boot(): Promise<void> {
     }
   });
 
-  // Graceful shutdown order: stop accepting new HTTP requests, then
-  // close the BullMQ worker (stops accepting new jobs and finishes/safely
-  // releases active ones), then close the queue/Redis connections, then
-  // disconnect Prisma.
+  // Graceful shutdown
   const shutdown = (signal: string) => {
-    console.log(`[Server] ${signal} received — shutting down gracefully...`);
+    console.log(
+      `[Server] ${signal} received — shutting down gracefully...`
+    );
+
     server.close(async () => {
-      console.log("[Server] HTTP server closed (no new connections).");
+      console.log(
+        "[Server] HTTP server closed (no new connections)."
+      );
+
+      // Close FAIE worker
       if (combinedWorkerHandle) {
         try {
           await combinedWorkerHandle.close();
-          console.log("[Server] Combined evaluation worker closed.");
+          console.log(
+            "[Server] Combined evaluation worker closed."
+          );
         } catch (err: any) {
-          console.error(`[Server] Error closing combined evaluation worker: ${err.message}`);
+          console.error(
+            `[Server] Error closing combined evaluation worker: ${err.message}`
+          );
         }
+
         combinedWorkerHandle = null;
       }
+
+      // Close Lighthouse worker
+      if (combinedLighthouseWorkerHandle) {
+        try {
+          await combinedLighthouseWorkerHandle.close();
+          console.log(
+            "[Server] Combined Lighthouse worker closed."
+          );
+        } catch (err: any) {
+          console.error(
+            `[Server] Error closing combined Lighthouse worker: ${err.message}`
+          );
+        }
+
+        combinedLighthouseWorkerHandle = null;
+      }
+
+      // Close evaluation queue
       try {
         await evaluationQueue.close();
         console.log("[Server] Queue closed.");
       } catch (err: any) {
-        console.error(`[Server] Error closing queue: ${err.message}`);
+        console.error(
+          `[Server] Error closing queue: ${err.message}`
+        );
       }
+
+      // Disconnect Prisma
       try {
         await prisma.$disconnect();
         console.log("[Server] Prisma disconnected.");
       } catch (err: any) {
-        console.error(`[Server] Error closing Prisma: ${err.message}`);
+        console.error(
+          `[Server] Error closing Prisma: ${err.message}`
+        );
       }
+
       console.log("[Server] Shutdown complete.");
       process.exit(0);
     });
+
+    // Force shutdown if graceful shutdown hangs
     setTimeout(() => {
-      console.error("[Server] Forced shutdown after 10s timeout.");
+      console.error(
+        "[Server] Forced shutdown after 10s timeout."
+      );
       process.exit(1);
     }, 10_000).unref();
   };
 
+  // IMPORTANT: ye boot() ke andar hi rahenge
   process.on("SIGTERM", () => shutdown("SIGTERM"));
   process.on("SIGINT", () => shutdown("SIGINT"));
 }
 
+// Start server
 boot().catch((err) => {
   console.error(`[Server] FATAL: ${err.message}`);
   process.exit(1);
