@@ -127,7 +127,7 @@ export class ASTAnalysisEngine {
               if (ts.isNamespaceImport(node.importClause.namedBindings)) {
                 isNamespace = true;
               } else if (ts.isNamedImports(node.importClause.namedBindings)) {
-                node.importClause.namedBindings.elements.forEach((el) => {
+                node.importClause.namedBindings.elements.forEach((el: ts.ImportSpecifier) => {
                   importedNames.push(el.name.text);
                 });
               }
@@ -150,7 +150,7 @@ export class ASTAnalysisEngine {
         const tagName = tag.tagName.getText(sourceFile);
         const attributes: string[] = [];
 
-        tag.attributes.properties.forEach((prop) => {
+        tag.attributes.properties.forEach((prop: ts.JsxAttributeLike) => {
           if (ts.isJsxAttribute(prop)) {
             attributes.push(prop.name.getText(sourceFile));
           }

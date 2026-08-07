@@ -9,11 +9,11 @@
   },
   "dependencies": {
     "dotenv": "^16.4.5",
+    "typescript": "^5.4.5",
     "web-tree-sitter": "^0.26.11"
   },
   "devDependencies": {
     "@types/node": "^20.14.9",
-    "ts-node": "^10.9.2",
-    "typescript": "^5.4.5"
+    "ts-node": "^10.9.2"
   }
 }
