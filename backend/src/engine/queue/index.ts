@@ -11,12 +11,11 @@ import Redis from "ioredis";
 import { InMemoryEvaluationQueue } from "../in-memory-queue.system";
 import { runEvaluationJob } from "../evaluation-runner";
 import { RedisEvaluationQueueDriver } from "./redis-queue.system";
-import { LighthouseQueue } from "./lighthouse-queue.system";
 import { getSharedRedisConfig, intFromEnv } from "./redis-connection";
 import { EvaluationJobData, EvaluationQueueDriver, QueueMetrics, SanitizedJobInfo } from "./types";
 
 export type { EvaluationJobData, EvaluationQueueDriver, QueueMetrics, SanitizedJobInfo };
-export { LighthouseQueue, getSharedRedisConfig };
+export { getSharedRedisConfig };
 
 async function verifyRedisAvailable(): Promise<void> {
    const { connection, display } = getSharedRedisConfig();

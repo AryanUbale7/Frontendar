@@ -1,1 +1,0 @@
-export const LIGHTHOUSE_QUEUE_NAME = "faie-lighthouse";
