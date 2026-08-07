@@ -25,8 +25,13 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Frontend Arena — Hackathon Management & Virtual Judging Platform",
+  title: "Frontend Arena — Official Developer Community & Premium Hackathons",
   description: "Production-grade SaaS platform for hosting developer hackathons and virtual project judging.",
+  icons: {
+    icon: "/logo.png",
+    shortcut: "/logo.png",
+    apple: "/logo.png",
+  },
 };
 
 export default function RootLayout({
