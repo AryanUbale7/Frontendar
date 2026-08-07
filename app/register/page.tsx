@@ -683,9 +683,9 @@ function HackathonRegistrationContent() {
   return (
     <div className="min-h-screen bg-[#F8FAFC] pb-12">
       {/* Top Header */}
-      <header className="h-16 w-full border-b border-[#E2E8F0] bg-white flex items-center px-4 md:px-8 justify-between sticky top-0 z-40">
-        <Link href="/" className="flex items-center gap-2.5 group">
-          <div className="flex h-10 w-10 items-center justify-center rounded-[12px] bg-black p-0.5 shadow-sm">
+      <header className="h-18 w-full border-b border-[#E2E8F0] bg-white flex items-center px-4 md:px-8 justify-between sticky top-0 z-40">
+        <Link href="/" className="flex items-center gap-3 group">
+          <div className="flex h-13 w-13 items-center justify-center rounded-[14px] bg-black p-1 shadow-md shrink-0">
             <img src="/logo.png" alt="Frontend Arena Logo" className="h-full w-full object-contain" />
           </div>
           <span className="font-heading text-base font-bold text-[#0F172A]">

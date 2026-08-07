@@ -17,7 +17,7 @@ export function Navbar() {
   const isParticipant = user?.role === "participant";
 
   return (
-    <header className="sticky top-0 z-40 flex h-16 w-full items-center justify-between border-b border-[#E2E8F0] bg-white/95 px-4 md:px-6 backdrop-blur-sm shadow-xs">
+    <header className="sticky top-0 z-40 flex h-18 w-full items-center justify-between border-b border-[#E2E8F0] bg-white/95 px-4 md:px-6 backdrop-blur-sm shadow-xs">
       <div className="flex items-center gap-3">
         {!isParticipant && (
           <Button
@@ -32,8 +32,8 @@ export function Navbar() {
         )}
 
         {/* Brand Logo & Title */}
-        <Link href="/" className="flex items-center gap-2.5 group">
-          <div className="flex h-10 w-10 items-center justify-center rounded-[12px] bg-black p-1 shadow-sm group-hover:scale-105 transition-transform duration-200">
+        <Link href="/" className="flex items-center gap-3 group">
+          <div className="flex h-13 w-13 items-center justify-center rounded-[14px] bg-black p-1 shadow-md group-hover:scale-105 transition-transform duration-200 shrink-0">
             <img
               src="/logo.png"
               alt="Frontend Arena Logo"

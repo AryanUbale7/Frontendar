@@ -44,7 +44,7 @@ export function Footer() {
           {/* Center Section: Centered Logo + Frontend Arena Title + 2 Sub Link Columns */}
           <div className="flex flex-col items-center text-center space-y-6">
             <div className="space-y-3 flex flex-col items-center group cursor-pointer">
-              <div className="flex h-24 w-24 items-center justify-center rounded-2xl bg-black p-3 shadow-md border border-[#E2E8F0] group-hover:scale-105 transition-transform">
+              <div className="flex h-32 w-32 items-center justify-center rounded-2xl bg-black p-3 shadow-lg border border-[#E2E8F0] group-hover:scale-105 transition-transform">
                 <img
                   src="/logo.png"
                   alt="Frontend Arena Logo"

@@ -18,10 +18,10 @@ export function Logo({
   showSubtitle = false,
 }: LogoProps) {
   const iconSizeClasses = {
-    sm: "h-9 w-9 rounded-[10px]",
-    md: "h-11 w-11 rounded-[12px]",
-    lg: "h-14 w-14 rounded-[14px]",
-    xl: "h-16 w-16 rounded-[16px]",
+    sm: "h-11 w-11 rounded-[12px]",
+    md: "h-14 w-14 rounded-[14px]",
+    lg: "h-18 w-18 rounded-[16px]",
+    xl: "h-22 w-22 rounded-[20px]",
   };
 
   const textSizeClasses = {

@@ -32,10 +32,10 @@ export function LandingNavbar() {
           : "bg-white/70 backdrop-blur-sm border-b border-[#E2E8F0]/50"
       )}
     >
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 md:px-6">
+      <div className="mx-auto flex h-18 max-w-7xl items-center justify-between px-4 md:px-6">
         {/* Brand Logo */}
-        <Link href="#hero" className="flex items-center gap-2.5 group">
-          <div className="flex h-10 w-10 items-center justify-center rounded-[12px] bg-black p-1 shadow-sm group-hover:scale-105 transition-transform">
+        <Link href="#hero" className="flex items-center gap-3 group">
+          <div className="flex h-13 w-13 items-center justify-center rounded-[14px] bg-black p-1 shadow-md group-hover:scale-105 transition-transform shrink-0">
             <img
               src="/logo.png"
               alt="Frontend Arena Logo"
