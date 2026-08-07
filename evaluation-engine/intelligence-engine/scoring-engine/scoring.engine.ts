@@ -119,7 +119,7 @@ export class ScoringEngine {
     // Count false positive claims
     let rejectedClaimsCount = 0;
     featureResults.forEach((fr) => {
-      if (fr.evidence.rejectedClaims && fr.evidence.rejectedClaims.length > 0) {
+      if (fr.evidence?.rejectedClaims && fr.evidence.rejectedClaims.length > 0) {
         rejectedClaimsCount += fr.evidence.rejectedClaims.length;
       }
     });
