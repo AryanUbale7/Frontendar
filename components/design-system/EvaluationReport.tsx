@@ -122,11 +122,8 @@ export interface EvaluationReportProps {
 }
 
 export function EvaluationReport({ report, onReevaluate }: EvaluationReportProps) {
-  const [activeTab, setActiveTab] = useState<"faie" | "features" | "code" | "performance" | "logs">("faie");
+  const [activeTab, setActiveTab] = useState<"faie" | "features" | "code" | "performance">("faie");
   const [expandedFeatureIdx, setExpandedFeatureIdx] = useState<number | null>(0);
-  const [logSearchQuery, setLogSearchQuery] = useState("");
-  const [copiedLog, setCopiedLog] = useState(false);
-  const [logsCollapsed, setLogsCollapsed] = useState(false);
 
   const finalScore = report?.scoreSummary?.finalScore ?? 0;
   const isPassed = report?.status?.toLowerCase() === "pass" || finalScore >= 60;
@@ -140,14 +137,6 @@ export function EvaluationReport({ report, onReevaluate }: EvaluationReportProps
     document.body.appendChild(downloadAnchor);
     downloadAnchor.click();
     downloadAnchor.remove();
-  };
-
-  const copyLogs = () => {
-    if (report.logs) {
-      navigator.clipboard.writeText(report.logs.join("\n"));
-      setCopiedLog(true);
-      setTimeout(() => setCopiedLog(false), 2000);
-    }
   };
 
   // SVG Circular Gauge
@@ -193,11 +182,6 @@ export function EvaluationReport({ report, onReevaluate }: EvaluationReportProps
       </div>
     );
   };
-
-  // Filtered Logs
-  const filteredLogs = (report.logs || []).filter((line) =>
-    line.toLowerCase().includes(logSearchQuery.toLowerCase())
-  );
 
   return (
     <div className="w-full space-y-6 font-sans text-slate-900 bg-[#F8FAFC] p-4 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs">
@@ -326,15 +310,14 @@ export function EvaluationReport({ report, onReevaluate }: EvaluationReportProps
         })}
       </div>
 
-      {/* 3. MODERN GITHUB-STYLE UNDERLINE TABS */}
+      {/* 3. MODERN ENTERPRISE TABS */}
       <div className="bg-white border border-slate-200 rounded-2xl shadow-2xs overflow-hidden">
-        <div className="flex border-b border-slate-200 bg-slate-50/70 px-4 pt-2 overflow-x-auto gap-2">
+        <div className="flex border-b border-slate-200 bg-slate-50/70 p-1.5 overflow-x-auto gap-1">
           {[
             { id: "faie", label: "AST Overview Audit", icon: Sparkles },
             { id: "features", label: "Feature Tree Evaluation", icon: Layers },
             { id: "code", label: "Tech Stack & AST Metrics", icon: FileCode },
             { id: "performance", label: "Architecture Quality (FQE)", icon: LineChart },
-            { id: "logs", label: "Engine Audit Logs", icon: Terminal }
           ].map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -342,10 +325,10 @@ export function EvaluationReport({ report, onReevaluate }: EvaluationReportProps
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
-                className={`flex items-center gap-2 px-3.5 py-2.5 text-xs font-bold border-b-2 transition-all whitespace-nowrap ${
+                className={`flex items-center gap-2 px-3.5 py-2 text-xs font-bold rounded-xl transition-all whitespace-nowrap ${
                   isActive
-                    ? "border-indigo-600 text-indigo-600 bg-white shadow-2xs rounded-t-lg"
-                    : "border-transparent text-slate-600 hover:text-slate-900 hover:border-slate-300"
+                    ? "bg-white text-indigo-600 shadow-2xs border border-slate-200/80 font-extrabold"
+                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-100/60"
                 }`}
               >
                 <Icon className={`h-4 w-4 ${isActive ? "text-indigo-600" : "text-slate-400"}`} />
@@ -657,52 +640,7 @@ export function EvaluationReport({ report, onReevaluate }: EvaluationReportProps
                 </div>
               )}
             </div>
-          )}
-
-          {/* TAB 5: ENGINE AUDIT LOGS */}
-          {activeTab === "logs" && (
-            <div className="space-y-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="relative flex-1">
-                  <Search className="h-4 w-4 text-slate-400 absolute left-3 top-2.5" />
-                  <input
-                    type="text"
-                    placeholder="Search logs..."
-                    value={logSearchQuery}
-                    onChange={(e) => setLogSearchQuery(e.target.value)}
-                    className="w-full pl-9 pr-4 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
-                </div>
-                <div className="flex items-center gap-2">
-                  <Button size="sm" variant="outline" className="h-8 text-xs font-semibold" onClick={copyLogs}>
-                    {copiedLog ? <Check className="h-3.5 w-3.5 mr-1 text-emerald-600" /> : <Copy className="h-3.5 w-3.5 mr-1 text-slate-500" />}
-                    {copiedLog ? "Copied!" : "Copy Logs"}
-                  </Button>
-                  <Button size="sm" variant="outline" className="h-8 text-xs font-semibold" onClick={() => setLogsCollapsed(!logsCollapsed)}>
-                    {logsCollapsed ? "Expand Terminal" : "Collapse"}
-                  </Button>
-                </div>
-              </div>
-
-              {!logsCollapsed && (
-                <div className="p-4 bg-[#090D16] text-slate-200 rounded-xl font-mono text-xs space-y-1.5 max-h-[60vh] overflow-y-auto border border-slate-800 shadow-inner">
-                  <div className="text-[10px] text-slate-500 uppercase tracking-widest font-bold pb-2 border-b border-slate-800 flex justify-between">
-                    <span>FAIE v3.1 Deterministic Audit Logs</span>
-                    <span>Total lines: {filteredLogs.length}</span>
-                  </div>
-                  {filteredLogs.map((logLine, idx) => (
-                    <div key={idx} className="flex items-start gap-3 hover:bg-slate-900/50 p-1 rounded">
-                      <span className="text-slate-600 select-none text-[10px] shrink-0 pt-0.5">{idx + 1}.</span>
-                      <span className={logLine.includes("Error") || logLine.includes("FAIL") ? "text-rose-400 font-semibold" : logLine.includes("FAIE") ? "text-indigo-400 font-semibold" : "text-slate-300"}>
-                        {logLine}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
+          )}        </div>
       </div>
 
       {/* 4. ACTIVITY TIMELINE FEED */}
