@@ -9,6 +9,7 @@ interface LogoProps {
   size?: "sm" | "md" | "lg" | "xl";
   href?: string;
   showSubtitle?: boolean;
+  showText?: boolean;
 }
 
 export function Logo({
@@ -16,6 +17,7 @@ export function Logo({
   size = "md",
   href = "/",
   showSubtitle = false,
+  showText = false,
 }: LogoProps) {
   const iconSizeClasses = {
     sm: "h-11 w-11 rounded-[12px]",
@@ -42,23 +44,25 @@ export function Logo({
         />
       </div>
 
-      {/* Brand Text Header in Malison Font */}
-      <div className="flex flex-col">
-        <div className={cn("font-logo font-black tracking-normal flex items-center leading-tight uppercase", textSizeClasses[size])}>
-          <span className="text-[#FE218B] transition-colors group-hover:text-[#E01076]">
-            Frontend
-          </span>
-          <span className="text-[#21B0FE] transition-colors group-hover:text-[#00CCFF] ml-1">
-            Arena
-          </span>
-        </div>
+      {/* Optional Brand Text Header */}
+      {showText && (
+        <div className="flex flex-col">
+          <div className={cn("font-logo font-black tracking-normal flex items-center leading-tight uppercase", textSizeClasses[size])}>
+            <span className="text-[#FE218B] transition-colors group-hover:text-[#E01076]">
+              Frontend
+            </span>
+            <span className="text-[#21B0FE] transition-colors group-hover:text-[#00CCFF] ml-1">
+              Arena
+            </span>
+          </div>
 
-        {showSubtitle && (
-          <span className="text-[10px] font-bold text-[#FED700]/90 tracking-wider uppercase">
-            Developer Community & Hackathons
-          </span>
-        )}
-      </div>
+          {showSubtitle && (
+            <span className="text-[10px] font-bold text-[#FED700]/90 tracking-wider uppercase">
+              Developer Community & Hackathons
+            </span>
+          )}
+        </div>
+      )}
     </div>
   );
 
