@@ -1,8 +1,6 @@
-import { evaluateSubmission, Blueprint, LighthouseMode } from "./evaluator";
+import { evaluateSubmission, Blueprint } from "./evaluator";
 import { prisma } from "../config/db";
 import { EvaluationJobData } from "./queue/types";
-import { LighthouseQueue } from "./queue/lighthouse-queue.system";
-import { LIGHTHOUSE_QUEUE_NAME } from "./queue/lighthouse-constants";
 
 export const PASS_GRADE_THRESHOLD = 75;
 
@@ -34,37 +32,6 @@ async function resolveBlueprintForJob(data: EvaluationJobData): Promise<Blueprin
   return null;
 }
 
-async function persistIntermediateReport(
-  submissionId: string,
-  report: any,
-  jobData: EvaluationJobData
-): Promise<void> {
-  const intermediateScore = Math.round(report.scoreSummary.finalScore);
-  
-  // Store original code score for callback idempotency
-  if (report.scoreSummary) {
-    report.scoreSummary.codeScore = intermediateScore;
-  }
-
-  await prisma.submission.update({
-    where: { id: submissionId },
-    data: {
-      status: "COMPLETED",
-      score: intermediateScore,
-      grade: intermediateScore >= PASS_GRADE_THRESHOLD ? "PASSED" : "FAILED",
-      completedAt: new Date(),
-      ...(jobData.blueprintId ? { blueprintId: jobData.blueprintId } : {}),
-      ...(jobData.blueprintVersion ? { blueprintVersion: jobData.blueprintVersion } : {}),
-    },
-  });
-
-  await prisma.evaluationReport.upsert({
-    where: { submissionId },
-    update: { payload: report as any },
-    create: { submissionId, payload: report as any },
-  });
-}
-
 async function finalizeReport(
   submissionId: string,
   report: any,
@@ -91,7 +58,6 @@ async function finalizeReport(
 
 export async function runEvaluationJob(jobData: EvaluationJobData): Promise<any> {
   const { submissionId, repoUrl } = jobData;
-  const lighthouseMode: LighthouseMode = jobData.lighthouseMode ?? "in-process";
   let deploymentUrl: string | null = null;
 
   if (submissionId) {
@@ -101,14 +67,7 @@ export async function runEvaluationJob(jobData: EvaluationJobData): Promise<any>
     }
     deploymentUrl = existing.deploymentUrl;
 
-    if (existing.status === "COMPLETED") {
-      const report = await prisma.evaluationReport.findUnique({ where: { submissionId } });
-      if (report) {
-        return report.payload;
-      }
-    }
-
-    if (existing.status === "FAILED") {
+    if (existing.status === "COMPLETED" || existing.status === "FAILED") {
       const report = await prisma.evaluationReport.findUnique({ where: { submissionId } });
       if (report) {
         return report.payload;
@@ -142,19 +101,15 @@ export async function runEvaluationJob(jobData: EvaluationJobData): Promise<any>
           const psFeatures = ((blueprint.requiredFeatures as any[]) || []).filter(
             (f: any) => f.problemStatementId === (selectedPs.id || selectedPs.title)
           );
-          console.log(`[FAIE] Submission: ${submissionId}`);
-          console.log(`[FAIE] Problem Statement ID: ${submission.problemStatementId}`);
-          console.log(`[FAIE] Problem Statement: ${selectedPs.title || selectedPs.id}`);
-          console.log(`[FAIE] Loaded Required Features: ${psFeatures.length}`);
-        } else {
-          console.warn(`[FAIE] Submission: ${submissionId} — problemStatementId "${submission.problemStatementId}" not found in blueprint PS list.`);
+          console.log(`[FAIE v3] Submission: ${submissionId}`);
+          console.log(`[FAIE v3] Problem Statement ID: ${submission.problemStatementId}`);
+          console.log(`[FAIE v3] Problem Statement: ${selectedPs.title || selectedPs.id}`);
+          console.log(`[FAIE v3] Loaded Required Features: ${psFeatures.length}`);
         }
-      } else {
-        console.log(`[FAIE] Submission: ${submissionId} — no problemStatementId set (legacy single-PS).`);
       }
     }
 
-    const report = await evaluateSubmission(repoUrl, blueprint, deploymentUrl, lighthouseMode);
+    const report = await evaluateSubmission(repoUrl, blueprint, deploymentUrl);
 
     if (Array.isArray(report.logs)) {
       report.logs = report.logs
@@ -163,32 +118,6 @@ export async function runEvaluationJob(jobData: EvaluationJobData): Promise<any>
     }
 
     if (submissionId) {
-      if (lighthouseMode === "defer" && deploymentUrl) {
-        await persistIntermediateReport(submissionId, report, jobData);
-
-        try {
-          const lighthouseQueue = new LighthouseQueue();
-          const lighthouseJobId = `lh_${submissionId}_v${jobData.version ?? 1}`;
-          await lighthouseQueue.addJob({
-            submissionId,
-            repoUrl,
-            deploymentUrl,
-            version: jobData.version ?? 1,
-          });
-          await lighthouseQueue.close();
-          console.log(`[FAIE] Enqueued Lighthouse job ${lighthouseJobId} for submission ${submissionId}`);
-        } catch (lhErr: any) {
-          console.error(`[FAIE] Failed to enqueue Lighthouse job for submission ${submissionId}: ${lhErr.message}`);
-          await prisma.submission.update({
-            where: { id: submissionId },
-            data: { status: "FAILED", score: 0, grade: "FAILED" },
-          }).catch(() => {});
-          throw lhErr;
-        }
-
-        return report;
-      }
-
       await finalizeReport(submissionId, report, jobData);
     }
 

@@ -220,10 +220,10 @@ export function EvaluationReport({ report }: EvaluationReportProps) {
       {/* Navigation Tabs */}
       <div className="flex border-b border-[#E2E8F0] bg-slate-50/50 p-2 overflow-x-auto gap-1">
         {[
-          { id: "faie", label: "FAIE v2 Knowledge Audit", icon: Sparkles },
+          { id: "faie", label: "FAIE v3 AST Audit", icon: Sparkles },
           { id: "features", label: "Feature Tree & Sub-Features", icon: Layers },
           { id: "code", label: "AST Code & Dependencies", icon: FileCode },
-          { id: "performance", label: "Lighthouse & Playwright", icon: LineChart },
+          { id: "performance", label: "Repository Architecture Audit", icon: LineChart },
           { id: "logs", label: "Engine Logs", icon: Terminal }
         ].map((tab) => {
           const Icon = tab.icon;
@@ -444,79 +444,53 @@ export function EvaluationReport({ report }: EvaluationReportProps) {
           </div>
         )}
 
-        {/* TAB 4: LIGHTHOUSE & PLAYWRIGHT */}
+        {/* TAB 4: REPOSITORY ARCHITECTURE & AST QUALITY AUDIT */}
         {activeTab === "performance" && (
           <div className="space-y-6">
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 py-4 justify-items-center">
               <div className="text-center space-y-2">
-                {renderRadialScore(report.toolAudits.performance.lighthouseScore, 90, 6, "text-[#FF006E]")}
-                <span className="text-xs font-bold text-slate-700 block">Performance</span>
+                {renderRadialScore(report.scoreSummary.technologyCompliancePercent, 90, 6, "text-[#FF006E]")}
+                <span className="text-xs font-bold text-slate-700 block">Tech Compliance</span>
               </div>
               <div className="text-center space-y-2">
-                {renderRadialScore(report.toolAudits.performance.accessibilityScore, 90, 6, "text-emerald-500")}
-                <span className="text-xs font-bold text-slate-700 block">Accessibility</span>
+                {renderRadialScore(report.scoreSummary.featureCoveragePercent, 90, 6, "text-emerald-500")}
+                <span className="text-xs font-bold text-slate-700 block">Feature Coverage</span>
               </div>
               <div className="text-center space-y-2">
-                {renderRadialScore(report.toolAudits.performance.bestPracticesScore, 90, 6, "text-blue-500")}
-                <span className="text-xs font-bold text-slate-700 block">Best Practices</span>
+                {renderRadialScore(report.scoreSummary.uiCompliancePercent, 90, 6, "text-blue-500")}
+                <span className="text-xs font-bold text-slate-700 block">UI Architecture</span>
               </div>
               <div className="text-center space-y-2">
-                {renderRadialScore(report.toolAudits.performance.seoScore, 90, 6, "text-amber-500")}
-                <span className="text-xs font-bold text-slate-700 block">SEO</span>
+                {renderRadialScore(report.scoreSummary.overallAlignmentPercent, 90, 6, "text-amber-500")}
+                <span className="text-xs font-bold text-slate-700 block">Overall Alignment</span>
               </div>
             </div>
 
-            {/* Show any Lighthouse unreachable / unavailable warning / running status */}
-            {(report.toolAudits.performance.lighthouseScore === "UNAVAILABLE" || report.toolAudits.performance.errorReason) && (
-              <div className={`p-4 border rounded-xl text-xs space-y-1.5 shadow-2xs ${
-                report.toolAudits.performance.errorReason === "LIGHTHOUSE_DEFERRED"
-                  ? "border-blue-200 bg-blue-50 text-blue-800"
-                  : "border-amber-200 bg-amber-50 text-amber-800"
-              }`}>
-                <p className={`font-bold flex items-center gap-1.5 ${
-                  report.toolAudits.performance.errorReason === "LIGHTHOUSE_DEFERRED" ? "text-blue-900" : "text-amber-900"
-                }`}>
-                  {report.toolAudits.performance.errorReason === "LIGHTHOUSE_DEFERRED" ? (
-                    <>
-                      <RefreshCw className="h-4 w-4 text-blue-600 shrink-0 animate-spin" />
-                      <span>Lighthouse Audit: RUNNING</span>
-                    </>
-                  ) : (
-                    <>
-                      <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
-                      <span>Lighthouse Metrics Limited</span>
-                    </>
-                  )}
-                </p>
-                <p className="text-[11px] leading-relaxed text-slate-600">
-                  {report.toolAudits.performance.errorReason === "LIGHTHOUSE_DEFERRED"
-                    ? "Lighthouse audit has been queued and is running asynchronously in GitHub Actions. Your performance scores will automatically update once the audit is complete."
-                    : report.toolAudits.performance.errorReason || "Lighthouse could not analyze the submitted deployment because the URL was unreachable or the browser runtime was unavailable during evaluation."}
-                </p>
-              </div>
-            )}
+            <div className="p-4 border border-blue-200 bg-blue-50/50 rounded-xl text-xs space-y-2">
+              <p className="font-bold flex items-center gap-1.5 text-blue-900">
+                <Sparkles className="h-4 w-4 text-blue-600 shrink-0" />
+                <span>FAIE v3 Static AST Engine Analysis</span>
+              </p>
+              <p className="text-[11px] leading-relaxed text-slate-600">
+                Evaluated via WebAssembly Tree-sitter AST queries and GitHub REST API repository intelligence. Verified structural compliance, modular code structure, and component dependency graphs.
+              </p>
+            </div>
 
-            {/* Playwright Screenshot Evidence Objects */}
-            {report.screenshots && report.screenshots.length > 0 && (
+            {(report as any).detectedTechnologies && (report as any).detectedTechnologies.length > 0 && (
               <div className="space-y-3">
                 <h4 className="text-xs font-extrabold uppercase tracking-wider text-[#0F172A]">
-                  Playwright Headless UI Navigation Snapshots
+                  Verified AST Technology Citations
                 </h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {report.screenshots.map((snap, sIdx) => (
-                    <div key={sIdx} className="p-3 border border-[#E2E8F0] rounded-xl bg-[#F8FAFC] space-y-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {((report as any).detectedTechnologies as any[]).map((tech: any, idx: number) => (
+                    <div key={idx} className="p-3 border border-slate-200 rounded-xl bg-slate-50 space-y-1">
                       <div className="flex items-center justify-between">
-                        <span className="font-bold text-xs text-[#0F172A]">{snap.viewName}</span>
-                        <Badge variant="outline" className="text-[9px] font-mono">{snap.viewport}</Badge>
+                        <span className="font-bold text-xs text-slate-900">{tech.technology}</span>
+                        <Badge variant="outline" className="text-[9px] font-mono">{tech.category}</Badge>
                       </div>
-                      <p className="text-[10px] text-[#64748B] font-mono truncate">{snap.url}</p>
-                      <div className="flex flex-wrap gap-1 pt-1">
-                        {snap.detectedSelectors.map((sel, idx) => (
-                          <span key={idx} className="px-2 py-0.5 bg-white border border-[#CBD5E1] text-[9px] font-mono rounded text-[#334155]">
-                            {sel}
-                          </span>
-                        ))}
-                      </div>
+                      {(tech.evidenceCitations as string[] || []).map((cite: string, cIdx: number) => (
+                        <p key={cIdx} className="text-[10px] text-slate-600 font-mono">{cite}</p>
+                      ))}
                     </div>
                   ))}
                 </div>

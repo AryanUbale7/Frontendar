@@ -201,6 +201,7 @@ export interface DynamicEvaluationReport {
     evidenceSummary: string[];
   };
   featureTreeEvaluations?: any[];
+  detectedTechnologies?: any[];
   rejectedClaims?: string[];
   screenshots?: any[];
   toolAudits: ToolAuditResults;
@@ -787,6 +788,7 @@ export async function evaluateSubmission(
       summary: `Evaluated ${faieReport.scoringDetails.length} categories using GitHub REST API and WASM Tree-sitter AST static analysis. Zero runtime dynamic tools.`,
     },
     featureTreeEvaluations: faieReport.featureTreeEvaluations,
+    detectedTechnologies: faieReport.detectedTechnologies,
     rejectedClaims: [],
     screenshots: [],
     toolAudits: dummyToolAudits,
