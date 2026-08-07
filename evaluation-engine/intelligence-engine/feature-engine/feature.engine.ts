@@ -44,22 +44,40 @@ export class FeatureEngine {
   public evaluateFeatures(
     repo: VirtualRepository,
     ast: ASTRepositoryAnalysis,
-    blueprintFeatures: Array<{ name: string; mandatory?: boolean; weight?: number; keywords?: string[] }> = []
+    blueprintFeatures: Array<{
+      name: string;
+      mandatory?: boolean;
+      weight?: number;
+      keywords?: string[];
+      expectedComponents?: string[];
+      expectedAPIs?: string[];
+      expectedRoutes?: string[];
+    }> = []
   ): FeatureDetectionReport {
     const defaultFeatures = [
-      "Authentication", "Dashboard", "Analytics", "CRUD", "Forms",
-      "Search", "Filtering", "Charts", "Notifications", "Routing",
-      "API Calls", "Role Based Access", "Maps", "Tables", "Dark Mode", "Responsive Layout"
+      { name: "Authentication", mandatory: true, weight: 10, keywords: ["auth", "login", "jwt", "session"] },
+      { name: "Dashboard", mandatory: true, weight: 10, keywords: ["dashboard", "metrics", "grid", "panel"] },
+      { name: "Analytics", mandatory: false, weight: 10, keywords: ["analytics", "chart", "graph", "stats"] },
+      { name: "CRUD Operations", mandatory: false, weight: 10, keywords: ["create", "update", "delete", "post", "fetch"] },
+      { name: "Interactive UI", mandatory: false, weight: 10, keywords: ["button", "modal", "card", "badge", "nav"] }
     ];
 
     const targetFeatureList = blueprintFeatures.length > 0
-      ? blueprintFeatures.map((f) => ({ name: f.name, mandatory: !!f.mandatory, weight: f.weight || 10 }))
-      : defaultFeatures.map((name) => ({ name, mandatory: true, weight: 10 }));
+      ? blueprintFeatures.map((f) => ({
+          name: f.name,
+          mandatory: !!f.mandatory,
+          weight: f.weight || 10,
+          keywords: f.keywords || [],
+          expectedComponents: f.expectedComponents || [],
+          expectedAPIs: f.expectedAPIs || [],
+          expectedRoutes: f.expectedRoutes || []
+        }))
+      : defaultFeatures;
 
     const featureEvidences: FeatureEvidence[] = [];
 
     for (const target of targetFeatureList) {
-      const evidence = this.detectFeature(target.name, target.mandatory, target.weight, repo, ast);
+      const evidence = this.detectFeature(target, repo, ast);
       featureEvidences.push(evidence);
     }
 
@@ -78,12 +96,19 @@ export class FeatureEngine {
   }
 
   private detectFeature(
-    name: string,
-    mandatory: boolean,
-    maxWeight: number,
+    target: {
+      name: string;
+      mandatory: boolean;
+      weight: number;
+      keywords?: string[];
+      expectedComponents?: string[];
+      expectedAPIs?: string[];
+      expectedRoutes?: string[];
+    },
     repo: VirtualRepository,
     ast: ASTRepositoryAnalysis
   ): FeatureEvidence {
+    const { name, mandatory, weight: maxWeight, keywords = [], expectedComponents = [], expectedAPIs = [], expectedRoutes = [] } = target;
     const matchedFiles = new Set<string>();
     const matchedJsxTags = new Set<string>();
     const matchedAstNodes = new Set<string>();
@@ -92,10 +117,12 @@ export class FeatureEngine {
     const lowerName = name.toLowerCase();
     const signals: Record<string, boolean> = {};
 
+    const allFiles = Object.values(repo.files || {});
+    const allFileEntries = Object.entries(repo.files || {});
+
     // 1. AUTHENTICATION — Multi-Signal Cross Verification
-    if (lowerName.includes("auth") || lowerName.includes("login")) {
-      // Signal A: Package / Auth SDK Imports
-      const authLibs = ["@clerk/nextjs", "next-auth", "firebase/auth", "@supabase/supabase-js", "jsonwebtoken", "passport"];
+    if (lowerName.includes("auth") || lowerName.includes("login") || lowerName.includes("security")) {
+      const authLibs = ["@clerk/nextjs", "next-auth", "firebase/auth", "@supabase/supabase-js", "jsonwebtoken", "passport", "bcrypt"];
       for (const [path, analysis] of Object.entries(ast.fileAnalyses)) {
         analysis.imports.forEach((imp) => {
           if (authLibs.some((lib) => imp.module.toLowerCase().includes(lib))) {
@@ -104,10 +131,6 @@ export class FeatureEngine {
             matchedAstNodes.add(`Auth SDK Import (${imp.module}) in ${path}`);
           }
         });
-      }
-
-      // Signal B: Auth Hooks & Providers
-      for (const [path, analysis] of Object.entries(ast.fileAnalyses)) {
         analysis.hooksUsed.forEach((hook) => {
           if (["useAuth", "useUser", "useSession", "useSignIn"].includes(hook)) {
             signals["AUTH_HOOK"] = true;
@@ -117,25 +140,19 @@ export class FeatureEngine {
         });
       }
 
-      // Signal C: Form Submission Handlers & Credentials Handling
-      for (const [path, file] of Object.entries(repo.files)) {
+      for (const [path, file] of allFileEntries) {
         const content = file.content.toLowerCase();
         if (
-          (content.includes("signin") || content.includes("signup") || content.includes("login") || content.includes("logout")) &&
-          (content.includes("password") || content.includes("credential") || content.includes("token"))
+          (content.includes("signin") || content.includes("signup") || content.includes("login") || content.includes("logout") || content.includes("auth")) &&
+          (content.includes("password") || content.includes("credential") || content.includes("token") || content.includes("session"))
         ) {
           signals["LOGIN_FORM_HANDLER"] = true;
           matchedFiles.add(path);
           matchedAstNodes.add(`Credential/Form Handler in ${path}`);
         }
-      }
-
-      // Signal D: Token/Session Persistence & Route Middleware
-      for (const [path, file] of Object.entries(repo.files)) {
-        const content = file.content;
         if (
-          content.includes("jwt.verify") || content.includes("localStorage.setItem('token'") ||
-          path.includes("middleware.ts") || content.includes("Authorization")
+          content.includes("jwt.verify") || content.includes("localstorage.setitem('token'") ||
+          path.includes("middleware.ts") || content.includes("authorization")
         ) {
           signals["TOKEN_MIDDLEWARE"] = true;
           matchedFiles.add(path);
@@ -144,19 +161,17 @@ export class FeatureEngine {
       }
 
       const signalCount = Object.keys(signals).length;
-      if (signalCount >= 3) {
+      if (signalCount >= 2) {
         evidenceCitations.push(`Multi-Signal Auth verified (${signalCount} signals: ${Object.keys(signals).join(", ")}).`);
-      } else if (signalCount >= 1) {
-        evidenceCitations.push(`Partial Auth signals detected (${Object.keys(signals).join(", ")}).`);
-      } else {
-        evidenceCitations.push(`Insufficient structural evidence for Authentication.`);
+      } else if (signalCount === 1) {
+        evidenceCitations.push(`Partial Auth signal detected (${Object.keys(signals).join(", ")}).`);
       }
     }
 
-    // 2. DASHBOARD — Multi-Signal Cross Verification
-    else if (lowerName.includes("dashboard")) {
+    // 2. DASHBOARD & ANALYTICS — Multi-Signal Cross Verification
+    if (lowerName.includes("dashboard") || lowerName.includes("analytic") || lowerName.includes("chart")) {
       for (const [path, analysis] of Object.entries(ast.fileAnalyses)) {
-        if (path.toLowerCase().includes("dashboard")) {
+        if (path.toLowerCase().includes("dashboard") || path.toLowerCase().includes("analytic")) {
           signals["DASHBOARD_FILE"] = true;
           matchedFiles.add(path);
         }
@@ -165,13 +180,6 @@ export class FeatureEngine {
           matchedFiles.add(path);
         }
       }
-      if (signals["DASHBOARD_FILE"] || signals["MULTI_WIDGET_LAYOUT"]) {
-        evidenceCitations.push(`Dashboard verified with multi-widget layout structure.`);
-      }
-    }
-
-    // 3. ANALYTICS & CHARTS — Multi-Signal Cross Verification
-    else if (lowerName.includes("analytic") || lowerName.includes("chart")) {
       const chartTags = ["ResponsiveContainer", "BarChart", "LineChart", "PieChart", "Bar", "Line", "Canvas"];
       for (const [path, analysis] of Object.entries(ast.fileAnalyses)) {
         analysis.jsxElements.forEach((jsx) => {
@@ -181,89 +189,69 @@ export class FeatureEngine {
             matchedJsxTags.add(jsx.tagName);
           }
         });
-        analysis.imports.forEach((imp) => {
-          if (imp.module.includes("chart") || imp.module.includes("recharts")) {
-            signals["CHART_LIB_IMPORT"] = true;
-            matchedFiles.add(path);
-          }
-        });
       }
-      if (signals["CHART_JSX_TAG"] && signals["CHART_LIB_IMPORT"]) {
-        evidenceCitations.push(`Charts & Analytics verified: Library import + JSX render (<${Array.from(matchedJsxTags).join(", ")}>).`);
-      } else if (signals["CHART_LIB_IMPORT"]) {
-        evidenceCitations.push(`Chart library imported.`);
+      if (signals["DASHBOARD_FILE"] || signals["MULTI_WIDGET_LAYOUT"] || signals["CHART_JSX_TAG"]) {
+        evidenceCitations.push(`Dashboard/Analytics verified with layout structure & widgets.`);
       }
     }
 
-    // 4. CRUD & API CALLS — Multi-Signal Cross Verification
-    else if (lowerName.includes("crud") || lowerName.includes("api")) {
-      for (const [path, analysis] of Object.entries(ast.fileAnalyses)) {
-        const hasFetch = analysis.callExpressions.some(
-          (c) => c.expressionName === "fetch" || c.expressionName.includes("axios") || c.expressionName.includes("supabase")
-        );
-        if (hasFetch) {
-          signals["HTTP_API_CALL"] = true;
+    // 3. KEYWORD & COMPONENT ADVANCED HEURISTICS SEARCH
+    const searchTokens = new Set<string>();
+    name.toLowerCase().split(/[\s,_\-\/]+/).forEach((t) => { if (t.length > 2) searchTokens.add(t); });
+    keywords.forEach((k) => searchTokens.add(k.toLowerCase()));
+    expectedComponents.forEach((c) => searchTokens.add(c.toLowerCase()));
+    expectedAPIs.forEach((a) => searchTokens.add(a.toLowerCase()));
+
+    for (const [path, file] of allFileEntries) {
+      const lowerPath = path.toLowerCase();
+      const lowerContent = file.content.toLowerCase();
+
+      for (const token of searchTokens) {
+        if (lowerPath.includes(token)) {
+          signals[`PATH_MATCH_${token.toUpperCase()}`] = true;
           matchedFiles.add(path);
-          matchedAstNodes.add(`API call in ${path}`);
+          matchedAstNodes.add(`Path match "${token}" in ${path}`);
         }
-      }
-      if (signals["HTTP_API_CALL"]) {
-        evidenceCitations.push(`CRUD / API Calls verified via AST HTTP request nodes across ${matchedFiles.size} files.`);
-      }
-    }
-
-    // 5. FORMS — Multi-Signal Cross Verification
-    else if (lowerName.includes("form")) {
-      for (const [path, analysis] of Object.entries(ast.fileAnalyses)) {
-        analysis.jsxElements.forEach((jsx) => {
-          if (jsx.tagName === "form" || jsx.tagName.includes("Form")) {
-            signals["FORM_JSX_TAG"] = true;
-            matchedFiles.add(path);
-            matchedJsxTags.add("form");
-          }
-        });
-        analysis.imports.forEach((imp) => {
-          if (imp.module.includes("form") || imp.module.includes("zod")) {
-            signals["FORM_VALIDATION_LIB"] = true;
-            matchedFiles.add(path);
-          }
-        });
-      }
-      if (signals["FORM_JSX_TAG"]) {
-        evidenceCitations.push(`Form structure verified (<form> element + state bindings).`);
-      }
-    }
-
-    // Generic fallback for other features
-    else {
-      for (const [path, file] of Object.entries(repo.files)) {
-        if (file.content.toLowerCase().includes(lowerName)) {
-          signals["KEYWORD_MATCH"] = true;
+        if (lowerContent.includes(token)) {
+          signals[`CONTENT_MATCH_${token.toUpperCase()}`] = true;
           matchedFiles.add(path);
         }
       }
-      if (signals["KEYWORD_MATCH"]) {
-        evidenceCitations.push(`Feature "${name}" keyword matched in ${matchedFiles.size} source files.`);
+    }
+
+    // Check AST Call Expressions & HTTP API calls
+    for (const [path, analysis] of Object.entries(ast.fileAnalyses)) {
+      const hasHttp = analysis.callExpressions.some(
+        (c) => c.expressionName === "fetch" || c.expressionName.includes("axios") || c.expressionName.includes("supabase") || c.expressionName.includes("api")
+      );
+      if (hasHttp && (lowerName.includes("api") || lowerName.includes("client") || lowerName.includes("crud"))) {
+        signals["HTTP_API_CALL"] = true;
+        matchedFiles.add(path);
+        matchedAstNodes.add(`HTTP API Client call in ${path}`);
       }
     }
 
-    // Multi-Signal Confidence Calculation
+    // Multi-Signal Confidence & Implementation Depth Calculation
     const signalCount = Object.keys(signals).length;
     let confidence = 0;
     let depth: ImplementationDepth = "none";
 
-    if (signalCount >= 3 && matchedFiles.size >= 2) {
+    if (signalCount >= 3 && matchedFiles.size >= 1) {
       confidence = 95;
       depth = "full";
     } else if (signalCount >= 2 && matchedFiles.size >= 1) {
-      confidence = 75;
+      confidence = 80;
+      depth = "full";
+    } else if (signalCount === 1) {
+      confidence = 60;
       depth = "partial";
-    } else if (signalCount >= 1) {
-      confidence = 45;
-      depth = "superficial";
     }
 
-    const scorePoints = depth === "full" ? maxWeight : depth === "partial" ? Math.round(maxWeight * 0.6) : depth === "superficial" ? Math.round(maxWeight * 0.3) : 0;
+    if (evidenceCitations.length === 0 && signalCount > 0) {
+      evidenceCitations.push(`Feature "${name}" verified via ${signalCount} structural code signals across ${matchedFiles.size} files.`);
+    }
+
+    const scorePoints = depth === "full" ? maxWeight : depth === "partial" ? Math.round(maxWeight * 0.7) : 0;
 
     return {
       featureName: name,
