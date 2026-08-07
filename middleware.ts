@@ -5,6 +5,10 @@ const PUBLIC_ROUTES = [
   "/",
   "/sign-in",
   "/sign-up",
+  "/signin",
+  "/signup",
+  "/login",
+  "/register",
   "/forgot-password",
   "/reset-password",
   "/verify-email",
@@ -13,6 +17,14 @@ const PUBLIC_ROUTES = [
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  // Handle common auth route aliases
+  if (pathname === "/signup") {
+    return NextResponse.redirect(new URL("/sign-up", request.url), 308);
+  }
+  if (pathname === "/signin" || pathname === "/login") {
+    return NextResponse.redirect(new URL("/sign-in", request.url), 308);
+  }
 
   // Check if route is public or static asset
   const isPublicRoute = PUBLIC_ROUTES.some(
@@ -23,7 +35,7 @@ export function middleware(request: NextRequest) {
   const isAuthenticated = authCookie === "true" || authCookie === "1";
 
   // Protect internal routes if unauthenticated
-  if (!isPublicRoute && (pathname.startsWith("/dashboard") || pathname.startsWith("/register") || pathname.startsWith("/profile"))) {
+  if (!isPublicRoute && (pathname.startsWith("/dashboard") || pathname.startsWith("/profile"))) {
     if (!isAuthenticated) {
       const signInUrl = new URL("/sign-in", request.url);
       signInUrl.searchParams.set("redirect", pathname);
@@ -32,7 +44,7 @@ export function middleware(request: NextRequest) {
   }
 
   // If already authenticated and navigating to sign-in or sign-up, redirect to dashboard
-  if ((pathname === "/sign-in" || pathname === "/sign-up") && isAuthenticated) {
+  if ((pathname === "/sign-in" || pathname === "/sign-up" || pathname === "/signup") && isAuthenticated) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
