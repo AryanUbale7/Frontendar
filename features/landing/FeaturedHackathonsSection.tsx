@@ -132,7 +132,7 @@ export function FeaturedHackathonsSection() {
             title="No Hackathons Published Yet"
             description="Currently, no live hackathons are published. As soon as an organizer publishes a hackathon, it will appear here instantly!"
             primaryActionText="Join Community"
-            onPrimaryAction={() => window.location.href = "/sign-up"}
+            onPrimaryAction={() => window.open("https://chat.whatsapp.com/IEKu23HxPH19GMLfuKM3Eh", "_blank")}
           />
         )}
       </div>

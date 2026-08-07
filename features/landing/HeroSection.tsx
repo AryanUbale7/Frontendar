@@ -70,10 +70,15 @@ export function HeroSection() {
               </a>
             </Button>
             <Button asChild variant="outline" size="lg">
-              <Link href="/sign-up" className="flex items-center gap-2">
+              <a
+                href="https://chat.whatsapp.com/IEKu23HxPH19GMLfuKM3Eh"
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center gap-2"
+              >
                 <Users className="h-4 w-4" />
                 <span>Join Community</span>
-              </Link>
+              </a>
             </Button>
           </motion.div>
         </div>

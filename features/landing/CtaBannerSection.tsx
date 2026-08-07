@@ -47,10 +47,15 @@ export function CtaBannerSection() {
               size="lg"
               className="text-white hover:bg-white/10 hover:text-white font-medium"
             >
-              <Link href="/sign-up" className="flex items-center gap-2">
+              <a
+                href="https://chat.whatsapp.com/IEKu23HxPH19GMLfuKM3Eh"
+                target="_blank"
+                rel="noreferrer"
+                className="flex items-center gap-2"
+              >
                 <Users className="h-4 w-4 text-white" />
                 <span>Join Community</span>
-              </Link>
+              </a>
             </Button>
           </div>
         </motion.div>
