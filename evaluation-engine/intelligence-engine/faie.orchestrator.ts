@@ -3,6 +3,8 @@ import { GitHubRepoEngine, VirtualRepository } from "./repository-engine/github-
 import { ASTAnalysisEngine, ASTRepositoryAnalysis } from "./ast-engine/ast-analysis.engine";
 import { TechnologyEngine } from "./technology-engine/technology.engine";
 import { FeatureEngine } from "./feature-engine/feature.engine";
+import { FAIEQualityEngine } from "./quality-engine/quality.engine";
+import { FQEReport } from "./quality-engine/quality.interface";
 
 export interface FAIEReportV3 {
   hackathonTitle: string;
@@ -17,6 +19,7 @@ export interface FAIEReportV3 {
     uiCompliancePercent: number;
     moduleCoveragePercent: number;
     overallAlignmentPercent: number;
+    qualityEngineScore: number;
     bonusPointsTotal: number;
     deductionsTotal: number;
   };
@@ -37,6 +40,7 @@ export interface FAIEReportV3 {
     matchedFiles: string[];
     evidenceCitations: string[];
   }>;
+  qualityEngineReport?: FQEReport;
   scoringDetails: Array<{
     categoryName: string;
     awardedMarks: number;
@@ -57,6 +61,7 @@ export class FAIEOrchestrator {
   private astEngine = new ASTAnalysisEngine();
   private techEngine = new TechnologyEngine();
   private featureEngine = new FeatureEngine();
+  private qualityEngine = new FAIEQualityEngine();
 
   public async evaluate(
     workspacePathOrUrl: string,
@@ -110,18 +115,22 @@ export class FAIEOrchestrator {
       `[FAIE v3] Feature Coverage: ${featureReport.totalFeatureCoveragePercent}%. Mandatory features passed: ${featureReport.mandatoryFeaturesPassed}.`
     );
 
-    // 5. Calculate Final Score & Category Details
-    const featureScore = Math.round((featureReport.totalFeatureCoveragePercent / 100) * 30);
+    // 5. FAIE Quality Engine (FQE - 6 Static Quality Modules, Max 40 Marks)
+    logs.push(`[FAIE v3] Executing FAIE Quality Engine (FQE 6 Modules)...`);
+    const fqeReport: FQEReport = this.qualityEngine.evaluateQuality(repoData, astData);
+    logs.push(
+      `[FAIE v3] FQE Quality Score: ${fqeReport.totalScore}/40 (Perf: ${fqeReport.performanceScore}/7, Access: ${fqeReport.accessibilityScore}/7, Resp: ${fqeReport.responsiveScore}/7, Code: ${fqeReport.codeQualityScore}/7, Arch: ${fqeReport.architectureScore}/6, Doc: ${fqeReport.documentationScore}/6).`
+    );
+
+    // 6. Calculate Final Score & Category Details
+    const featureScore = Math.round((featureReport.totalFeatureCoveragePercent / 100) * 40);
     const techScore = Math.round((techReport.technologyScore / 100) * 20);
-    
-    // Code Quality & Architecture Score
-    const hasTs = repoData.hasTsConfig ? 10 : 5;
-    const hasReadmeScore = repoData.hasReadme && repoData.readmeContent.length > 100 ? 10 : 5;
-    const structureScore = Math.min(20, Math.round(repoData.downloadedFilesCount * 0.8));
-    const bonusPoints = featureReport.totalFeatureCoveragePercent > 90 ? 10 : 0;
+    const qualityScore = Math.round(fqeReport.totalScore); // Max 40
+
+    const bonusPoints = featureReport.totalFeatureCoveragePercent > 90 ? 5 : 0;
     const deductions = techReport.restrictedTechViolations.length * 20;
 
-    const rawScore = featureScore + techScore + hasTs + hasReadmeScore + structureScore + bonusPoints - deductions;
+    const rawScore = featureScore + techScore + qualityScore + bonusPoints - deductions;
     const finalScore = Math.max(0, Math.min(100, rawScore));
     const status = finalScore >= 75 && featureReport.mandatoryFeaturesPassed ? "pass" : "fail";
 
@@ -144,8 +153,8 @@ export class FAIEOrchestrator {
       {
         categoryName: "Problem Alignment & Required Features",
         awardedMarks: featureScore,
-        maxMarks: 30,
-        passingMarks: 18,
+        maxMarks: 40,
+        passingMarks: 24,
         evaluatedBy: "FAIE v3 AST Feature Engine",
         evidenceCitations: featureReport.features.flatMap((f) => f.evidenceCitations)
       },
@@ -158,25 +167,12 @@ export class FAIEOrchestrator {
         evidenceCitations: techReport.detectedTechnologies.flatMap((t) => t.evidenceCitations)
       },
       {
-        categoryName: "Code Quality & Architecture",
-        awardedMarks: hasTs + structureScore,
-        maxMarks: 30,
-        passingMarks: 18,
-        evaluatedBy: "FAIE v3 AST Architecture Auditor",
-        evidenceCitations: [
-          `TypeScript configuration: ${repoData.hasTsConfig ? "Valid tsconfig.json present" : "Missing"}`,
-          `Files structure modularity: ${repoData.downloadedFilesCount} modular source files analyzed.`
-        ]
-      },
-      {
-        categoryName: "Documentation & Repository Quality",
-        awardedMarks: hasReadmeScore,
-        maxMarks: 20,
-        passingMarks: 10,
-        evaluatedBy: "FAIE v3 Repository Intelligence",
-        evidenceCitations: [
-          `README presence: ${repoData.hasReadme ? `Valid (${repoData.readmeContent.length} bytes)` : "Missing"}`
-        ]
+        categoryName: "FAIE Quality Engine (FQE Static Audit)",
+        awardedMarks: qualityScore,
+        maxMarks: 40,
+        passingMarks: 24,
+        evaluatedBy: "FAIE Quality Engine (6 Deterministic Modules)",
+        evidenceCitations: fqeReport.evidenceCitations
       }
     ];
 
@@ -193,11 +189,13 @@ export class FAIEOrchestrator {
         uiCompliancePercent: Math.min(100, astData.totalJsxElements * 4),
         moduleCoveragePercent: Math.min(100, astData.totalFunctions * 5),
         overallAlignmentPercent: finalScore,
+        qualityEngineScore: fqeReport.totalScore,
         bonusPointsTotal: bonusPoints,
         deductionsTotal: deductions
       },
       detectedTechnologies: techReport.detectedTechnologies,
       featureTreeEvaluations,
+      qualityEngineReport: fqeReport,
       scoringDetails,
       logs,
       auditableReportId: `rep_v3_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,

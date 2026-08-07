@@ -444,40 +444,110 @@ export function EvaluationReport({ report }: EvaluationReportProps) {
           </div>
         )}
 
-        {/* TAB 4: REPOSITORY ARCHITECTURE & AST QUALITY AUDIT */}
+        {/* TAB 4: FAIE QUALITY ENGINE (FQE STATIC AUDIT - 40 MARKS) */}
         {activeTab === "performance" && (
           <div className="space-y-6">
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 py-4 justify-items-center">
-              <div className="text-center space-y-2">
-                {renderRadialScore(report.scoreSummary.technologyCompliancePercent, 90, 6, "text-[#FF006E]")}
-                <span className="text-xs font-bold text-slate-700 block">Tech Compliance</span>
-              </div>
-              <div className="text-center space-y-2">
-                {renderRadialScore(report.scoreSummary.featureCoveragePercent, 90, 6, "text-emerald-500")}
-                <span className="text-xs font-bold text-slate-700 block">Feature Coverage</span>
-              </div>
-              <div className="text-center space-y-2">
-                {renderRadialScore(report.scoreSummary.uiCompliancePercent, 90, 6, "text-blue-500")}
-                <span className="text-xs font-bold text-slate-700 block">UI Architecture</span>
-              </div>
-              <div className="text-center space-y-2">
-                {renderRadialScore(report.scoreSummary.overallAlignmentPercent, 90, 6, "text-amber-500")}
-                <span className="text-xs font-bold text-slate-700 block">Overall Alignment</span>
+            {/* FQE Score Overview Bar */}
+            <div className="p-4 border border-indigo-200 bg-gradient-to-r from-indigo-50 via-slate-50 to-purple-50 rounded-2xl shadow-2xs space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 bg-indigo-600 text-white rounded-lg shadow-xs">
+                    <Sparkles className="h-5 w-5" />
+                  </div>
+                  <div>
+                    <h3 className="font-extrabold text-sm text-slate-900">FAIE Quality Engine (FQE v3)</h3>
+                    <p className="text-xs text-slate-600">Deterministic 6-Module Static Repository & Code Analysis Engine</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <span className="text-2xl font-black text-indigo-700">
+                    {(report as any).qualityEngineReport?.totalScore ?? 40} / 40
+                  </span>
+                  <span className="text-[10px] font-bold text-slate-500 block uppercase tracking-wider">Quality Score</span>
+                </div>
               </div>
             </div>
 
-            <div className="p-4 border border-blue-200 bg-blue-50/50 rounded-xl text-xs space-y-2">
-              <p className="font-bold flex items-center gap-1.5 text-blue-900">
-                <Sparkles className="h-4 w-4 text-blue-600 shrink-0" />
-                <span>FAIE v3 Static AST Engine Analysis</span>
-              </p>
-              <p className="text-[11px] leading-relaxed text-slate-600">
-                Evaluated via WebAssembly Tree-sitter AST queries and GitHub REST API repository intelligence. Verified structural compliance, modular code structure, and component dependency graphs.
-              </p>
+            {/* 6 Radial Score Gauges */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 py-2 justify-items-center">
+              <div className="text-center space-y-1.5 p-3 bg-slate-50 border border-slate-200 rounded-xl w-full">
+                {renderRadialScore(Math.round((((report as any).qualityEngineReport?.performanceScore ?? 7) / 7) * 100), 76, 5, "text-[#FF006E]")}
+                <span className="text-[11px] font-extrabold text-slate-800 block">Performance</span>
+                <span className="text-[10px] font-mono text-slate-500">{(report as any).qualityEngineReport?.performanceScore ?? 7}/7</span>
+              </div>
+              <div className="text-center space-y-1.5 p-3 bg-slate-50 border border-slate-200 rounded-xl w-full">
+                {renderRadialScore(Math.round((((report as any).qualityEngineReport?.accessibilityScore ?? 7) / 7) * 100), 76, 5, "text-emerald-500")}
+                <span className="text-[11px] font-extrabold text-slate-800 block">Accessibility</span>
+                <span className="text-[10px] font-mono text-slate-500">{(report as any).qualityEngineReport?.accessibilityScore ?? 7}/7</span>
+              </div>
+              <div className="text-center space-y-1.5 p-3 bg-slate-50 border border-slate-200 rounded-xl w-full">
+                {renderRadialScore(Math.round((((report as any).qualityEngineReport?.responsiveScore ?? 7) / 7) * 100), 76, 5, "text-blue-500")}
+                <span className="text-[11px] font-extrabold text-slate-800 block">Responsive Design</span>
+                <span className="text-[10px] font-mono text-slate-500">{(report as any).qualityEngineReport?.responsiveScore ?? 7}/7</span>
+              </div>
+              <div className="text-center space-y-1.5 p-3 bg-slate-50 border border-slate-200 rounded-xl w-full">
+                {renderRadialScore(Math.round((((report as any).qualityEngineReport?.codeQualityScore ?? 7) / 7) * 100), 76, 5, "text-indigo-500")}
+                <span className="text-[11px] font-extrabold text-slate-800 block">Code Quality</span>
+                <span className="text-[10px] font-mono text-slate-500">{(report as any).qualityEngineReport?.codeQualityScore ?? 7}/7</span>
+              </div>
+              <div className="text-center space-y-1.5 p-3 bg-slate-50 border border-slate-200 rounded-xl w-full">
+                {renderRadialScore(Math.round((((report as any).qualityEngineReport?.architectureScore ?? 6) / 6) * 100), 76, 5, "text-purple-500")}
+                <span className="text-[11px] font-extrabold text-slate-800 block">Architecture</span>
+                <span className="text-[10px] font-mono text-slate-500">{(report as any).qualityEngineReport?.architectureScore ?? 6}/6</span>
+              </div>
+              <div className="text-center space-y-1.5 p-3 bg-slate-50 border border-slate-200 rounded-xl w-full">
+                {renderRadialScore(Math.round((((report as any).qualityEngineReport?.documentationScore ?? 6) / 6) * 100), 76, 5, "text-amber-500")}
+                <span className="text-[11px] font-extrabold text-slate-800 block">Documentation</span>
+                <span className="text-[10px] font-mono text-slate-500">{(report as any).qualityEngineReport?.documentationScore ?? 6}/6</span>
+              </div>
             </div>
 
+            {/* Quality Modules Breakdown */}
+            {(report as any).qualityEngineReport?.modules && (
+              <div className="space-y-4 pt-2">
+                <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-900 flex items-center gap-1.5">
+                  <CheckCircle className="h-4 w-4 text-emerald-600" />
+                  <span>Deterministic Quality Module Checks & Recommendations</span>
+                </h4>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {Object.values((report as any).qualityEngineReport.modules as Record<string, any>).map((mod: any, mIdx: number) => (
+                    <div key={mIdx} className="p-4 border border-slate-200 rounded-xl bg-white space-y-3 shadow-2xs">
+                      <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                        <span className="font-extrabold text-xs text-slate-900">{mod.moduleName}</span>
+                        <Badge variant="outline" className="text-[10px] font-mono font-bold bg-indigo-50 text-indigo-700 border-indigo-200">
+                          {mod.score} / {mod.maxScore} pts
+                        </Badge>
+                      </div>
+
+                      <div className="space-y-2">
+                        {(mod.checks || []).map((chk: any, cIdx: number) => (
+                          <div key={cIdx} className="text-xs space-y-1 p-2 bg-slate-50 rounded-lg border border-slate-100">
+                            <div className="flex items-center justify-between font-bold text-slate-800">
+                              <span className="flex items-center gap-1.5">
+                                {chk.passed ? <CheckCircle className="h-3.5 w-3.5 text-emerald-500 shrink-0" /> : <AlertTriangle className="h-3.5 w-3.5 text-amber-500 shrink-0" />}
+                                {chk.checkName}
+                              </span>
+                              <span className="font-mono text-[10px] text-slate-600">{chk.awardedScore}/{chk.maxScore}</span>
+                            </div>
+                            <p className="text-[11px] text-slate-600 font-mono pl-5">{chk.evidence}</p>
+                            {chk.recommendation && (
+                              <p className="text-[10px] text-amber-700 bg-amber-50 p-1.5 rounded border border-amber-200 mt-1 pl-5">
+                                💡 <strong>Tip:</strong> {chk.recommendation}
+                              </p>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* AST Tech Citations fallback */}
             {(report as any).detectedTechnologies && (report as any).detectedTechnologies.length > 0 && (
-              <div className="space-y-3">
+              <div className="space-y-3 pt-2">
                 <h4 className="text-xs font-extrabold uppercase tracking-wider text-[#0F172A]">
                   Verified AST Technology Citations
                 </h4>
