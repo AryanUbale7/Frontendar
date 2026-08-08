@@ -25,8 +25,19 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Frontend Arena — Official Developer Community & Premium Hackathons",
+  metadataBase: new URL("https://www.frontendarena.online"),
+  title: {
+    default: "Frontend Arena — Official Developer Community & Premium Hackathons",
+    template: "%s | Frontend Arena",
+  },
   description: "Production-grade SaaS platform for hosting developer hackathons and virtual project judging.",
+  alternates: {
+    canonical: "/",
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
   icons: {
     icon: "/logo.png",
     shortcut: "/logo.png",

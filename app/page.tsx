@@ -15,15 +15,18 @@ export const metadata: Metadata = {
   title: "Frontend Arena — Official Developer Community & Premium Hackathons",
   description:
     "Join Frontend Arena and participate in premium hackathons, innovation challenges, and developer events designed to help you build real-world projects, showcase your skills, and grow with the community.",
+  alternates: {
+    canonical: "https://www.frontendarena.online",
+  },
   openGraph: {
     title: "Frontend Arena — Premier Developer Community & Hackathons",
     description:
       "Participate in premium hackathons, coding challenges, UI/UX competitions, and earn verifiable digital certificates.",
-    url: "https://frontendarena.dev",
+    url: "https://www.frontendarena.online",
     siteName: "Frontend Arena",
     images: [
       {
-        url: "https://frontendarena.dev/og-image.png",
+        url: "https://www.frontendarena.online/logo.png",
         width: 1200,
         height: 630,
         alt: "Frontend Arena Developer Platform Preview",
