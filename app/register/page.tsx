@@ -293,7 +293,7 @@ function HackathonRegistrationContent() {
                               reports: sub.reports
                             }));
                             setSubmissionAttempts(formatted);
-                            if (formatted.length > 0) {
+                            if (formatted.length > 0 && !repoUrl) {
                               setRepoUrl(formatted[0].repoUrl);
                             }
 
@@ -445,8 +445,13 @@ function HackathonRegistrationContent() {
       alert("You must be logged in to submit your project.");
       return;
     }
-    if (!repoUrl.includes("github.com")) {
-      alert("Please provide a valid GitHub repository URL.");
+    let targetRepoUrl = repoUrl.trim();
+    if (targetRepoUrl && !targetRepoUrl.endsWith(".git") && targetRepoUrl.includes("github.com")) {
+      targetRepoUrl = `${targetRepoUrl}.git`;
+      setRepoUrl(targetRepoUrl);
+    }
+    if (!targetRepoUrl.includes("github.com") || !targetRepoUrl.endsWith(".git")) {
+      alert("Please provide a valid GitHub repository URL ending with .git (e.g. https://github.com/username/project.git)");
       return;
     }
     if (activeHackathon.lifecycle && activeHackathon.lifecycle !== "ACTIVE") {
@@ -504,7 +509,7 @@ function HackathonRegistrationContent() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          repoUrl,
+          repoUrl: targetRepoUrl,
           deploymentUrl,
           hackathonId: activeHackathon.id,
           userId: user.id,
@@ -530,7 +535,6 @@ function HackathonRegistrationContent() {
         setAstCheckResult("submitted");
         setSubmissionSuccess(true);
         setSubmittingProject(false);
-        setRepoUrl("");
         setDeploymentUrl("");
 
         // Optimistically set the evaluating state immediately (immediate visual feedback)
@@ -561,9 +565,6 @@ function HackathonRegistrationContent() {
               reports: sub.reports
             }));
             setSubmissionAttempts(formatted);
-            if (formatted.length > 0) {
-              setRepoUrl(formatted[0].repoUrl);
-            }
           }
         }
 
@@ -601,7 +602,7 @@ function HackathonRegistrationContent() {
             reports: sub.reports
           }));
           setSubmissionAttempts(formatted);
-          if (formatted.length > 0) {
+          if (formatted.length > 0 && !repoUrl) {
             setRepoUrl(formatted[0].repoUrl);
           }
 
@@ -1458,15 +1459,22 @@ function HackathonRegistrationContent() {
                         {/* STEP 1: REPO & BRANCH */}
                         {submissionStep === 1 && (
                           <div className="space-y-4 max-w-lg">
-                            <Input
-                              label="GitHub Repository URL"
-                              value={repoUrl}
-                              onChange={(e) => setRepoUrl(e.target.value)}
-                              placeholder="https://github.com/username/project"
-                              required
-                              disabled={submissionAttempts.length > 0}
-                              helperText={submissionAttempts.length > 0 ? "Repository URL is locked after your first submission." : "Provide a public GitHub link."}
-                            />
+                            <div>
+                              <Input
+                                label="GitHub Repository URL"
+                                value={repoUrl}
+                                onChange={(e) => setRepoUrl(e.target.value)}
+                                placeholder="https://github.com/username/project.git"
+                                required
+                                helperText="Must be a valid public GitHub link ending with .git (e.g. https://github.com/username/repository.git)."
+                              />
+                              {repoUrl.trim() !== "" && !repoUrl.trim().endsWith(".git") && (
+                                <p className="text-[11px] text-rose-600 font-semibold flex items-center gap-1 mt-1.5 bg-rose-50 p-2 rounded-lg border border-rose-200">
+                                  <AlertCircle className="h-3.5 w-3.5 shrink-0 text-rose-600" />
+                                  Repository URL must end with <code className="bg-rose-100 px-1 py-0.5 rounded font-mono text-rose-800 text-[10px]">.git</code>
+                                </p>
+                              )}
+                            </div>
                             <Input
                               label="Branch Detection"
                               value={branchName}
@@ -1478,8 +1486,19 @@ function HackathonRegistrationContent() {
                               <Button
                                 type="button"
                                 className="bg-[#FF006E] text-white font-bold"
-                                onClick={() => setSubmissionStep(2)}
-                                disabled={systemConfig?.forceEmailVerification && !profileVerified}
+                                onClick={() => {
+                                  let targetUrl = repoUrl.trim();
+                                  if (targetUrl && !targetUrl.endsWith(".git") && targetUrl.includes("github.com")) {
+                                    targetUrl = `${targetUrl}.git`;
+                                    setRepoUrl(targetUrl);
+                                  }
+                                  if (!targetUrl.includes("github.com") || !targetUrl.endsWith(".git")) {
+                                    alert("Please provide a valid GitHub repository URL ending with .git (e.g. https://github.com/username/project.git)");
+                                    return;
+                                  }
+                                  setSubmissionStep(2);
+                                }}
+                                disabled={!repoUrl.trim() || (systemConfig?.forceEmailVerification && !profileVerified)}
                               >
                                 Next Step
                               </Button>
