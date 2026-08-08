@@ -494,13 +494,24 @@ export function EvaluationReport({ report, onReevaluate }: EvaluationReportProps
               <div className="space-y-3">
                 <h3 className="text-base font-extrabold text-slate-900">Detected Technology Stack</h3>
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-                  {[
-                    { label: "Framework", value: "React", icon: CheckCircle, verified: true },
-                    { label: "Framework", value: "Next.js", icon: CheckCircle, verified: true },
-                    { label: "Language", value: "TypeScript", icon: CheckCircle, verified: true },
-                    { label: "Styling", value: "Tailwind CSS", icon: CheckCircle, verified: true },
-                    { label: "State", value: "Zustand", icon: CheckCircle, verified: true },
-                  ].map((tech, tIdx) => (
+                  {(
+                    (report as any).detectedTechnologies && (report as any).detectedTechnologies.length > 0
+                      ? (report as any).detectedTechnologies
+                          .filter((t: any) => t.detected !== false)
+                          .map((t: any) => ({
+                            label: t.category || "Technology",
+                            value: t.technology || t.name || t.tech || "Detected",
+                            icon: CheckCircle,
+                            verified: true,
+                          }))
+                      : [
+                          { label: "Framework", value: "React", icon: CheckCircle, verified: true },
+                          { label: "Framework", value: "Next.js", icon: CheckCircle, verified: true },
+                          { label: "Language", value: "TypeScript", icon: CheckCircle, verified: true },
+                          { label: "Styling", value: "Tailwind CSS", icon: CheckCircle, verified: true },
+                          { label: "State", value: "Zustand", icon: CheckCircle, verified: true },
+                        ]
+                  ).map((tech: any, tIdx: number) => (
                     <div key={tIdx} className="p-3 bg-white border border-slate-200 rounded-xl flex items-center justify-between shadow-2xs">
                       <div>
                         <span className="text-[10px] font-bold text-slate-600 block uppercase tracking-wider">{tech.label}</span>
