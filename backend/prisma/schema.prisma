@@ -118,18 +118,42 @@ model Submission {
   status              String             @default("PENDING") // PENDING, QUEUED, CLONING, etc.
   score               Int?
   grade               String?
+  bestScore           Int?               // Highest score achieved across all evaluation attempts
+  latestAttemptId     String?            // Reference to the most recent EvaluationAttempt
   blueprintId         String?            // blueprint used for this evaluation (immutable binding)
   blueprintVersion    Int?               // blueprint version used for this evaluation
   completedAt         DateTime?          // set when evaluation completes (leaderboard tie-break)
   createdAt           DateTime           @default(now())
   updatedAt           DateTime           @updatedAt
   reports             EvaluationReport[]
+  attempts            EvaluationAttempt[]
 
   @@index([hackathonId])
   @@index([userId])
   @@index([status])
   @@index([hackathonId, userId])
   @@index([hackathonId, status])
+}
+
+model EvaluationAttempt {
+  id               String     @id @default(uuid())
+  submissionId     String
+  submission       Submission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  attemptNumber    Int
+  commitSha        String?
+  repoUrl          String
+  deploymentUrl    String?
+  blueprintId      String
+  blueprintVersion Int
+  status           String     @default("QUEUED")
+  score            Int?
+  grade            String?
+  reportPayload    Json?
+  completedAt      DateTime?
+  createdAt        DateTime   @default(now())
+
+  @@index([submissionId])
+  @@index([submissionId, attemptNumber])
 }
 
 model EvaluationReport {

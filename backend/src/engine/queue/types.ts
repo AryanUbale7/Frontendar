@@ -20,6 +20,8 @@ export interface EvaluationJobData {
   /** Published blueprint binding captured at enqueue time. */
   blueprintId?: string;
   blueprintVersion?: number;
+  attemptId?: string;
+  attemptNumber?: number;
   /** Submission.version at enqueue time — part of the stable job identity. */
   version?: number;
   /**

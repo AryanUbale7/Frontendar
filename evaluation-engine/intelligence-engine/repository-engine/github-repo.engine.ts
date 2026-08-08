@@ -13,6 +13,7 @@ export interface VirtualRepository {
   owner: string;
   repo: string;
   defaultBranch: string;
+  commitSha?: string;
   isPublic: boolean;
   totalFilesCount: number;
   downloadedFilesCount: number;
@@ -123,9 +124,11 @@ export class GitHubRepoEngine {
     }
 
     let treeItems: Array<{ path: string; type: string; size?: number }> = [];
+    let commitSha: string | undefined = undefined;
     try {
       const treeJson = JSON.parse(treeRes.data);
       treeItems = treeJson.tree || [];
+      commitSha = treeJson.sha || undefined;
     } catch (e: any) {
       throw new Error(`Failed to parse GitHub tree response: ${e.message}`);
     }
@@ -190,6 +193,7 @@ export class GitHubRepoEngine {
       owner,
       repo,
       defaultBranch,
+      commitSha,
       isPublic,
       totalFilesCount: treeItems.length,
       downloadedFilesCount: Object.keys(virtualFiles).length,

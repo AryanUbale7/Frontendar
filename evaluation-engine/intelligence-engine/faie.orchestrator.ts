@@ -13,6 +13,7 @@ export interface FAIEReportV3 {
   hackathonTitle: string;
   repoUrl: string;
   deploymentUrl?: string;
+  commitSha?: string;
   status: "pass" | "fail";
   engineVersion: "FAIE-v3-AST-Static";
   blueprintVersion?: number | string;
@@ -221,6 +222,7 @@ export class FAIEOrchestrator {
       hackathonTitle: activeProblemTitle,
       repoUrl,
       deploymentUrl,
+      commitSha: repoData.commitSha,
       status: scoringReport.status,
       engineVersion: "FAIE-v3-AST-Static",
       blueprintVersion: (passedBlueprint as any).version || (passedBlueprint as any).blueprintVersion || 1,

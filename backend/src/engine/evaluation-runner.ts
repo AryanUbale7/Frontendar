@@ -37,18 +37,59 @@ async function finalizeReport(
   report: any,
   jobData: EvaluationJobData
 ): Promise<void> {
+  const finalScore = Math.round(report.scoreSummary.finalScore);
+  const grade = report.scoreSummary.finalScore >= PASS_GRADE_THRESHOLD ? "PASSED" : "FAILED";
+  const commitSha = report.commitSha || null;
+
+  // 1. Update EvaluationAttempt if attemptId is present (or target latest attempt)
+  let targetAttemptId = jobData.attemptId;
+  if (!targetAttemptId) {
+    const latestAttempt = await prisma.evaluationAttempt.findFirst({
+      where: { submissionId },
+      orderBy: { attemptNumber: "desc" }
+    });
+    targetAttemptId = latestAttempt?.id;
+  }
+
+  if (targetAttemptId) {
+    await prisma.evaluationAttempt.update({
+      where: { id: targetAttemptId },
+      data: {
+        status: "COMPLETED",
+        score: finalScore,
+        grade,
+        commitSha: commitSha || undefined,
+        reportPayload: report as any,
+        completedAt: new Date(),
+      }
+    });
+  }
+
+  // 2. Fetch all completed attempts to calculate immutable bestScore
+  const allAttempts = await prisma.evaluationAttempt.findMany({
+    where: { submissionId, status: "COMPLETED" },
+    select: { score: true }
+  });
+
+  const scores = allAttempts.map(a => a.score).filter((s): s is number => s !== null);
+  const bestScore = scores.length > 0 ? Math.max(...scores, finalScore) : finalScore;
+
+  // 3. Update parent Submission with latest score and bestScore
   await prisma.submission.update({
     where: { id: submissionId },
     data: {
       status: "COMPLETED",
-      score: Math.round(report.scoreSummary.finalScore),
-      grade: report.scoreSummary.finalScore >= PASS_GRADE_THRESHOLD ? "PASSED" : "FAILED",
+      score: finalScore, // latest score
+      bestScore: bestScore, // best score overall
+      grade,
       completedAt: new Date(),
+      ...(targetAttemptId ? { latestAttemptId: targetAttemptId } : {}),
       ...(jobData.blueprintId ? { blueprintId: jobData.blueprintId } : {}),
       ...(jobData.blueprintVersion ? { blueprintVersion: jobData.blueprintVersion } : {}),
     },
   });
 
+  // 4. Backwards compatibility sync for EvaluationReport
   await prisma.evaluationReport.upsert({
     where: { submissionId },
     update: { payload: report as any },
@@ -67,17 +108,17 @@ export async function runEvaluationJob(jobData: EvaluationJobData): Promise<any>
     }
     deploymentUrl = existing.deploymentUrl;
 
-    if (existing.status === "COMPLETED" || existing.status === "FAILED") {
-      const report = await prisma.evaluationReport.findUnique({ where: { submissionId } });
-      if (report) {
-        return report.payload;
-      }
-    }
-
     await prisma.submission.update({
       where: { id: submissionId },
       data: { status: "EVALUATING" },
     });
+
+    if (jobData.attemptId) {
+      await prisma.evaluationAttempt.update({
+        where: { id: jobData.attemptId },
+        data: { status: "EVALUATING" }
+      }).catch(() => null);
+    }
   }
 
   try {

@@ -526,14 +526,17 @@ app.post("/api/evaluate", verifyToken, submissionLimiter, async (req: Authentica
     }
 
     // Count attempts & limit enforcement
+    const attemptCount = await prisma.evaluationAttempt.count({ where: { submissionId: existing.id } });
+    const currentAttemptVersion = Math.max(existing.version, attemptCount);
+
     const maxSub = reqChecks.maxSubmissions || "unlimited";
     if (maxSub !== "unlimited") {
       const maxVal = parseInt(maxSub, 10);
-      if (existing.version >= maxVal) {
+      if (currentAttemptVersion >= maxVal) {
         return res.status(409).json({
           error: "SUBMISSION_LIMIT_REACHED",
           message: `Maximum ${maxVal} evaluation attempts allowed.`,
-          used: existing.version,
+          used: currentAttemptVersion,
           max: maxVal,
           remaining: 0
         });
@@ -569,10 +572,12 @@ app.post("/api/evaluate", verifyToken, submissionLimiter, async (req: Authentica
     }
   }
 
-  // 9. Update/Create submission row
+  // 9. Update/Create submission row & EvaluationAttempt
   let submission: any;
+  let attempt: any;
   try {
     if (existing) {
+      const attemptNumber = existing.version + 1;
       submission = await prisma.submission.update({
         where: { id: existing.id },
         data: {
@@ -589,13 +594,27 @@ app.post("/api/evaluate", verifyToken, submissionLimiter, async (req: Authentica
           architectureDiagram: architectureDiagram || existing.architectureDiagram || null,
           teamContributions: teamContributions || existing.teamContributions || [],
           status: "QUEUED",
-          score: null,
-          grade: null,
           blueprintId: dbBlueprint.id,
           blueprintVersion: dbBlueprint.version,
-          completedAt: null,
-          version: existing.version + 1
+          version: attemptNumber
         }
+      });
+
+      attempt = await prisma.evaluationAttempt.create({
+        data: {
+          submissionId: submission.id,
+          attemptNumber,
+          repoUrl: normalizedRepo.normalized,
+          deploymentUrl: deploymentUrl || null,
+          blueprintId: dbBlueprint.id,
+          blueprintVersion: dbBlueprint.version,
+          status: "QUEUED"
+        }
+      });
+
+      await prisma.submission.update({
+        where: { id: submission.id },
+        data: { latestAttemptId: attempt.id }
       });
     } else {
       submission = await prisma.submission.create({
@@ -621,6 +640,23 @@ app.post("/api/evaluate", verifyToken, submissionLimiter, async (req: Authentica
           version: 1
         }
       });
+
+      attempt = await prisma.evaluationAttempt.create({
+        data: {
+          submissionId: submission.id,
+          attemptNumber: 1,
+          repoUrl: normalizedRepo.normalized,
+          deploymentUrl: deploymentUrl || null,
+          blueprintId: dbBlueprint.id,
+          blueprintVersion: dbBlueprint.version,
+          status: "QUEUED"
+        }
+      });
+
+      await prisma.submission.update({
+        where: { id: submission.id },
+        data: { latestAttemptId: attempt.id }
+      });
     }
   } catch (dbErr: any) {
     console.error(`[Evaluate] Database error saving submission: ${dbErr.message}`);
@@ -630,6 +666,8 @@ app.post("/api/evaluate", verifyToken, submissionLimiter, async (req: Authentica
   // 10. Enqueue BullMQ Evaluation Job
   const job = await evaluationQueue.enqueue({
     submissionId: submission.id,
+    attemptId: attempt.id,
+    attemptNumber: attempt.attemptNumber,
     repoUrl: normalizedRepo.normalized,
     deploymentUrl: deploymentUrl || undefined,
     userId: effectiveUserId,
@@ -1238,6 +1276,99 @@ app.get("/api/submissions", verifyToken, async (req: AuthenticatedRequest, res: 
   }
 });
 
+// GET /api/submissions/:id/attempts - List all attempts for a submission
+app.get("/api/submissions/:id/attempts", verifyToken, async (req: AuthenticatedRequest, res: Response) => {
+  const { id } = req.params;
+  try {
+    const submission = await prisma.submission.findUnique({ where: { id } });
+    if (!submission) {
+      return res.status(404).json({ error: "Submission not found." });
+    }
+    if (req.user!.role !== "ADMIN" && req.user!.role !== "SUPER_ADMIN" && submission.userId !== req.user!.id) {
+      return res.status(403).json({ error: "Unauthorized access to submission attempts." });
+    }
+
+    const attempts = await prisma.evaluationAttempt.findMany({
+      where: { submissionId: id },
+      orderBy: { attemptNumber: "asc" }
+    });
+    res.json(attempts);
+  } catch (err: any) {
+    res.status(500).json({ error: "Failed to fetch evaluation attempts: " + err.message });
+  }
+});
+
+// GET /api/submissions/:id/attempts/latest - Retrieve latest attempt
+app.get("/api/submissions/:id/attempts/latest", verifyToken, async (req: AuthenticatedRequest, res: Response) => {
+  const { id } = req.params;
+  try {
+    const submission = await prisma.submission.findUnique({ where: { id } });
+    if (!submission) {
+      return res.status(404).json({ error: "Submission not found." });
+    }
+    if (req.user!.role !== "ADMIN" && req.user!.role !== "SUPER_ADMIN" && submission.userId !== req.user!.id) {
+      return res.status(403).json({ error: "Unauthorized access to submission attempts." });
+    }
+
+    const attempt = await prisma.evaluationAttempt.findFirst({
+      where: { submissionId: id },
+      orderBy: { attemptNumber: "desc" }
+    });
+    if (!attempt) return res.status(404).json({ error: "No evaluation attempts found." });
+    res.json(attempt);
+  } catch (err: any) {
+    res.status(500).json({ error: "Failed to fetch latest attempt: " + err.message });
+  }
+});
+
+// GET /api/submissions/:id/attempts/best - Retrieve best score attempt
+app.get("/api/submissions/:id/attempts/best", verifyToken, async (req: AuthenticatedRequest, res: Response) => {
+  const { id } = req.params;
+  try {
+    const submission = await prisma.submission.findUnique({ where: { id } });
+    if (!submission) {
+      return res.status(404).json({ error: "Submission not found." });
+    }
+    if (req.user!.role !== "ADMIN" && req.user!.role !== "SUPER_ADMIN" && submission.userId !== req.user!.id) {
+      return res.status(403).json({ error: "Unauthorized access to submission attempts." });
+    }
+
+    const attempt = await prisma.evaluationAttempt.findFirst({
+      where: { submissionId: id, status: "COMPLETED" },
+      orderBy: [{ score: "desc" }, { attemptNumber: "desc" }]
+    });
+    if (!attempt) return res.status(404).json({ error: "No completed evaluation attempts found." });
+    res.json(attempt);
+  } catch (err: any) {
+    res.status(500).json({ error: "Failed to fetch best attempt: " + err.message });
+  }
+});
+
+// GET /api/submissions/:id/attempts/:attemptNumber - Retrieve specific attempt
+app.get("/api/submissions/:id/attempts/:attemptNumber", verifyToken, async (req: AuthenticatedRequest, res: Response) => {
+  const { id, attemptNumber } = req.params;
+  const num = parseInt(attemptNumber, 10);
+  if (isNaN(num)) return res.status(400).json({ error: "Invalid attempt number." });
+
+  try {
+    const submission = await prisma.submission.findUnique({ where: { id } });
+    if (!submission) {
+      return res.status(404).json({ error: "Submission not found." });
+    }
+    if (req.user!.role !== "ADMIN" && req.user!.role !== "SUPER_ADMIN" && submission.userId !== req.user!.id) {
+      return res.status(403).json({ error: "Unauthorized access to submission attempts." });
+    }
+
+    const attempt = await prisma.evaluationAttempt.findFirst({
+      where: { submissionId: id, attemptNumber: num }
+    });
+    if (!attempt) return res.status(404).json({ error: `Attempt #${num} not found.` });
+    res.json(attempt);
+  } catch (err: any) {
+    res.status(500).json({ error: `Failed to fetch attempt #${num}: ` + err.message });
+  }
+});
+
 // PostgreSQL-backed Hackathon Leaderboard Endpoint
 app.get("/api/hackathons/:hackathonId/leaderboard", async (req: Request, res: Response) => {
   const { hackathonId } = req.params;
@@ -1270,31 +1401,20 @@ app.get("/api/hackathons/:hackathonId/leaderboard", async (req: Request, res: Re
     const userBestRecords = await Promise.all(
       Object.keys(userGroups).map(async (uid) => {
         const userSubs = userGroups[uid];
-        const attemptCount = userSubs.length;
+        const sub = userSubs[0];
 
-        // Find the best attempt
-        let bestSub = userSubs[0];
-        userSubs.forEach(s => {
-          const scoreS = s.score ?? 0;
-          const scoreBest = bestSub.score ?? 0;
-          if (scoreS > scoreBest) {
-            bestSub = s;
-          } else if (scoreS === scoreBest) {
-            const timeS = s.completedAt ? new Date(s.completedAt).getTime() : Number.MAX_SAFE_INTEGER;
-            const timeBest = bestSub.completedAt ? new Date(bestSub.completedAt).getTime() : Number.MAX_SAFE_INTEGER;
-            if (timeS < timeBest) {
-              bestSub = s;
-            }
-          }
+        const completedAttempts = await prisma.evaluationAttempt.findMany({
+          where: { submissionId: sub.id, status: "COMPLETED" },
+          orderBy: [{ score: "desc" }, { completedAt: "asc" }]
         });
 
-        // Find the latest attempt
-        let latestSub = userSubs[0];
-        userSubs.forEach(s => {
-          if (new Date(s.createdAt) > new Date(latestSub.createdAt)) {
-            latestSub = s;
-          }
+        const totalAttempts = await prisma.evaluationAttempt.count({
+          where: { submissionId: sub.id }
         });
+
+        const bestAttempt = completedAttempts[0];
+        const bestScore = sub.bestScore ?? bestAttempt?.score ?? sub.score ?? 0;
+        const latestScore = sub.score ?? 0;
 
         const user = await prisma.user.findUnique({
           where: { id: uid },
@@ -1305,23 +1425,23 @@ app.get("/api/hackathons/:hackathonId/leaderboard", async (req: Request, res: Re
           userId: uid,
           participantName: user ? `${user.firstName || ""} ${user.lastName || ""}`.trim() : "Unknown Participant",
           participantEmail: user ? user.email : "unknown@example.com",
-          bestSubmission: bestSub,
-          latestSubmission: latestSub,
-          attemptCount
+          submission: sub,
+          bestAttempt,
+          bestScore,
+          latestScore,
+          attemptCount: totalAttempts || sub.version || 1
         };
       })
     );
 
     // Sort by best score descending, then earliest completedAt, then userId
     userBestRecords.sort((a, b) => {
-      const scoreA = a.bestSubmission.score ?? 0;
-      const scoreB = b.bestSubmission.score ?? 0;
-      if (scoreB !== scoreA) {
-        return scoreB - scoreA;
+      if (b.bestScore !== a.bestScore) {
+        return b.bestScore - a.bestScore;
       }
 
-      const timeA = a.bestSubmission.completedAt ? new Date(a.bestSubmission.completedAt).getTime() : Number.MAX_SAFE_INTEGER;
-      const timeB = b.bestSubmission.completedAt ? new Date(b.bestSubmission.completedAt).getTime() : Number.MAX_SAFE_INTEGER;
+      const timeA = a.submission.completedAt ? new Date(a.submission.completedAt).getTime() : Number.MAX_SAFE_INTEGER;
+      const timeB = b.submission.completedAt ? new Date(b.submission.completedAt).getTime() : Number.MAX_SAFE_INTEGER;
       if (timeA !== timeB) {
         return timeA - timeB;
       }
@@ -1333,7 +1453,7 @@ app.get("/api/hackathons/:hackathonId/leaderboard", async (req: Request, res: Re
     let currentRank = 0;
     let lastScore: number | null = null;
     const leaderboard = userBestRecords.map((rec, idx) => {
-      const score = rec.bestSubmission.score ?? 0;
+      const score = rec.bestScore;
       if (lastScore === null || score !== lastScore) {
         currentRank = idx + 1;
         lastScore = score;
@@ -1341,20 +1461,22 @@ app.get("/api/hackathons/:hackathonId/leaderboard", async (req: Request, res: Re
 
       return {
         rank: currentRank,
-        submissionId: rec.bestSubmission.id,
+        submissionId: rec.submission.id,
         participantId: rec.userId,
         participantName: rec.participantName,
         participantEmail: rec.participantEmail,
-        projectName: rec.bestSubmission.projectName,
-        repoUrl: rec.bestSubmission.repoUrl,
-        deploymentUrl: rec.bestSubmission.deploymentUrl,
-        problemStatementId: rec.bestSubmission.problemStatementId,
+        projectName: rec.submission.projectName,
+        repoUrl: rec.submission.repoUrl,
+        deploymentUrl: rec.submission.deploymentUrl,
+        problemStatementId: rec.submission.problemStatementId,
         score,
-        grade: rec.bestSubmission.grade || (score >= 75 ? "PASSED" : "FAILED"),
-        status: rec.bestSubmission.status,
-        timestamp: rec.bestSubmission.updatedAt,
+        bestScore: rec.bestScore,
+        latestScore: rec.latestScore,
+        grade: rec.bestAttempt?.grade || rec.submission.grade || (score >= 75 ? "PASSED" : "FAILED"),
+        status: rec.submission.status,
+        timestamp: rec.submission.updatedAt,
         attemptCount: rec.attemptCount,
-        latestAttemptVersion: rec.latestSubmission.version
+        latestAttemptVersion: rec.submission.version
       };
     });
 

@@ -119,9 +119,27 @@ export interface EvaluationReportProps {
     logs: string[];
   };
   onReevaluate?: () => void;
+  attempts?: Array<{
+    id: string;
+    attemptNumber: number;
+    score: number | null;
+    status: string;
+    blueprintVersion: number;
+    reportPayload?: any;
+    completedAt?: string;
+    commitSha?: string;
+  }>;
+  selectedAttemptNumber?: number;
+  onSelectAttempt?: (attemptNumber: number) => void;
 }
 
-export function EvaluationReport({ report, onReevaluate }: EvaluationReportProps) {
+export function EvaluationReport({
+  report,
+  onReevaluate,
+  attempts,
+  selectedAttemptNumber,
+  onSelectAttempt
+}: EvaluationReportProps) {
   const [activeTab, setActiveTab] = useState<"faie" | "features" | "code" | "performance">("faie");
   const [expandedFeatureIdx, setExpandedFeatureIdx] = useState<number | null>(0);
 
@@ -185,6 +203,38 @@ export function EvaluationReport({ report, onReevaluate }: EvaluationReportProps
 
   return (
     <div className="w-full space-y-6 font-sans text-slate-900 bg-[#F8FAFC] p-4 sm:p-6 rounded-2xl border border-slate-200/80 shadow-xs">
+      {/* 0. ATTEMPT HISTORY SWITCHER BAR */}
+      {attempts && attempts.length > 1 && (
+        <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-3 px-4 rounded-xl border border-slate-200 shadow-2xs">
+          <div className="flex items-center gap-2">
+            <Clock className="w-4 h-4 text-indigo-600 shrink-0" />
+            <span className="text-xs font-bold text-slate-800">Evaluation History ({attempts.length} attempts):</span>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {attempts.map((att) => {
+              const isSelected = selectedAttemptNumber ? selectedAttemptNumber === att.attemptNumber : att.attemptNumber === attempts.length;
+              return (
+                <button
+                  key={att.id}
+                  type="button"
+                  onClick={() => onSelectAttempt?.(att.attemptNumber)}
+                  className={`px-3 py-1 text-xs font-bold rounded-lg transition-all flex items-center gap-1.5 cursor-pointer ${
+                    isSelected
+                      ? "bg-indigo-600 text-white shadow-xs"
+                      : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                  }`}
+                >
+                  <span>Attempt #{att.attemptNumber}</span>
+                  <span className={`text-[10px] font-mono px-1.5 py-0.2 rounded-full ${isSelected ? "bg-white/20 text-white" : "bg-slate-200 text-slate-800"}`}>
+                    {att.score !== null ? `${att.score} pts` : "Queued"}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* 1. SaaS SINGLE-CARD ENTERPRISE HEADER */}
       <Card className="p-6 bg-white border border-slate-200 rounded-2xl shadow-2xs space-y-4">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
