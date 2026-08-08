@@ -63,7 +63,7 @@ export function FeaturedHackathonsSection() {
             {hackathons.map((item, idx) => {
               const title = item.name || item.title || "Frontend Hackathon";
               const subtitle = item.tagline || item.subtitle || "Official Hackathon Challenge";
-              const prize = item.prize || "$25,000 Cash Pool";
+              const prize = item.prize || null;
               const dateStr = item.registrationClose ? `Closes: ${item.registrationClose}` : (item.date || "Registration Open");
               const id = item.id || `h_${idx}`;
 
@@ -102,7 +102,15 @@ export function FeaturedHackathonsSection() {
 
                       <div className="pt-2 flex items-center justify-between text-xs border-t border-[#F1F5F9]">
                         <span className="font-mono font-bold text-[#0F172A] flex items-center gap-1">
-                          <Sparkles className="h-3.5 w-3.5 text-[#F97316]" /> {prize}
+                          {prize ? (
+                            <>
+                              <Sparkles className="h-3.5 w-3.5 text-[#F97316]" /> {prize}
+                            </>
+                          ) : (
+                            <>
+                              <Sparkles className="h-3.5 w-3.5 text-[#4F46E5]" /> Official Challenge
+                            </>
+                          )}
                         </span>
                         <span className="text-[#64748B] flex items-center gap-1 text-[11px]">
                           <Clock className="h-3.5 w-3.5" /> {dateStr}
