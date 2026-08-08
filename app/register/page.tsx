@@ -1097,47 +1097,47 @@ function HackathonRegistrationContent() {
 
                     {submissionSuccess && (evaluationReport || evaluatingSubmission) ? (
                       <div className="space-y-6">
-                        {/* Enterprise Repository Evaluation in Progress Panel */}
+                        {/* Enterprise Repository Evaluation in Progress Panel (Light Mode) */}
                         {evaluatingSubmission && (
-                          <Card className="p-6 md:p-8 bg-slate-900 border border-slate-800 text-white shadow-xl rounded-2xl space-y-6 relative overflow-hidden">
+                          <Card className="p-6 md:p-8 bg-white border border-[#E2E8F0] text-[#0F172A] shadow-sm rounded-2xl space-y-6 relative overflow-hidden">
                             {/* Header Section */}
-                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-5">
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#F1F5F9] pb-5">
                               <div className="space-y-1.5">
                                 <div className="flex flex-wrap items-center gap-2.5">
-                                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-slate-800 border border-slate-700 text-[#FF006E] text-[10px] font-mono font-bold tracking-wider uppercase">
+                                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-rose-50 border border-rose-200 text-[#FF006E] text-[10px] font-mono font-bold tracking-wider uppercase">
                                     <ShieldCheck className="w-3.5 h-3.5 text-[#FF006E]" />
                                     FAIE v3
                                   </span>
-                                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-950/80 border border-emerald-800/80 text-emerald-400 text-[10px] font-mono font-semibold">
-                                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-[10px] font-mono font-semibold">
+                                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
                                     Evaluation Running
                                   </span>
                                 </div>
-                                <h3 className="font-heading text-xl font-bold tracking-tight text-white pt-0.5">
+                                <h3 className="font-heading text-xl font-bold tracking-tight text-[#0F172A] pt-0.5">
                                   Repository Evaluation in Progress
                                 </h3>
-                                <p className="text-xs text-slate-400 leading-relaxed">
+                                <p className="text-xs text-[#64748B] leading-relaxed">
                                   FAIE is performing a deterministic static analysis of your submission.
                                 </p>
                               </div>
 
                               {/* Compact Metadata Row */}
-                              <div className="flex flex-col sm:items-end justify-center bg-slate-800/60 p-3 rounded-xl border border-slate-800 text-xs font-mono shrink-0 space-y-1">
+                              <div className="flex flex-col sm:items-end justify-center bg-slate-50 p-3 rounded-xl border border-slate-200/80 text-xs font-mono shrink-0 space-y-1">
                                 <div className="flex items-center gap-2">
-                                  <span className="text-slate-400">Repository:</span>
-                                  <span className="text-slate-200 font-bold max-w-[180px] sm:max-w-[220px] truncate">
+                                  <span className="text-[#64748B]">Repository:</span>
+                                  <span className="text-[#0F172A] font-bold max-w-[180px] sm:max-w-[220px] truncate">
                                     {projectName || (repoUrl ? repoUrl.split("/").pop() : "Smart Campus Hub")}
                                   </span>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                  <span className="text-slate-400">Version:</span>
+                                  <span className="text-[#64748B]">Version:</span>
                                   <span className="text-[#FF006E] font-bold">
                                     v{evaluatingSubmission.version || (submissionAttempts[0]?.version ? submissionAttempts[0].version : 1)}
                                   </span>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                  <span className="text-slate-400">Status:</span>
-                                  <span className="text-slate-200 font-medium capitalize">
+                                  <span className="text-[#64748B]">Status:</span>
+                                  <span className="text-[#0F172A] font-semibold capitalize">
                                     {evaluatingSubmission.status === "QUEUED" ? "Queued" : "Evaluation Running"}
                                   </span>
                                 </div>
@@ -1146,28 +1146,28 @@ function HackathonRegistrationContent() {
 
                             {/* Evaluation Progress Pipeline */}
                             <div className="space-y-3">
-                              <div className="text-[11px] font-bold uppercase tracking-wider text-slate-400 flex items-center justify-between">
+                              <div className="text-[11px] font-bold uppercase tracking-wider text-[#64748B] flex items-center justify-between">
                                 <span>Evaluation Pipeline</span>
-                                <span className="font-mono text-[10px] text-slate-500">
+                                <span className="font-mono text-[10px] text-slate-400">
                                   Deterministic Audit Mode
                                 </span>
                               </div>
 
                               <div className="space-y-2.5 relative pt-1">
                                 {/* Vertical Connector Line */}
-                                <div className="absolute left-[13px] top-4 bottom-4 w-0.5 bg-slate-800 pointer-events-none" />
+                                <div className="absolute left-[13px] top-4 bottom-4 w-0.5 bg-slate-200 pointer-events-none" />
 
                                 {/* Stage 1: Submission Received */}
-                                <div className="relative flex items-start gap-3 bg-slate-800/40 p-3 rounded-xl border border-slate-800/80 transition-all">
-                                  <div className="relative z-10 flex h-6 w-6 items-center justify-center rounded-full bg-emerald-950 text-emerald-400 border border-emerald-500/40 shrink-0 mt-0.5">
-                                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
+                                <div className="relative flex items-start gap-3 bg-emerald-50/50 p-3 rounded-xl border border-emerald-200/70 transition-all">
+                                  <div className="relative z-10 flex h-6 w-6 items-center justify-center rounded-full bg-emerald-100 text-emerald-600 border border-emerald-300 shrink-0 mt-0.5">
+                                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
                                   </div>
                                   <div className="space-y-0.5 min-w-0 flex-1">
                                     <div className="flex items-center justify-between gap-2">
-                                      <h4 className="text-xs font-bold text-slate-200">Submission Received</h4>
-                                      <span className="text-[9px] font-mono text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-800/50">Completed</span>
+                                      <h4 className="text-xs font-bold text-slate-800">Submission Received</h4>
+                                      <span className="text-[9px] font-mono text-emerald-700 bg-emerald-100/80 px-2 py-0.5 rounded border border-emerald-200">Completed</span>
                                     </div>
-                                    <p className="text-[11px] text-slate-400">
+                                    <p className="text-[11px] text-slate-600">
                                       Repository metadata successfully received.
                                     </p>
                                   </div>
@@ -1176,37 +1176,37 @@ function HackathonRegistrationContent() {
                                 {/* Stage 2: Repository Analysis */}
                                 <div className={`relative flex items-start gap-3 p-3 rounded-xl border transition-all ${
                                   evaluatingSubmission.status === "QUEUED"
-                                    ? "bg-slate-800/80 border-[#FF006E]/40"
-                                    : "bg-slate-800/40 border-slate-800/80"
+                                    ? "bg-rose-50/60 border-rose-200 shadow-xs"
+                                    : "bg-emerald-50/50 border-emerald-200/70"
                                 }`}>
-                                  <div className="relative z-10 flex h-6 w-6 items-center justify-center rounded-full bg-slate-900 shrink-0 mt-0.5">
+                                  <div className="relative z-10 flex h-6 w-6 items-center justify-center rounded-full shrink-0 mt-0.5">
                                     {evaluatingSubmission.status === "QUEUED" ? (
-                                      <div className="h-6 w-6 rounded-full bg-[#FF006E]/20 border border-[#FF006E]/40 flex items-center justify-center">
+                                      <div className="h-6 w-6 rounded-full bg-rose-100 border border-rose-300 flex items-center justify-center">
                                         <span className="relative flex h-2 w-2">
                                           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#FF006E] opacity-75"></span>
                                           <span className="relative inline-flex rounded-full h-2 w-2 bg-[#FF006E]"></span>
                                         </span>
                                       </div>
                                     ) : (
-                                      <div className="h-6 w-6 rounded-full bg-emerald-950 text-emerald-400 border border-emerald-500/40 flex items-center justify-center">
-                                        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
+                                      <div className="h-6 w-6 rounded-full bg-emerald-100 text-emerald-600 border border-emerald-300 flex items-center justify-center">
+                                        <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
                                       </div>
                                     )}
                                   </div>
                                   <div className="space-y-0.5 min-w-0 flex-1">
                                     <div className="flex items-center justify-between gap-2">
-                                      <h4 className={`text-xs font-bold ${evaluatingSubmission.status === "QUEUED" ? "text-[#FF006E]" : "text-slate-200"}`}>
+                                      <h4 className={`text-xs font-bold ${evaluatingSubmission.status === "QUEUED" ? "text-[#FF006E]" : "text-slate-800"}`}>
                                         Repository Analysis
                                       </h4>
                                       <span className={`text-[9px] font-mono px-2 py-0.5 rounded border ${
                                         evaluatingSubmission.status === "QUEUED"
-                                          ? "text-[#FF006E] bg-[#FF006E]/10 border-[#FF006E]/30 font-semibold"
-                                          : "text-emerald-400 bg-emerald-950/60 border-emerald-800/50"
+                                          ? "text-[#FF006E] bg-rose-100 border-rose-200 font-semibold"
+                                          : "text-emerald-700 bg-emerald-100/80 border-emerald-200"
                                       }`}>
                                         {evaluatingSubmission.status === "QUEUED" ? "Active" : "Completed"}
                                       </span>
                                     </div>
-                                    <p className="text-[11px] text-slate-400">
+                                    <p className="text-[11px] text-slate-600">
                                       Fetching repository tree and source files...
                                     </p>
                                   </div>
@@ -1215,97 +1215,97 @@ function HackathonRegistrationContent() {
                                 {/* Stage 3: AST Analysis */}
                                 <div className={`relative flex items-start gap-3 p-3 rounded-xl border transition-all ${
                                   evaluatingSubmission.status === "EVALUATING"
-                                    ? "bg-slate-800/80 border-[#FF006E]/40"
-                                    : "bg-slate-900/30 border-slate-800/40 opacity-70"
+                                    ? "bg-rose-50/60 border-rose-200 shadow-xs"
+                                    : "bg-slate-50/60 border-slate-200/60 opacity-65"
                                 }`}>
-                                  <div className="relative z-10 flex h-6 w-6 items-center justify-center rounded-full bg-slate-900 shrink-0 mt-0.5">
+                                  <div className="relative z-10 flex h-6 w-6 items-center justify-center rounded-full shrink-0 mt-0.5">
                                     {evaluatingSubmission.status === "EVALUATING" ? (
-                                      <div className="h-6 w-6 rounded-full bg-[#FF006E]/20 border border-[#FF006E]/40 flex items-center justify-center">
+                                      <div className="h-6 w-6 rounded-full bg-rose-100 border border-rose-300 flex items-center justify-center">
                                         <span className="relative flex h-2 w-2">
                                           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#FF006E] opacity-75"></span>
                                           <span className="relative inline-flex rounded-full h-2 w-2 bg-[#FF006E]"></span>
                                         </span>
                                       </div>
                                     ) : (
-                                      <div className="h-6 w-6 rounded-full bg-slate-900 border border-slate-700 flex items-center justify-center text-slate-600">
-                                        <Circle className="h-2.5 w-2.5 text-slate-600" />
+                                      <div className="h-6 w-6 rounded-full bg-slate-100 border border-slate-300 flex items-center justify-center text-slate-400">
+                                        <Circle className="h-2.5 w-2.5 text-slate-400" />
                                       </div>
                                     )}
                                   </div>
                                   <div className="space-y-0.5 min-w-0 flex-1">
                                     <div className="flex items-center justify-between gap-2">
-                                      <h4 className={`text-xs font-bold ${evaluatingSubmission.status === "EVALUATING" ? "text-[#FF006E]" : "text-slate-400"}`}>
+                                      <h4 className={`text-xs font-bold ${evaluatingSubmission.status === "EVALUATING" ? "text-[#FF006E]" : "text-slate-500"}`}>
                                         AST Analysis
                                       </h4>
                                       <span className={`text-[9px] font-mono px-2 py-0.5 rounded border ${
                                         evaluatingSubmission.status === "EVALUATING"
-                                          ? "text-[#FF006E] bg-[#FF006E]/10 border-[#FF006E]/30 font-semibold"
-                                          : "text-slate-500 bg-slate-800/30 border-slate-800"
+                                          ? "text-[#FF006E] bg-rose-100 border-rose-200 font-semibold"
+                                          : "text-slate-400 bg-slate-100 border-slate-200"
                                       }`}>
                                         {evaluatingSubmission.status === "EVALUATING" ? "Active" : "Pending"}
                                       </span>
                                     </div>
-                                    <p className="text-[11px] text-slate-400">
+                                    <p className="text-[11px] text-slate-600">
                                       Parsing source files using Tree-sitter WASM.
                                     </p>
                                   </div>
                                 </div>
 
                                 {/* Stage 4: Technology & Feature Verification */}
-                                <div className="relative flex items-start gap-3 p-3 rounded-xl border bg-slate-900/30 border-slate-800/40 opacity-70 transition-all">
-                                  <div className="relative z-10 flex h-6 w-6 items-center justify-center rounded-full bg-slate-900 border border-slate-700 shrink-0 mt-0.5 text-slate-600">
-                                    <Circle className="h-2.5 w-2.5 text-slate-600" />
+                                <div className="relative flex items-start gap-3 p-3 rounded-xl border bg-slate-50/60 border-slate-200/60 opacity-65 transition-all">
+                                  <div className="relative z-10 flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 border border-slate-300 shrink-0 mt-0.5 text-slate-400">
+                                    <Circle className="h-2.5 w-2.5 text-slate-400" />
                                   </div>
                                   <div className="space-y-0.5 min-w-0 flex-1">
                                     <div className="flex items-center justify-between gap-2">
-                                      <h4 className="text-xs font-bold text-slate-400">
+                                      <h4 className="text-xs font-bold text-slate-500">
                                         Technology & Feature Verification
                                       </h4>
-                                      <span className="text-[9px] font-mono text-slate-500 bg-slate-800/30 px-2 py-0.5 rounded border border-slate-800">
+                                      <span className="text-[9px] font-mono text-slate-400 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
                                         Pending
                                       </span>
                                     </div>
-                                    <p className="text-[11px] text-slate-400">
+                                    <p className="text-[11px] text-slate-500">
                                       Detecting frameworks, required features and architecture.
                                     </p>
                                   </div>
                                 </div>
 
                                 {/* Stage 5: Quality Analysis */}
-                                <div className="relative flex items-start gap-3 p-3 rounded-xl border bg-slate-900/30 border-slate-800/40 opacity-70 transition-all">
-                                  <div className="relative z-10 flex h-6 w-6 items-center justify-center rounded-full bg-slate-900 border border-slate-700 shrink-0 mt-0.5 text-slate-600">
-                                    <Circle className="h-2.5 w-2.5 text-slate-600" />
+                                <div className="relative flex items-start gap-3 p-3 rounded-xl border bg-slate-50/60 border-slate-200/60 opacity-65 transition-all">
+                                  <div className="relative z-10 flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 border border-slate-300 shrink-0 mt-0.5 text-slate-400">
+                                    <Circle className="h-2.5 w-2.5 text-slate-400" />
                                   </div>
                                   <div className="space-y-0.5 min-w-0 flex-1">
                                     <div className="flex items-center justify-between gap-2">
-                                      <h4 className="text-xs font-bold text-slate-400">
+                                      <h4 className="text-xs font-bold text-slate-500">
                                         Quality Analysis
                                       </h4>
-                                      <span className="text-[9px] font-mono text-slate-500 bg-slate-800/30 px-2 py-0.5 rounded border border-slate-800">
+                                      <span className="text-[9px] font-mono text-slate-400 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
                                         Pending
                                       </span>
                                     </div>
-                                    <p className="text-[11px] text-slate-400">
+                                    <p className="text-[11px] text-slate-500">
                                       Running deterministic performance, accessibility, responsive, code-quality and documentation checks.
                                     </p>
                                   </div>
                                 </div>
 
                                 {/* Stage 6: Score Generation */}
-                                <div className="relative flex items-start gap-3 p-3 rounded-xl border bg-slate-900/30 border-slate-800/40 opacity-70 transition-all">
-                                  <div className="relative z-10 flex h-6 w-6 items-center justify-center rounded-full bg-slate-900 border border-slate-700 shrink-0 mt-0.5 text-slate-600">
-                                    <Circle className="h-2.5 w-2.5 text-slate-600" />
+                                <div className="relative flex items-start gap-3 p-3 rounded-xl border bg-slate-50/60 border-slate-200/60 opacity-65 transition-all">
+                                  <div className="relative z-10 flex h-6 w-6 items-center justify-center rounded-full bg-slate-100 border border-slate-300 shrink-0 mt-0.5 text-slate-400">
+                                    <Circle className="h-2.5 w-2.5 text-slate-400" />
                                   </div>
                                   <div className="space-y-0.5 min-w-0 flex-1">
                                     <div className="flex items-center justify-between gap-2">
-                                      <h4 className="text-xs font-bold text-slate-400">
+                                      <h4 className="text-xs font-bold text-slate-500">
                                         Score Generation
                                       </h4>
-                                      <span className="text-[9px] font-mono text-slate-500 bg-slate-800/30 px-2 py-0.5 rounded border border-slate-800">
+                                      <span className="text-[9px] font-mono text-slate-400 bg-slate-100 px-2 py-0.5 rounded border border-slate-200">
                                         Pending
                                       </span>
                                     </div>
-                                    <p className="text-[11px] text-slate-400">
+                                    <p className="text-[11px] text-slate-500">
                                       Preparing the final auditable score report.
                                     </p>
                                   </div>
@@ -1314,61 +1314,61 @@ function HackathonRegistrationContent() {
                             </div>
 
                             {/* Progress Indicator */}
-                            <div className="space-y-2 pt-2 border-t border-slate-800/80">
-                              <div className="flex items-center justify-between text-xs font-medium text-slate-300">
+                            <div className="space-y-2 pt-2 border-t border-[#F1F5F9]">
+                              <div className="flex items-center justify-between text-xs font-medium text-[#0F172A]">
                                 <span className="flex items-center gap-2 text-xs">
                                   <Loader2 className="h-3.5 w-3.5 text-[#FF006E] animate-spin" />
                                   Evaluation in progress
                                 </span>
-                                <span className="text-[11px] font-mono text-slate-400">
+                                <span className="text-[11px] font-mono text-[#64748B]">
                                   {evaluatingSubmission.status === "QUEUED" ? "Queued in runner queue..." : "Running static analysis..."}
                                 </span>
                               </div>
-                              <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden relative">
+                              <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden relative border border-slate-200/50">
                                 <div
-                                  className="h-full bg-gradient-to-r from-[#FF006E] to-rose-400 rounded-full transition-all duration-500"
+                                  className="h-full bg-gradient-to-r from-[#FF006E] to-rose-500 rounded-full transition-all duration-500"
                                   style={{ width: evaluatingSubmission.status === "QUEUED" ? "25%" : "65%" }}
                                 />
                               </div>
                             </div>
 
                             {/* Live Engine Status Panel */}
-                            <div className="bg-slate-950/80 p-4 rounded-xl border border-slate-800/80 space-y-2.5 font-mono text-xs">
-                              <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 border-b border-slate-800/60 pb-2">
+                            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-2.5 font-mono text-xs text-[#0F172A]">
+                              <div className="text-[10px] font-bold uppercase tracking-wider text-[#64748B] border-b border-slate-200 pb-2">
                                 FAIE Engine Status
                               </div>
                               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 text-[11px]">
                                 <div className="flex items-center gap-2">
-                                  <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-                                  <span className="text-slate-400">Worker:</span>
-                                  <span className="text-slate-200 font-semibold">{evaluatingSubmission.status === "QUEUED" ? "Queued" : "Running"}</span>
+                                  <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                                  <span className="text-[#64748B]">Worker:</span>
+                                  <span className="text-[#0F172A] font-semibold">{evaluatingSubmission.status === "QUEUED" ? "Queued" : "Running"}</span>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                  <span className="h-2 w-2 rounded-full bg-blue-400" />
-                                  <span className="text-slate-400">Analysis Mode:</span>
-                                  <span className="text-slate-200 font-semibold">Deterministic</span>
+                                  <span className="h-2 w-2 rounded-full bg-blue-500" />
+                                  <span className="text-[#64748B]">Analysis Mode:</span>
+                                  <span className="text-[#0F172A] font-semibold">Deterministic</span>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                  <span className="h-2 w-2 rounded-full bg-slate-500" />
-                                  <span className="text-slate-400">Browser Automation:</span>
-                                  <span className="text-slate-200 font-semibold">Disabled</span>
+                                  <span className="h-2 w-2 rounded-full bg-slate-400" />
+                                  <span className="text-[#64748B]">Browser Automation:</span>
+                                  <span className="text-[#0F172A] font-semibold">Disabled</span>
                                 </div>
                                 <div className="flex items-center gap-2">
-                                  <span className="h-2 w-2 rounded-full bg-slate-500" />
-                                  <span className="text-slate-400">AI Judgement:</span>
-                                  <span className="text-slate-200 font-semibold">Disabled</span>
+                                  <span className="h-2 w-2 rounded-full bg-slate-400" />
+                                  <span className="text-[#64748B]">AI Judgement:</span>
+                                  <span className="text-[#0F172A] font-semibold">Disabled</span>
                                 </div>
                                 <div className="flex items-center gap-2 sm:col-span-2">
-                                  <span className="h-2 w-2 rounded-full bg-purple-400" />
-                                  <span className="text-slate-400">Evidence Mode:</span>
-                                  <span className="text-slate-200 font-semibold">Source-code verified</span>
+                                  <span className="h-2 w-2 rounded-full bg-purple-500" />
+                                  <span className="text-[#64748B]">Evidence Mode:</span>
+                                  <span className="text-[#0F172A] font-semibold">Source-code verified</span>
                                 </div>
                               </div>
                             </div>
 
                             {/* Trust Message Card */}
-                            <div className="bg-slate-800/40 p-3.5 rounded-xl border border-slate-800 text-slate-400 text-[11px] leading-relaxed flex items-start gap-2.5">
-                              <Info className="h-4 w-4 text-slate-400 shrink-0 mt-0.5" />
+                            <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200 text-[#64748B] text-[11px] leading-relaxed flex items-start gap-2.5">
+                              <Info className="h-4 w-4 text-slate-500 shrink-0 mt-0.5" />
                               <p>
                                 Your repository is being evaluated using static repository intelligence and AST-based analysis. No manual judging or AI-based scoring is involved.
                               </p>
