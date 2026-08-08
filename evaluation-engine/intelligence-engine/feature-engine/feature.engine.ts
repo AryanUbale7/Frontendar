@@ -1,5 +1,6 @@
 import { VirtualRepository } from "../repository-engine/github-repo.engine";
 import { ASTRepositoryAnalysis } from "../ast-engine/ast-analysis.engine";
+import { SynonymEngine } from "../synonym-engine/synonym.engine";
 
 export type ImplementationDepth = "full" | "partial" | "superficial" | "none";
 
@@ -8,6 +9,7 @@ export interface FeatureEvidence {
   mandatory: boolean;
   maxWeight: number;
   awardedScore: number;
+  description?: string;
   implementationDepth: ImplementationDepth;
   implementationStatus?: "Implemented" | "Partially Implemented" | "Not Implemented";
   confidencePercent: number;
@@ -16,20 +18,6 @@ export interface FeatureEvidence {
   matchedJsxTags: string[];
   matchedAstNodes: string[];
   evidenceCitations: string[];
-  evidence?: {
-    readmeMatches?: string[];
-    fileMatches?: string[];
-    routeMatches?: string[];
-    componentMatches?: string[];
-    uiMatches?: string[];
-    packageMatches?: string[];
-    rejectedClaims?: string[];
-    evidenceLevel?: number;
-    astEvidence?: string[];
-    dataFlowEvidence?: string[];
-    renderEvidence?: string[];
-    runtimeEvidence?: string[];
-  };
 }
 
 export type FeatureDetectionResult = FeatureEvidence;
@@ -38,9 +26,12 @@ export interface FeatureDetectionReport {
   features: FeatureEvidence[];
   totalFeatureCoveragePercent: number;
   mandatoryFeaturesPassed: boolean;
+  missingMandatoryFeatures: string[];
 }
 
 export class FeatureEngine {
+  private synonymEngine = new SynonymEngine();
+
   public evaluateFeatures(
     repo: VirtualRepository,
     ast: ASTRepositoryAnalysis,
@@ -48,30 +39,42 @@ export class FeatureEngine {
       name: string;
       mandatory?: boolean;
       weight?: number;
+      description?: string;
       keywords?: string[];
+      synonyms?: string[];
       expectedComponents?: string[];
       expectedAPIs?: string[];
       expectedRoutes?: string[];
-    }> = []
+    }> = [],
+    customSynonymDict?: Record<string, string[]>
   ): FeatureDetectionReport {
+    if (customSynonymDict) {
+      this.synonymEngine.updateDictionary(customSynonymDict);
+    }
+
     const defaultFeatures = [
-      { name: "Authentication", mandatory: true, weight: 10, keywords: ["auth", "login", "jwt", "session"] },
-      { name: "Dashboard", mandatory: true, weight: 10, keywords: ["dashboard", "metrics", "grid", "panel"] },
-      { name: "Analytics", mandatory: false, weight: 10, keywords: ["analytics", "chart", "graph", "stats"] },
-      { name: "CRUD Operations", mandatory: false, weight: 10, keywords: ["create", "update", "delete", "post", "fetch"] },
-      { name: "Interactive UI", mandatory: false, weight: 10, keywords: ["button", "modal", "card", "badge", "nav"] }
+      { name: "Authentication", mandatory: true, weight: 10, description: "User login and session management", keywords: ["auth", "login", "jwt", "session"] },
+      { name: "Dashboard", mandatory: true, weight: 10, description: "Main overview panel and widgets", keywords: ["dashboard", "metrics", "grid", "panel"] },
+      { name: "Analytics", mandatory: false, weight: 10, description: "Data visualizations and charts", keywords: ["analytics", "chart", "graph", "stats"] },
+      { name: "CRUD Operations", mandatory: false, weight: 10, description: "Data management operations", keywords: ["create", "update", "delete", "post", "fetch"] },
+      { name: "Interactive UI", mandatory: false, weight: 10, description: "Responsive UI components", keywords: ["button", "modal", "card", "badge", "nav"] }
     ];
 
     const targetFeatureList = blueprintFeatures.length > 0
-      ? blueprintFeatures.map((f) => ({
-          name: f.name,
-          mandatory: !!f.mandatory,
-          weight: f.weight || 10,
-          keywords: f.keywords || [],
-          expectedComponents: f.expectedComponents || [],
-          expectedAPIs: f.expectedAPIs || [],
-          expectedRoutes: f.expectedRoutes || []
-        }))
+      ? blueprintFeatures.map((f) => {
+          this.synonymEngine.addFeatureSynonyms(f.name, f.synonyms);
+          return {
+            name: f.name,
+            mandatory: !!f.mandatory,
+            weight: f.weight || 10,
+            description: f.description || "",
+            keywords: f.keywords || [],
+            synonyms: f.synonyms || [],
+            expectedComponents: f.expectedComponents || [],
+            expectedAPIs: f.expectedAPIs || [],
+            expectedRoutes: f.expectedRoutes || []
+          };
+        })
       : defaultFeatures;
 
     const featureEvidences: FeatureEvidence[] = [];
@@ -82,7 +85,8 @@ export class FeatureEngine {
     }
 
     const mandatoryFeatures = featureEvidences.filter((f) => f.mandatory);
-    const mandatoryPassed = mandatoryFeatures.every((f) => f.awardedScore > 0);
+    const missingMandatory = mandatoryFeatures.filter((f) => f.awardedScore === 0).map((f) => f.featureName);
+    const mandatoryPassed = missingMandatory.length === 0;
 
     const totalWeight = featureEvidences.reduce((sum, f) => sum + f.maxWeight, 0);
     const awardedWeight = featureEvidences.reduce((sum, f) => sum + f.awardedScore, 0);
@@ -91,7 +95,8 @@ export class FeatureEngine {
     return {
       features: featureEvidences,
       totalFeatureCoveragePercent: coveragePercent,
-      mandatoryFeaturesPassed: mandatoryPassed
+      mandatoryFeaturesPassed: mandatoryPassed,
+      missingMandatoryFeatures: missingMandatory
     };
   }
 
@@ -100,7 +105,9 @@ export class FeatureEngine {
       name: string;
       mandatory: boolean;
       weight: number;
+      description?: string;
       keywords?: string[];
+      synonyms?: string[];
       expectedComponents?: string[];
       expectedAPIs?: string[];
       expectedRoutes?: string[];
@@ -108,7 +115,7 @@ export class FeatureEngine {
     repo: VirtualRepository,
     ast: ASTRepositoryAnalysis
   ): FeatureEvidence {
-    const { name, mandatory, weight: maxWeight, keywords = [], expectedComponents = [], expectedAPIs = [], expectedRoutes = [] } = target;
+    const { name, mandatory, weight: maxWeight, description = "", keywords = [], synonyms = [], expectedComponents = [], expectedAPIs = [], expectedRoutes = [] } = target;
     const matchedFiles = new Set<string>();
     const matchedJsxTags = new Set<string>();
     const matchedAstNodes = new Set<string>();
@@ -117,10 +124,22 @@ export class FeatureEngine {
     const lowerName = name.toLowerCase();
     const signals: Record<string, boolean> = {};
 
-    const allFiles = Object.values(repo.files || {});
     const allFileEntries = Object.entries(repo.files || {});
 
-    // 1. AUTHENTICATION — Multi-Signal Cross Verification
+    // Expand search terms using SynonymEngine and aliases
+    const searchTokens = new Set<string>();
+    name.toLowerCase().split(/[\s,_\-\/]+/).forEach((t) => { if (t.length > 2) searchTokens.add(t); });
+    keywords.forEach((k) => searchTokens.add(k.toLowerCase()));
+    synonyms.forEach((s) => searchTokens.add(s.toLowerCase()));
+    expectedComponents.forEach((c) => searchTokens.add(c.toLowerCase()));
+    expectedAPIs.forEach((a) => searchTokens.add(a.toLowerCase()));
+    expectedRoutes.forEach((r) => searchTokens.add(r.toLowerCase()));
+
+    // Add synonyms from SynonymEngine
+    const synonymAliases = this.synonymEngine.getAliases(name);
+    synonymAliases.forEach((alias) => searchTokens.add(alias.toLowerCase()));
+
+    // 1. Specialized Multi-Signal Checks for Authentication / Login / Auth
     if (lowerName.includes("auth") || lowerName.includes("login") || lowerName.includes("security")) {
       const authLibs = ["@clerk/nextjs", "next-auth", "firebase/auth", "@supabase/supabase-js", "jsonwebtoken", "passport", "bcrypt"];
       for (const [path, analysis] of Object.entries(ast.fileAnalyses)) {
@@ -150,25 +169,10 @@ export class FeatureEngine {
           matchedFiles.add(path);
           matchedAstNodes.add(`Credential/Form Handler in ${path}`);
         }
-        if (
-          content.includes("jwt.verify") || content.includes("localstorage.setitem('token'") ||
-          path.includes("middleware.ts") || content.includes("authorization")
-        ) {
-          signals["TOKEN_MIDDLEWARE"] = true;
-          matchedFiles.add(path);
-          matchedAstNodes.add(`Token/Middleware Guard in ${path}`);
-        }
-      }
-
-      const signalCount = Object.keys(signals).length;
-      if (signalCount >= 2) {
-        evidenceCitations.push(`Multi-Signal Auth verified (${signalCount} signals: ${Object.keys(signals).join(", ")}).`);
-      } else if (signalCount === 1) {
-        evidenceCitations.push(`Partial Auth signal detected (${Object.keys(signals).join(", ")}).`);
       }
     }
 
-    // 2. DASHBOARD & ANALYTICS — Multi-Signal Cross Verification
+    // 2. Specialized Multi-Signal Checks for Dashboard & Analytics
     if (lowerName.includes("dashboard") || lowerName.includes("analytic") || lowerName.includes("chart")) {
       for (const [path, analysis] of Object.entries(ast.fileAnalyses)) {
         if (path.toLowerCase().includes("dashboard") || path.toLowerCase().includes("analytic")) {
@@ -190,27 +194,19 @@ export class FeatureEngine {
           }
         });
       }
-      if (signals["DASHBOARD_FILE"] || signals["MULTI_WIDGET_LAYOUT"] || signals["CHART_JSX_TAG"]) {
-        evidenceCitations.push(`Dashboard/Analytics verified with layout structure & widgets.`);
-      }
     }
 
-    // 3. KEYWORD & COMPONENT ADVANCED HEURISTICS SEARCH
-    const searchTokens = new Set<string>();
-    name.toLowerCase().split(/[\s,_\-\/]+/).forEach((t) => { if (t.length > 2) searchTokens.add(t); });
-    keywords.forEach((k) => searchTokens.add(k.toLowerCase()));
-    expectedComponents.forEach((c) => searchTokens.add(c.toLowerCase()));
-    expectedAPIs.forEach((a) => searchTokens.add(a.toLowerCase()));
-
+    // 3. Keyword, Component, API, Route, and AST Evidence Search across repository files
     for (const [path, file] of allFileEntries) {
       const lowerPath = path.toLowerCase();
       const lowerContent = file.content.toLowerCase();
 
       for (const token of searchTokens) {
+        if (token.length < 2) continue;
         if (lowerPath.includes(token)) {
           signals[`PATH_MATCH_${token.toUpperCase()}`] = true;
           matchedFiles.add(path);
-          matchedAstNodes.add(`Path match "${token}" in ${path}`);
+          matchedAstNodes.add(`File path match for term "${token}" in ${path}`);
         }
         if (lowerContent.includes(token)) {
           signals[`CONTENT_MATCH_${token.toUpperCase()}`] = true;
@@ -224,7 +220,7 @@ export class FeatureEngine {
       const hasHttp = analysis.callExpressions.some(
         (c) => c.expressionName === "fetch" || c.expressionName.includes("axios") || c.expressionName.includes("supabase") || c.expressionName.includes("api")
       );
-      if (hasHttp && (lowerName.includes("api") || lowerName.includes("client") || lowerName.includes("crud"))) {
+      if (hasHttp && (lowerName.includes("api") || lowerName.includes("client") || lowerName.includes("crud") || lowerName.includes("data"))) {
         signals["HTTP_API_CALL"] = true;
         matchedFiles.add(path);
         matchedAstNodes.add(`HTTP API Client call in ${path}`);
@@ -247,8 +243,15 @@ export class FeatureEngine {
       depth = "partial";
     }
 
-    if (evidenceCitations.length === 0 && signalCount > 0) {
-      evidenceCitations.push(`Feature "${name}" verified via ${signalCount} structural code signals across ${matchedFiles.size} files.`);
+    if (signalCount > 0) {
+      const fileListStr = Array.from(matchedFiles).slice(0, 3).join(", ");
+      evidenceCitations.push(
+        `Feature "${name}" verified: ${depth.toUpperCase()} implementation depth (${signalCount} signal matches across files [${fileListStr}]).`
+      );
+    } else {
+      evidenceCitations.push(
+        `Feature "${name}" FAILED: No source-code, component, or AST evidence detected in repository.`
+      );
     }
 
     const scorePoints = depth === "full" ? maxWeight : depth === "partial" ? Math.round(maxWeight * 0.7) : 0;
@@ -257,6 +260,7 @@ export class FeatureEngine {
       featureName: name,
       mandatory,
       maxWeight,
+      description,
       awardedScore: scorePoints,
       implementationDepth: depth,
       confidencePercent: confidence,

@@ -16,13 +16,29 @@ export class FAIEQualityEngine {
   private archModule = new ArchitectureQualityModule();
   private docModule = new DocumentationQualityModule();
 
-  public evaluateQuality(repo: VirtualRepository, ast: ASTRepositoryAnalysis): FQEReport {
+  public evaluateQuality(
+    repo: VirtualRepository,
+    ast: ASTRepositoryAnalysis,
+    blueprintCodeQualityRules?: Record<string, number>
+  ): FQEReport {
     const perfReport = this.perfModule.evaluate(repo, ast);
     const accessReport = this.accessModule.evaluate(repo, ast);
     const respReport = this.respModule.evaluate(repo, ast);
     const codeReport = this.codeModule.evaluate(repo, ast);
     const archReport = this.archModule.evaluate(repo, ast);
     const docReport = this.docModule.evaluate(repo, ast);
+
+    // If Admin configured custom code quality rules (e.g., readme: 10, folders: 25, comments: 25, typescript: 40)
+    // Scale or adjust module scores dynamically based on configured weights
+    let codeQualityWeight = 7;
+    let archWeight = 6;
+    let docWeight = 6;
+
+    if (blueprintCodeQualityRules) {
+      if (typeof blueprintCodeQualityRules.readme === "number") docWeight = blueprintCodeQualityRules.readme / 10;
+      if (typeof blueprintCodeQualityRules.folders === "number") archWeight = blueprintCodeQualityRules.folders / 4;
+      if (typeof blueprintCodeQualityRules.comments === "number") codeQualityWeight = blueprintCodeQualityRules.comments / 4;
+    }
 
     const rawTotal =
       perfReport.score +

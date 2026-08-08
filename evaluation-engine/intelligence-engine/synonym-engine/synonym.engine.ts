@@ -4,11 +4,25 @@ export class SynonymEngine {
   private dictionary: Record<string, string[]>;
 
   constructor(customDictionary?: Record<string, string[]>) {
-    this.dictionary = { ...DEFAULT_ALIAS_DICTIONARY, ...(customDictionary || {}) };
+    // If custom dictionary provided, prioritize custom dictionary terms
+    this.dictionary = {
+      ...(customDictionary && Object.keys(customDictionary).length > 0
+        ? customDictionary
+        : DEFAULT_ALIAS_DICTIONARY),
+    };
   }
 
   public updateDictionary(customDictionary: Record<string, string[]>): void {
-    this.dictionary = { ...DEFAULT_ALIAS_DICTIONARY, ...customDictionary };
+    if (customDictionary && Object.keys(customDictionary).length > 0) {
+      this.dictionary = { ...customDictionary };
+    }
+  }
+
+  public addFeatureSynonyms(featureName: string, synonyms?: string[]): void {
+    if (!synonyms || synonyms.length === 0) return;
+    const key = featureName.toLowerCase().trim();
+    const existing = this.dictionary[key] || [];
+    this.dictionary[key] = Array.from(new Set([...existing, ...synonyms.map((s) => s.toLowerCase().trim())]));
   }
 
   public getAliases(term: string): string[] {

@@ -99,12 +99,15 @@ export async function runEvaluationJob(jobData: EvaluationJobData): Promise<any>
           (blueprint as any).selectedProblemIndex = idx;
           const selectedPs = pss[idx];
           const psFeatures = ((blueprint.requiredFeatures as any[]) || []).filter(
-            (f: any) => f.problemStatementId === (selectedPs.id || selectedPs.title)
+            (f: any) => !f.problemStatementId || f.problemStatementId === (selectedPs.id || selectedPs.title)
           );
+          if (psFeatures.length > 0) {
+            blueprint.requiredFeatures = psFeatures;
+          }
           console.log(`[FAIE v3] Submission: ${submissionId}`);
           console.log(`[FAIE v3] Problem Statement ID: ${submission.problemStatementId}`);
           console.log(`[FAIE v3] Problem Statement: ${selectedPs.title || selectedPs.id}`);
-          console.log(`[FAIE v3] Loaded Required Features: ${psFeatures.length}`);
+          console.log(`[FAIE v3] Loaded Required Features: ${blueprint.requiredFeatures.length}`);
         }
       }
     }

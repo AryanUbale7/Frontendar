@@ -202,7 +202,10 @@ export interface DynamicEvaluationReport {
   };
   featureTreeEvaluations?: any[];
   detectedTechnologies?: any[];
+  submissionRequirementsReport?: any;
   qualityEngineReport?: any;
+  ruleResults?: any[];
+  bonusResults?: any[];
   rejectedClaims?: string[];
   screenshots?: any[];
   toolAudits: ToolAuditResults;
@@ -790,7 +793,10 @@ export async function evaluateSubmission(
     },
     featureTreeEvaluations: faieReport.featureTreeEvaluations,
     detectedTechnologies: faieReport.detectedTechnologies,
+    submissionRequirementsReport: faieReport.submissionRequirementsReport,
     qualityEngineReport: faieReport.qualityEngineReport,
+    ruleResults: faieReport.ruleResults,
+    bonusResults: faieReport.bonusResults,
     rejectedClaims: [],
     screenshots: [],
     toolAudits: dummyToolAudits,

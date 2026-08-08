@@ -139,9 +139,13 @@ export interface KnowledgeBlueprint {
   keywords?: string[];
   synonymDictionary?: Record<string, string[]>;
   confidenceThreshold?: number; // Configurable threshold (e.g. 75% for Implemented vs Partially Implemented)
+  submissionRequirements?: Record<string, boolean>;
+  codeQualityRules?: Record<string, number>;
+  performanceRules?: Record<string, any>;
   scoringSystem: {
     categories: ScoringCategory[];
   };
+  autoPassFailRules?: Array<{ rule: string; action: "fail" | "deduct"; points?: number }>;
   mandatoryRules?: MandatoryRule[];
   bonusRules?: BonusRule[];
   penaltyRules?: PenaltyRule[];

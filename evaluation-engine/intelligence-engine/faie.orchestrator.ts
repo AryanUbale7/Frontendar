@@ -5,6 +5,9 @@ import { TechnologyEngine } from "./technology-engine/technology.engine";
 import { FeatureEngine } from "./feature-engine/feature.engine";
 import { FAIEQualityEngine } from "./quality-engine/quality.engine";
 import { FQEReport } from "./quality-engine/quality.interface";
+import { SubmissionRequirementsValidator, SubmissionRequirementsReport } from "./submission-engine/submission-requirements.validator";
+import { ScoringEngine, DynamicScoringReport } from "./scoring-engine/scoring.engine";
+import { SynonymEngine } from "./synonym-engine/synonym.engine";
 
 export interface FAIEReportV3 {
   hackathonTitle: string;
@@ -12,6 +15,7 @@ export interface FAIEReportV3 {
   deploymentUrl?: string;
   status: "pass" | "fail";
   engineVersion: "FAIE-v3-AST-Static";
+  blueprintVersion?: number | string;
   scoreSummary: {
     finalScore: number;
     featureCoveragePercent: number;
@@ -40,6 +44,7 @@ export interface FAIEReportV3 {
     matchedFiles: string[];
     evidenceCitations: string[];
   }>;
+  submissionRequirementsReport?: SubmissionRequirementsReport;
   qualityEngineReport?: FQEReport;
   scoringDetails: Array<{
     categoryName: string;
@@ -48,6 +53,19 @@ export interface FAIEReportV3 {
     passingMarks: number;
     evaluatedBy: string;
     evidenceCitations: string[];
+  }>;
+  ruleResults?: Array<{
+    ruleName: string;
+    triggered: boolean;
+    action: string;
+    pointsDeducted: number;
+    detail: string;
+  }>;
+  bonusResults?: Array<{
+    bonusName: string;
+    awarded: boolean;
+    pointsAwarded: number;
+    detail: string;
   }>;
   logs: string[];
   auditableReportId: string;
@@ -62,16 +80,31 @@ export class FAIEOrchestrator {
   private techEngine = new TechnologyEngine();
   private featureEngine = new FeatureEngine();
   private qualityEngine = new FAIEQualityEngine();
+  private submissionValidator = new SubmissionRequirementsValidator();
+  private scoringEngine = new ScoringEngine();
+  private synonymEngine = new SynonymEngine();
 
   public async evaluate(
     workspacePathOrUrl: string,
     repoUrl: string,
     passedBlueprint: KnowledgeBlueprint,
-    deploymentUrl?: string
+    deploymentUrl?: string,
+    submissionMetadata?: {
+      videoUrl?: string;
+      presentationPdf?: string;
+      architectureDiagram?: string;
+      apiDocsUrl?: string;
+    }
   ): Promise<FAIEReportV3> {
     const logs: string[] = [];
     const startTime = Date.now();
-    logs.push(`[FAIE v3] Initializing AST Static Intelligence evaluation pipeline for ${repoUrl}...`);
+    logs.push(`[FAIE v3] Initializing Dynamic AST Evaluation Pipeline for ${repoUrl}...`);
+
+    // Initialize SynonymEngine with Blueprint synonym dictionary
+    if (passedBlueprint.synonymDictionary) {
+      this.synonymEngine.updateDictionary(passedBlueprint.synonymDictionary);
+      logs.push(`[FAIE v3] Loaded Blueprint Synonym Dictionary with ${Object.keys(passedBlueprint.synonymDictionary).length} custom mappings.`);
+    }
 
     // 1. Fetch Repository Metadata & Files via GitHub API (or local disk fallback)
     const targetSource = repoUrl || workspacePathOrUrl;
@@ -93,49 +126,69 @@ export class FAIEOrchestrator {
       `[FAIE v3] AST Parse Complete: ${astData.totalJsxElements} JSX elements, ${astData.totalFunctions} functions, ${astData.allImports.size} unique imports detected.`
     );
 
-    // 3. Deterministic Technology Stack Detection
-    logs.push(`[FAIE v3] Executing Technology Stack Detection Engine...`);
+    // 3. Deterministic Technology Stack Detection against Blueprint Tech Rules
+    logs.push(`[FAIE v3] Executing Dynamic Technology Stack Engine...`);
     const techReport = this.techEngine.evaluateTechnologies(
       repoData,
       astData,
-      passedBlueprint.techStackRules
+      passedBlueprint.techStackRules,
+      deploymentUrl
     );
     logs.push(
-      `[FAIE v3] Primary Framework: ${techReport.primaryFramework}. Tech Compliance: ${techReport.technologyScore}/100.`
+      `[FAIE v3] Primary Framework: ${techReport.primaryFramework}. Tech Score: ${techReport.technologyScore}/100.`
     );
 
-    // 4. Structural Feature Detection Engine
-    logs.push(`[FAIE v3] Executing Feature Detection Engine...`);
+    // 4. Structural Feature Detection Engine with Blueprint Features & Synonyms
+    logs.push(`[FAIE v3] Executing Dynamic Feature Detection Engine...`);
     const featureReport = this.featureEngine.evaluateFeatures(
       repoData,
       astData,
-      passedBlueprint.requiredFeatures as any
+      passedBlueprint.requiredFeatures as any,
+      passedBlueprint.synonymDictionary
     );
     logs.push(
-      `[FAIE v3] Feature Coverage: ${featureReport.totalFeatureCoveragePercent}%. Mandatory features passed: ${featureReport.mandatoryFeaturesPassed}.`
+      `[FAIE v3] Feature Coverage: ${featureReport.totalFeatureCoveragePercent}%. Mandatory passed: ${featureReport.mandatoryFeaturesPassed}.`
     );
 
-    // 5. FAIE Quality Engine (FQE - 6 Static Quality Modules, Max 40 Marks)
-    logs.push(`[FAIE v3] Executing FAIE Quality Engine (FQE 6 Modules)...`);
-    const fqeReport: FQEReport = this.qualityEngine.evaluateQuality(repoData, astData);
+    // 5. Submission Requirements Validation
+    logs.push(`[FAIE v3] Executing Deterministic Submission Requirements Validator...`);
+    const subReqReport = this.submissionValidator.validate(
+      repoData,
+      repoUrl,
+      deploymentUrl,
+      submissionMetadata,
+      passedBlueprint.submissionRequirements as any
+    );
     logs.push(
-      `[FAIE v3] FQE Quality Score: ${fqeReport.totalScore}/40 (Perf: ${fqeReport.performanceScore}/7, Access: ${fqeReport.accessibilityScore}/7, Resp: ${fqeReport.responsiveScore}/7, Code: ${fqeReport.codeQualityScore}/7, Arch: ${fqeReport.architectureScore}/6, Doc: ${fqeReport.documentationScore}/6).`
+      `[FAIE v3] Submission Requirements: ${subReqReport.passedCount}/${subReqReport.totalEnabledCount} passed (${subReqReport.compliancePercent}%).`
     );
 
-    // 6. Calculate Final Score & Category Details
-    const featureScore = Math.round((featureReport.totalFeatureCoveragePercent / 100) * 40);
-    const techScore = Math.round((techReport.technologyScore / 100) * 20);
-    const qualityScore = Math.round(fqeReport.totalScore); // Max 40
+    // 6. FAIE Quality Engine (FQE - 6 Static Quality Modules)
+    logs.push(`[FAIE v3] Executing FAIE Quality Engine with Blueprint Code Quality Rules...`);
+    const fqeReport: FQEReport = this.qualityEngine.evaluateQuality(
+      repoData,
+      astData,
+      passedBlueprint.codeQualityRules as any
+    );
+    logs.push(
+      `[FAIE v3] FQE Quality Score: ${fqeReport.totalScore}/40.`
+    );
 
-    const bonusPoints = featureReport.totalFeatureCoveragePercent > 90 ? 5 : 0;
-    const deductions = techReport.restrictedTechViolations.length * 20;
-
-    const rawScore = featureScore + techScore + qualityScore + bonusPoints - deductions;
-    const finalScore = Math.max(0, Math.min(100, rawScore));
-    const status = finalScore >= 75 && featureReport.mandatoryFeaturesPassed ? "pass" : "fail";
+    // 7. Dynamic Category Scoring & Rule Engine
+    logs.push(`[FAIE v3] Calculating Dynamic Category Scores & Rules...`);
+    const scoringReport: DynamicScoringReport = this.scoringEngine.calculateDynamicScores(
+      passedBlueprint,
+      featureReport,
+      techReport,
+      fqeReport,
+      subReqReport,
+      astData
+    );
 
     const elapsedMs = Date.now() - startTime;
-    logs.push(`[FAIE v3] Evaluation Completed cleanly in ${elapsedMs}ms. Final Score: ${finalScore}/100 [${status.toUpperCase()}].`);
+    logs.push(
+      `[FAIE v3] Evaluation Completed in ${elapsedMs}ms. Final Score: ${scoringReport.finalScore}/100 [${scoringReport.status.toUpperCase()}].`
+    );
 
     const featureTreeEvaluations = featureReport.features.map((f) => ({
       featureName: f.featureName,
@@ -149,55 +202,47 @@ export class FAIEOrchestrator {
       evidenceCitations: f.evidenceCitations
     }));
 
-    const scoringDetails = [
-      {
-        categoryName: "Problem Alignment & Required Features",
-        awardedMarks: featureScore,
-        maxMarks: 40,
-        passingMarks: 24,
-        evaluatedBy: "FAIE v3 AST Feature Engine",
-        evidenceCitations: featureReport.features.flatMap((f) => f.evidenceCitations)
-      },
-      {
-        categoryName: "Technology Stack Compliance",
-        awardedMarks: techScore,
-        maxMarks: 20,
-        passingMarks: 12,
-        evaluatedBy: "FAIE v3 Technology Engine",
-        evidenceCitations: techReport.detectedTechnologies.flatMap((t) => t.evidenceCitations)
-      },
-      {
-        categoryName: "FAIE Quality Engine (FQE Static Audit)",
-        awardedMarks: qualityScore,
-        maxMarks: 40,
-        passingMarks: 24,
-        evaluatedBy: "FAIE Quality Engine (6 Deterministic Modules)",
-        evidenceCitations: fqeReport.evidenceCitations
-      }
-    ];
+    const scoringDetails = scoringReport.categoryResults.map((c) => ({
+      categoryName: c.categoryName,
+      awardedMarks: c.awardedMarks,
+      maxMarks: c.maxMarks,
+      passingMarks: c.passingMarks,
+      evaluatedBy: c.evaluatedBy,
+      evidenceCitations: c.evidenceCitations
+    }));
+
+    // Resolve hackathon title cleanly
+    const activeProblemTitle =
+      (passedBlueprint as any).problemStatement?.title ||
+      (passedBlueprint as any).problemStatements?.[0]?.title ||
+      "Hackathon Challenge";
 
     return {
-      hackathonTitle: passedBlueprint.problemStatement?.title || "Hackathon Challenge",
+      hackathonTitle: activeProblemTitle,
       repoUrl,
       deploymentUrl,
-      status,
+      status: scoringReport.status,
       engineVersion: "FAIE-v3-AST-Static",
+      blueprintVersion: (passedBlueprint as any).version || (passedBlueprint as any).blueprintVersion || 1,
       scoreSummary: {
-        finalScore,
+        finalScore: scoringReport.finalScore,
         featureCoveragePercent: featureReport.totalFeatureCoveragePercent,
         technologyCompliancePercent: techReport.technologyScore,
         uiCompliancePercent: Math.min(100, astData.totalJsxElements * 4),
-        moduleCoveragePercent: Math.min(100, astData.totalFunctions * 5),
-        overallAlignmentPercent: finalScore,
+        moduleCoveragePercent: subReqReport.compliancePercent,
+        overallAlignmentPercent: scoringReport.finalScore,
         qualityEngineScore: fqeReport.totalScore,
-        bonusPointsTotal: bonusPoints,
-        deductionsTotal: deductions
+        bonusPointsTotal: scoringReport.totalBonusPoints,
+        deductionsTotal: scoringReport.totalDeductions
       },
       detectedTechnologies: techReport.detectedTechnologies,
       featureTreeEvaluations,
+      submissionRequirementsReport: subReqReport,
       qualityEngineReport: fqeReport,
       scoringDetails,
-      logs,
+      ruleResults: scoringReport.ruleResults,
+      bonusResults: scoringReport.bonusResults,
+      logs: [...logs, ...scoringReport.logs],
       auditableReportId: `rep_v3_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
       timestamp: new Date().toISOString(),
       rejectedClaims: [],
