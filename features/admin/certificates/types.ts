@@ -25,21 +25,23 @@ export interface CanvasElement {
   fontWeight?: string | number;
   color: string;
   align: "left" | "center" | "right";
-  width?: number; // width in pixels for image/QR/container
+  width?: number; // width in pixels or percentage for container
   height?: number; // height in pixels for image/QR/container
   visible: boolean;
   dataUrl?: string; // base64 for logo / signature
   
-  // Advanced Figma/Canva properties
+  // Advanced Figma/Canva & Multi-line Text Box properties
   zIndex?: number;
   rotation?: number; // 0 to 360 degrees
   opacity?: number; // 0 to 1
   isLocked?: boolean;
   letterSpacing?: number; // tracking in px
-  lineHeight?: number; // leading multiplier (e.g. 1.2)
+  lineHeight?: number; // leading multiplier (e.g. 1.3)
   textTransform?: "none" | "uppercase" | "lowercase" | "capitalize";
   maxWidth?: number;
-  autoWrap?: boolean;
+  autoWrap?: boolean; // Enable multi-line text wrapping
+  autoFitText?: boolean; // Scale down font size if text exceeds container width
+  verticalAlign?: "top" | "center" | "bottom";
 }
 
 export interface CertificateLayout {

@@ -24,7 +24,7 @@ export function CertificateCanvasRenderer({
   uniqueId = "FA-8K29XQ71",
   eventName = "Frontend Arena Hackathon 2026",
   issueDate = "August 9, 2026",
-  descriptionText = "For outstanding performance, dedication, and technical excellence.",
+  descriptionText = "For outstanding performance, dedication, and technical excellence in the development of Project Viksit Bharat 2026 National-Level Innovation Hackathon.",
   orgName = "Frontend Arena Organization",
   width = 1000,
   height = 700,
@@ -198,7 +198,7 @@ export function CertificateCanvasRenderer({
           textContent = textContent.replace(/\b\w/g, (l) => l.toUpperCase());
         }
 
-        const scaledFontSize = Math.round((elem.fontSize || 16) * scaleY);
+        let scaledFontSize = Math.round((elem.fontSize || 16) * scaleY);
         const fontStyle = elem.fontStyle || "normal";
         const fontWeight = elem.fontWeight || (fontStyle.includes("bold") ? "bold" : "normal");
         const fontFamily = elem.fontFamily || "Inter, sans-serif";
@@ -208,7 +208,63 @@ export function CertificateCanvasRenderer({
         ctx.textAlign = elem.align || "center";
         ctx.textBaseline = "middle";
 
-        ctx.fillText(textContent, posX, posY);
+        // Calculated Text Container Width (defaults to 70% of canvas if unspecified)
+        const boxWidth = ((elem.width || 700) / 1000) * width;
+
+        // Auto-Fit font size scaling for names & single-line text
+        if (elem.autoFitText && textContent.length > 0 && boxWidth > 20) {
+          while (scaledFontSize > 10 && ctx.measureText(textContent).width > boxWidth) {
+            scaledFontSize -= 1;
+            ctx.font = `${fontStyle.includes("italic") ? "italic" : ""} ${fontWeight} ${scaledFontSize}px ${fontFamily}`;
+          }
+        }
+
+        // Multi-line Word Wrapping Engine
+        const rawParagraphs = textContent.split("\n");
+        const lines: string[] = [];
+
+        for (const para of rawParagraphs) {
+          if (!para.trim()) {
+            lines.push("");
+            continue;
+          }
+
+          const words = para.split(" ");
+          let currentLine = "";
+
+          for (const word of words) {
+            const testLine = currentLine ? `${currentLine} ${word}` : word;
+            const metrics = ctx.measureText(testLine);
+
+            if (metrics.width > boxWidth && currentLine) {
+              lines.push(currentLine);
+              currentLine = word;
+            } else {
+              currentLine = testLine;
+            }
+          }
+          if (currentLine) {
+            lines.push(currentLine);
+          }
+        }
+
+        const lineHeightMultiplier = elem.lineHeight || 1.35;
+        const lineHeight = scaledFontSize * lineHeightMultiplier;
+        const totalHeight = lines.length * lineHeight;
+
+        let startY = posY;
+        const vAlign = elem.verticalAlign || "center";
+        if (vAlign === "center") {
+          startY = posY - totalHeight / 2 + lineHeight / 2;
+        } else if (vAlign === "bottom") {
+          startY = posY - totalHeight + lineHeight / 2;
+        } else {
+          startY = posY + lineHeight / 2;
+        }
+
+        lines.forEach((lineStr, lineIdx) => {
+          ctx.fillText(lineStr, posX, startY + lineIdx * lineHeight);
+        });
       }
 
       ctx.restore();

@@ -34,7 +34,7 @@ import {
   Grid,
   FileText,
   Sliders,
-  Edit2,
+  AlertTriangle,
   CheckCircle2,
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
@@ -66,6 +66,7 @@ const PREVIEW_PARTICIPANTS = [
   { name: "RAHUL SHARMA", uniqueId: "FA-P42LM8Q2" },
   { name: "PRIYA PATIL", uniqueId: "FA-X91KD73A" },
   { name: "AMAN SHAH", uniqueId: "FA-991B1B88" },
+  { name: "ARYAN GAJANAN UBALE VERY LONG PARTICIPANT NAME", uniqueId: "FA-LONG9999" },
 ];
 
 export function FigmaCertificateEditor({
@@ -79,7 +80,7 @@ export function FigmaCertificateEditor({
 
   // Editor State
   const [selectedElementId, setSelectedElementId] = useState<string | null>("el-name");
-  const [editingElementId, setEditingElementId] = useState<string | null>(null); // Inline Double-Click Editing
+  const [editingElementId, setEditingElementId] = useState<string | null>(null); // Inline Canvas Double-Click Editing
   const [inlineEditText, setInlineEditText] = useState("");
   const [activeRightTab, setActiveRightTab] = useState<"properties" | "layers">("properties");
   const [zoom, setZoom] = useState<number>(100);
@@ -92,7 +93,9 @@ export function FigmaCertificateEditor({
   const [previewIndex, setPreviewIndex] = useState<number>(0);
   const [previewEventName, setPreviewEventName] = useState("Frontend Arena Hackathon 2026");
   const [previewDate, setPreviewDate] = useState("August 9, 2026");
-  const [previewDescription, setPreviewDescription] = useState("For outstanding performance and technical excellence.");
+  const [previewDescription, setPreviewDescription] = useState(
+    "For outstanding performance, dedication, and technical excellence in the development of Project Viksit Bharat 2026 National-Level Innovation Hackathon."
+  );
 
   // Save / Toast State
   const [saving, setSaving] = useState(false);
@@ -104,11 +107,17 @@ export function FigmaCertificateEditor({
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const isDraggingRef = useRef<boolean>(false);
+  const isResizingRef = useRef<string | null>(null);
   const dragStartPosRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const elementStartPosRef = useRef<{ x: number; y: number; width: number; height: number }>({ x: 0, y: 0, width: 0, height: 0 });
 
   const currentParticipant = PREVIEW_PARTICIPANTS[previewIndex];
   const selectedElement = layout.elements.find((el) => el.id === selectedElementId);
+
+  // Check if selected element is near canvas boundary
+  const isOutOfBounds = selectedElement
+    ? selectedElement.x < 3 || selectedElement.x > 97 || selectedElement.y < 3 || selectedElement.y > 97
+    : false;
 
   // Push to Undo/Redo History Stack
   const pushHistory = (newLayout: CertificateLayout) => {
@@ -167,11 +176,15 @@ export function FigmaCertificateEditor({
       align: "center",
       visible: true,
       zIndex: maxZ + 1,
-      width: type === "qrCode" ? 90 : type === "logo" ? 120 : 160,
+      width: type === "description" ? 750 : type === "qrCode" ? 90 : type === "logo" ? 120 : 600,
       height: type === "qrCode" ? 90 : type === "logo" ? 60 : 50,
       opacity: 1,
       rotation: 0,
       isLocked: false,
+      autoWrap: true,
+      autoFitText: type === "name" || type === "eventName",
+      lineHeight: 1.35,
+      verticalAlign: "center",
     };
 
     updateLayout((prev) => ({ ...prev, elements: [...prev.elements, newEl] }));
@@ -204,7 +217,7 @@ export function FigmaCertificateEditor({
     setSelectedElementId(dup.id);
   };
 
-  // Upload Custom Background Image (OPTION 1: Use as Background vs OPTION 2: Create Editable Template)
+  // Upload Custom Background Image (Option 1 vs Option 2)
   const handleBackgroundUpload = (e: React.ChangeEvent<HTMLInputElement>, mode: "background_only" | "create_template") => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -234,7 +247,7 @@ export function FigmaCertificateEditor({
           setLayout(freshLayout);
           pushHistory(freshLayout);
         } else {
-          // Option 1: Use as background only (keep current overlay elements)
+          // Option 1: Use as background only
           updateLayout((prev) => ({
             ...prev,
             backgroundImage: dataUrl,
@@ -309,24 +322,29 @@ export function FigmaCertificateEditor({
     });
   };
 
-  // Mouse Drag to Position Elements on Canvas
-  const handleMouseDownElement = (e: React.MouseEvent, id: string) => {
+  // Mouse Drag to Position Elements or Resize Container Width
+  const handleMouseDownElement = (e: React.MouseEvent, id: string, resizeHandle: string | null = null) => {
     e.stopPropagation();
     setSelectedElementId(id);
     const target = layout.elements.find((el) => el.id === id);
     if (!target || target.isLocked) return;
 
-    isDraggingRef.current = true;
+    if (resizeHandle) {
+      isResizingRef.current = resizeHandle;
+    } else {
+      isDraggingRef.current = true;
+    }
+
     dragStartPosRef.current = { x: e.clientX, y: e.clientY };
     elementStartPosRef.current = {
       x: target.x,
       y: target.y,
-      width: target.width || 100,
+      width: target.width || 600,
       height: target.height || 50,
     };
   };
 
-  // Double-Click Inline Editing Activation
+  // Double-Click Inline Canvas Direct Text Editing
   const handleDoubleClickElement = (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
     const target = layout.elements.find((el) => el.id === id);
@@ -344,51 +362,80 @@ export function FigmaCertificateEditor({
 
   const handleMouseMoveCanvas = useCallback(
     (e: React.MouseEvent) => {
-      if (!isDraggingRef.current || !selectedElementId || !containerRef.current) return;
+      if (!selectedElementId || !containerRef.current) return;
       const target = layout.elements.find((el) => el.id === selectedElementId);
       if (!target || target.isLocked) return;
 
       const rect = containerRef.current.getBoundingClientRect();
-      const deltaX = ((e.clientX - dragStartPosRef.current.x) / (rect.width * (zoom / 100))) * 100;
-      const deltaY = ((e.clientY - dragStartPosRef.current.y) / (rect.height * (zoom / 100))) * 100;
 
-      let newX = Math.round(elementStartPosRef.current.x + deltaX);
-      let newY = Math.round(elementStartPosRef.current.y + deltaY);
+      // Handle Interactive Resizing (Left & Right Handles for Text Container Width)
+      if (isResizingRef.current) {
+        const deltaXPixels = (e.clientX - dragStartPosRef.current.x) / (zoom / 100);
+        let newWidth = elementStartPosRef.current.width;
 
-      // Snap guides (Center horizontal & vertical)
-      if (showSnapGuides) {
-        if (Math.abs(newX - 50) < 2) {
-          newX = 50;
-          setSnapX(true);
-        } else {
-          setSnapX(false);
+        if (isResizingRef.current === "E" || isResizingRef.current === "SE" || isResizingRef.current === "NE") {
+          newWidth = Math.max(100, Math.min(950, elementStartPosRef.current.width + deltaXPixels * 2));
+        } else if (isResizingRef.current === "W" || isResizingRef.current === "SW" || isResizingRef.current === "NW") {
+          newWidth = Math.max(100, Math.min(950, elementStartPosRef.current.width - deltaXPixels * 2));
         }
 
-        if (Math.abs(newY - 50) < 2) {
-          newY = 50;
-          setSnapY(true);
-        } else {
-          setSnapY(false);
-        }
+        updateElement(selectedElementId, { width: Math.round(newWidth) }, false);
+        return;
       }
 
-      updateElement(selectedElementId, { x: newX, y: newY }, false);
+      // Handle Dragging Position
+      if (isDraggingRef.current) {
+        const deltaX = ((e.clientX - dragStartPosRef.current.x) / (rect.width * (zoom / 100))) * 100;
+        const deltaY = ((e.clientY - dragStartPosRef.current.y) / (rect.height * (zoom / 100))) * 100;
+
+        let newX = Math.round(elementStartPosRef.current.x + deltaX);
+        let newY = Math.round(elementStartPosRef.current.y + deltaY);
+
+        // Snap guides (Center horizontal & vertical)
+        if (showSnapGuides) {
+          if (Math.abs(newX - 50) < 2) {
+            newX = 50;
+            setSnapX(true);
+          } else {
+            setSnapX(false);
+          }
+
+          if (Math.abs(newY - 50) < 2) {
+            newY = 50;
+            setSnapY(true);
+          } else {
+            setSnapY(false);
+          }
+        }
+
+        updateElement(selectedElementId, { x: newX, y: newY }, false);
+      }
     },
     [selectedElementId, zoom, layout.elements, showSnapGuides]
   );
 
   const handleMouseUpCanvas = useCallback(() => {
-    if (isDraggingRef.current) {
+    if (isDraggingRef.current || isResizingRef.current) {
       isDraggingRef.current = false;
+      isResizingRef.current = null;
       setSnapX(false);
       setSnapY(false);
       pushHistory(layout);
     }
   }, [layout]);
 
-  // Keyboard Shortcuts (Arrow keys movement, Ctrl+Z, Ctrl+Shift+Z)
+  // Keyboard Shortcuts (Arrow keys movement, Ctrl+Z, Ctrl+Shift+Z, Escape, Enter)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      if (editingElementId) {
+        if (e.key === "Escape") {
+          setEditingElementId(null);
+        } else if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+          handleFinishInlineEdit();
+        }
+        return;
+      }
+
       if (
         document.activeElement?.tagName === "INPUT" ||
         document.activeElement?.tagName === "TEXTAREA" ||
@@ -434,7 +481,7 @@ export function FigmaCertificateEditor({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [selectedElementId, layout, historyIndex]);
+  }, [selectedElementId, editingElementId, layout, historyIndex]);
 
   // Save Template Version to Backend
   const handleSaveTemplate = async () => {
@@ -476,16 +523,16 @@ export function FigmaCertificateEditor({
 
   return (
     <div className="space-y-4 select-none">
-      {/* Top Header & Navigation Bar */}
+      {/* Top Header & Toolbar */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 bg-white border border-[#E2E8F0] rounded-2xl p-4 shadow-sm">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <Badge variant="solid" className="bg-[#2563EB] text-white font-bold text-[10px] uppercase">
-              Editable Certificate Template Designer
+              Editable Certificate Designer
             </Badge>
             <span className="text-xs text-emerald-600 font-bold flex items-center gap-1">
               <CheckCircle2 className="h-3.5 w-3.5" />
-              Dynamic Variable & Overlay Engine
+              Multi-line Auto-Wrap & Direct Canvas Editing
             </span>
           </div>
           <Input
@@ -544,7 +591,7 @@ export function FigmaCertificateEditor({
             </button>
           </div>
 
-          {/* Grid & Snap Toggles */}
+          {/* Grid Toggle */}
           <button
             onClick={() => setShowGrid(!showGrid)}
             className={`p-2 rounded-xl border text-xs font-semibold flex items-center gap-1 ${
@@ -555,7 +602,7 @@ export function FigmaCertificateEditor({
             <Grid className="h-4 w-4" />
           </button>
 
-          {/* Preview Participant Dropdown */}
+          {/* Live Preview Participant Dropdown */}
           <div className="flex items-center gap-1.5 border border-[#E2E8F0] rounded-xl bg-[#F8FAFC] px-2 py-1">
             <Eye className="h-4 w-4 text-[#2563EB]" />
             <select
@@ -565,7 +612,7 @@ export function FigmaCertificateEditor({
             >
               {PREVIEW_PARTICIPANTS.map((p, idx) => (
                 <option key={p.uniqueId} value={idx}>
-                  Live Preview: {p.name}
+                  Live Preview: {p.name.length > 25 ? `${p.name.substring(0, 25)}...` : p.name}
                 </option>
               ))}
             </select>
@@ -592,14 +639,14 @@ export function FigmaCertificateEditor({
 
       {/* Main Designer Grid (Left Palette | Center Canvas | Right Inspector) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-        {/* LEFT PALETTE: Tools, Elements & Upload Modes */}
+        {/* LEFT PALETTE: Background Options, Tools, Elements */}
         <div className="lg:col-span-3 space-y-4">
           {/* Upload Background Template (Option 1 vs Option 2) */}
           <Card className="border-[#E2E8F0] bg-white shadow-sm">
             <CardHeader className="pb-2 border-b border-[#E2E8F0]">
               <CardTitle className="text-xs font-bold text-[#0F172A] uppercase tracking-wider flex items-center gap-1.5">
                 <ImageIcon className="h-4 w-4 text-[#2563EB]" />
-                Template Background Upload
+                Background Template Options
               </CardTitle>
             </CardHeader>
             <CardContent className="p-3 space-y-3 text-xs">
@@ -626,7 +673,7 @@ export function FigmaCertificateEditor({
                   <label className="cursor-pointer flex flex-col items-center justify-center p-3 border border-dashed border-[#2563EB]/40 rounded-xl bg-[#2563EB]/5 hover:bg-[#2563EB]/10 transition-colors">
                     <Sparkles className="h-5 w-5 text-[#2563EB] mb-1" />
                     <span className="text-xs font-bold text-[#2563EB]">Option 2: Create Editable Template</span>
-                    <span className="text-[10px] text-[#64748B] text-center">Uploads background & auto-places 7 editable overlay text fields</span>
+                    <span className="text-[10px] text-[#64748B] text-center">Uploads background & auto-places 7 editable text overlay fields</span>
                     <input type="file" accept="image/*" onChange={(e) => handleBackgroundUpload(e, "create_template")} className="hidden" />
                   </label>
 
@@ -690,11 +737,19 @@ export function FigmaCertificateEditor({
               </button>
 
               <button
-                onClick={() => handleAddElement("title", "Certificate Title", "CERTIFICATE OF EXCELLENCE")}
+                onClick={() => handleAddElement("description", "Description Box", "{{description}}")}
                 className="flex items-center gap-1.5 p-2 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] hover:bg-[#2563EB]/10 hover:border-[#2563EB] text-[#0F172A] font-semibold text-left"
               >
+                <FileText className="h-3.5 w-3.5 text-[#64748B] shrink-0" />
+                <span>{"{{description}}"}</span>
+              </button>
+
+              <button
+                onClick={() => handleAddElement("title", "Certificate Title", "CERTIFICATE OF EXCELLENCE")}
+                className="flex items-center gap-1.5 p-2 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] hover:bg-[#2563EB]/10 hover:border-[#2563EB] text-[#0F172A] font-semibold text-left col-span-2"
+              >
                 <Type className="h-3.5 w-3.5 text-[#2563EB] shrink-0" />
-                <span>+ Add Text</span>
+                <span>+ Add Custom Text Box</span>
               </button>
             </CardContent>
           </Card>
@@ -723,9 +778,9 @@ export function FigmaCertificateEditor({
           </Card>
         </div>
 
-        {/* CENTER INTERACTIVE CANVAS: Drag, Double-Click Direct Typing, Snap Guides */}
+        {/* CENTER INTERACTIVE CANVAS: Drag, Double-Click Direct Typing, Resizable Text Boxes, Snap Guides */}
         <div className="lg:col-span-6 space-y-3 flex flex-col items-center">
-          <Card className="w-full border-[#E2E8F0] bg-slate-900 shadow-lg overflow-hidden flex flex-col items-center justify-center p-4 min-h-[500px]">
+          <Card className="w-full border-[#E2E8F0] bg-slate-900 shadow-lg overflow-hidden flex flex-col items-center justify-center p-4 min-h-[520px]">
             <div
               ref={containerRef}
               onMouseMove={handleMouseMoveCanvas}
@@ -779,6 +834,7 @@ export function FigmaCertificateEditor({
                 if (!el.visible) return null;
                 const isSelected = selectedElementId === el.id;
                 const isEditing = editingElementId === el.id;
+                const boxWidthPx = el.width || 600;
 
                 return (
                   <div
@@ -788,6 +844,7 @@ export function FigmaCertificateEditor({
                     style={{
                       left: `${el.x}%`,
                       top: `${el.y}%`,
+                      width: `${boxWidthPx}px`,
                       transform: `translate(-50%, -50%) rotate(${el.rotation || 0}deg)`,
                       zIndex: (el.zIndex || 1) + 20,
                     }}
@@ -797,25 +854,45 @@ export function FigmaCertificateEditor({
                         : "hover:ring-1 hover:ring-[#2563EB]/50"
                     }`}
                   >
-                    {/* Inline Text Editing Input on Canvas */}
+                    {/* Inline Direct Canvas Text Editing Overlay */}
                     {isEditing ? (
-                      <input
-                        type="text"
+                      <textarea
+                        rows={3}
                         autoFocus
                         value={inlineEditText}
                         onChange={(e) => setInlineEditText(e.target.value)}
                         onBlur={handleFinishInlineEdit}
                         onKeyDown={(e) => {
-                          if (e.key === "Enter") handleFinishInlineEdit();
+                          if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) handleFinishInlineEdit();
                         }}
-                        className="bg-white border-2 border-[#2563EB] text-xs font-bold text-[#0F172A] px-2 py-1 rounded shadow-lg focus:outline-none z-50 min-w-[140px]"
+                        className="w-full bg-white border-2 border-[#2563EB] text-xs font-bold text-[#0F172A] p-2 rounded shadow-2xl focus:outline-none z-50 resize-y"
                       />
                     ) : (
                       isSelected && (
-                        <div className="absolute -top-6 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded bg-[#2563EB] text-white text-[9px] font-bold whitespace-nowrap shadow-sm flex items-center gap-1 z-50">
-                          {el.isLocked ? <Lock className="h-2.5 w-2.5" /> : <Move className="h-2.5 w-2.5" />}
-                          {el.label} (Double-click to Edit)
-                        </div>
+                        <>
+                          {/* Selection Badge Header */}
+                          <div className="absolute -top-6 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded bg-[#2563EB] text-white text-[9px] font-bold whitespace-nowrap shadow-sm flex items-center gap-1 z-50">
+                            {el.isLocked ? <Lock className="h-2.5 w-2.5" /> : <Move className="h-2.5 w-2.5" />}
+                            {el.label} • Width: {boxWidthPx}px (Double-click to Edit)
+                          </div>
+
+                          {/* Left and Right Interactive Resize Handles for Text Box Width */}
+                          <div
+                            onMouseDown={(e) => handleMouseDownElement(e, el.id, "W")}
+                            className="absolute -left-2 top-1/2 -translate-y-1/2 w-4 h-6 bg-white border-2 border-[#2563EB] rounded cursor-ew-resize flex items-center justify-center z-50 hover:bg-[#2563EB] hover:text-white"
+                            title="Drag to resize text box width"
+                          >
+                            <span className="text-[8px] font-bold">│</span>
+                          </div>
+
+                          <div
+                            onMouseDown={(e) => handleMouseDownElement(e, el.id, "E")}
+                            className="absolute -right-2 top-1/2 -translate-y-1/2 w-4 h-6 bg-white border-2 border-[#2563EB] rounded cursor-ew-resize flex items-center justify-center z-50 hover:bg-[#2563EB] hover:text-white"
+                            title="Drag to resize text box width"
+                          >
+                            <span className="text-[8px] font-bold">│</span>
+                          </div>
+                        </>
                       )
                     )}
                   </div>
@@ -824,10 +901,18 @@ export function FigmaCertificateEditor({
             </div>
           </Card>
 
+          {/* Boundary Out-of-Bounds Warning Badge */}
+          {isOutOfBounds && (
+            <div className="p-2 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-xs font-semibold flex items-center gap-1.5 animate-in fade-in">
+              <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />
+              <span>Warning: Selected element is near or outside the printable canvas boundary!</span>
+            </div>
+          )}
+
           <div className="text-[11px] text-slate-400 font-medium flex items-center gap-4">
             <span>💡 Double-click text box to edit in-place</span>
-            <span>• Drag to move</span>
-            <span>• Arrow keys nudge 1px / 5px</span>
+            <span>• Drag left/right handles to resize text box width</span>
+            <span>• Auto-wraps long descriptions</span>
           </div>
         </div>
 
@@ -866,7 +951,14 @@ export function FigmaCertificateEditor({
                   <div className="space-y-4">
                     {/* Header Action Bar */}
                     <div className="flex items-center justify-between pb-2 border-b border-[#E2E8F0]">
-                      <span className="font-bold text-[#0F172A] truncate">{selectedElement.label}</span>
+                      <div className="flex items-center gap-1.5 truncate">
+                        <span className="font-bold text-[#0F172A] truncate">{selectedElement.label}</span>
+                        {selectedElement.type !== "customText" && selectedElement.type !== "title" && (
+                          <Badge variant="secondary" className="text-[9px] font-bold uppercase bg-[#2563EB]/10 text-[#2563EB]">
+                            {selectedElement.type}
+                          </Badge>
+                        )}
+                      </div>
                       <div className="flex items-center gap-1">
                         <button
                           onClick={() => updateElement(selectedElement.id, { isLocked: !selectedElement.isLocked })}
@@ -896,23 +988,91 @@ export function FigmaCertificateEditor({
                       </div>
                     </div>
 
-                    {/* Text Value */}
+                    {/* Text Value (Use Textarea for long text / descriptions) */}
                     {selectedElement.type !== "logo" &&
                       selectedElement.type !== "signature" &&
                       selectedElement.type !== "qrCode" && (
                         <div>
                           <label className="font-semibold text-[#0F172A] block mb-1 uppercase tracking-wider">
-                            Text / Variable Value
+                            Text / Variable Pattern
                           </label>
-                          <Input
-                            value={selectedElement.text || ""}
-                            onChange={(e) => updateElement(selectedElement.id, { text: e.target.value })}
-                            className="bg-white border-[#E2E8F0] text-xs font-mono"
+                          {selectedElement.type === "description" || (selectedElement.text && selectedElement.text.length > 50) ? (
+                            <textarea
+                              rows={3}
+                              value={selectedElement.text || ""}
+                              onChange={(e) => updateElement(selectedElement.id, { text: e.target.value })}
+                              className="w-full bg-white border-[#E2E8F0] rounded-md p-2 text-xs font-mono border focus:outline-none focus:border-[#2563EB]"
+                            />
+                          ) : (
+                            <Input
+                              value={selectedElement.text || ""}
+                              onChange={(e) => updateElement(selectedElement.id, { text: e.target.value })}
+                              className="bg-white border-[#E2E8F0] text-xs font-mono"
+                            />
+                          )}
+                        </div>
+                      )}
+
+                    {/* Text Box Container Width Slider */}
+                    {selectedElement.type !== "logo" &&
+                      selectedElement.type !== "signature" &&
+                      selectedElement.type !== "qrCode" && (
+                        <div>
+                          <label className="font-semibold text-[#0F172A] flex justify-between mb-1 uppercase tracking-wider">
+                            <span>Text Box Width</span>
+                            <span className="font-bold text-[#2563EB]">{selectedElement.width || 600}px</span>
+                          </label>
+                          <input
+                            type="range"
+                            min="150"
+                            max="950"
+                            value={selectedElement.width || 600}
+                            onChange={(e) => updateElement(selectedElement.id, { width: Number(e.target.value) })}
+                            className="w-full accent-[#2563EB]"
                           />
                         </div>
                       )}
 
-                    {/* Font Settings */}
+                    {/* Auto-Fit & Vertical Align Options */}
+                    {selectedElement.type !== "logo" &&
+                      selectedElement.type !== "signature" &&
+                      selectedElement.type !== "qrCode" && (
+                        <div className="grid grid-cols-2 gap-2 bg-[#F8FAFC] p-2.5 rounded-xl border border-[#E2E8F0]">
+                          <label className="flex items-center gap-1.5 font-semibold text-[#0F172A] cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={!!selectedElement.autoFitText}
+                              onChange={(e) => updateElement(selectedElement.id, { autoFitText: e.target.checked })}
+                              className="rounded accent-[#2563EB]"
+                            />
+                            <span>Auto-Fit Font</span>
+                          </label>
+
+                          <div>
+                            <label className="font-semibold text-[#0F172A] block mb-1 uppercase tracking-wider text-[9px]">
+                              Vertical Align
+                            </label>
+                            <div className="flex border border-[#E2E8F0] rounded overflow-hidden">
+                              {(["top", "center", "bottom"] as const).map((va) => (
+                                <button
+                                  key={va}
+                                  type="button"
+                                  onClick={() => updateElement(selectedElement.id, { verticalAlign: va })}
+                                  className={`flex-1 py-0.5 text-[9px] font-bold ${
+                                    (selectedElement.verticalAlign || "center") === va
+                                      ? "bg-[#2563EB] text-white"
+                                      : "bg-white text-[#475569]"
+                                  }`}
+                                >
+                                  {va}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                    {/* Font Family & Size */}
                     {selectedElement.type !== "logo" &&
                       selectedElement.type !== "signature" &&
                       selectedElement.type !== "qrCode" && (
@@ -967,11 +1127,27 @@ export function FigmaCertificateEditor({
                         </>
                       )}
 
+                    {/* Rotation */}
+                    <div>
+                      <label className="font-semibold text-[#0F172A] flex justify-between mb-1 uppercase tracking-wider">
+                        <span>Rotation</span>
+                        <span className="font-bold text-[#2563EB]">{selectedElement.rotation || 0}°</span>
+                      </label>
+                      <input
+                        type="range"
+                        min="0"
+                        max="360"
+                        value={selectedElement.rotation || 0}
+                        onChange={(e) => updateElement(selectedElement.id, { rotation: Number(e.target.value) })}
+                        className="w-full accent-[#2563EB]"
+                      />
+                    </div>
+
                     {/* X & Y Positioning Sliders */}
                     <div className="space-y-2 pt-2 border-t border-[#E2E8F0]">
                       <div>
                         <label className="font-semibold text-[#0F172A] flex justify-between mb-1 uppercase tracking-wider">
-                          <span>Horizontal (X)</span>
+                          <span>Horizontal Position (X)</span>
                           <span className="font-bold text-[#2563EB]">{selectedElement.x}%</span>
                         </label>
                         <input
@@ -986,7 +1162,7 @@ export function FigmaCertificateEditor({
 
                       <div>
                         <label className="font-semibold text-[#0F172A] flex justify-between mb-1 uppercase tracking-wider">
-                          <span>Vertical (Y)</span>
+                          <span>Vertical Position (Y)</span>
                           <span className="font-bold text-[#2563EB]">{selectedElement.y}%</span>
                         </label>
                         <input
