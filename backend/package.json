@@ -5,7 +5,7 @@
   "main": "dist/backend/src/server.js",
   "scripts": {
     "build": "prisma generate && tsc && node -e \"require('fs').writeFileSync('dist/server.js', \\\"module.exports = require('./backend/src/server.js');\\\")\"",
-    "start": "node --max-old-space-size=200 --expose-gc dist/backend/src/server.js",
+    "start": "node --max-old-space-size=120 --expose-gc dist/backend/src/server.js",
     "dev": "ts-node src/server.ts",
     "worker": "node dist/backend/src/worker/index.js",
     "worker:dev": "ts-node src/worker/index.ts"
