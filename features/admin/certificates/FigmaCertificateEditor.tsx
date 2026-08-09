@@ -36,6 +36,7 @@ import {
   Sliders,
   AlertTriangle,
   CheckCircle2,
+  Edit3,
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -66,7 +67,6 @@ const PREVIEW_PARTICIPANTS = [
   { name: "RAHUL SHARMA", uniqueId: "FA-P42LM8Q2" },
   { name: "PRIYA PATIL", uniqueId: "FA-X91KD73A" },
   { name: "AMAN SHAH", uniqueId: "FA-991B1B88" },
-  { name: "ARYAN GAJANAN UBALE VERY LONG PARTICIPANT NAME", uniqueId: "FA-LONG9999" },
 ];
 
 export function FigmaCertificateEditor({
@@ -80,7 +80,7 @@ export function FigmaCertificateEditor({
 
   // Editor State
   const [selectedElementId, setSelectedElementId] = useState<string | null>("el-name");
-  const [editingElementId, setEditingElementId] = useState<string | null>(null); // Inline Canvas Double-Click Editing
+  const [editingElementId, setEditingElementId] = useState<string | null>(null);
   const [inlineEditText, setInlineEditText] = useState("");
   const [activeRightTab, setActiveRightTab] = useState<"properties" | "layers">("properties");
   const [zoom, setZoom] = useState<number>(100);
@@ -89,13 +89,14 @@ export function FigmaCertificateEditor({
   const [snapX, setSnapX] = useState<boolean>(false);
   const [snapY, setSnapY] = useState<boolean>(false);
 
-  // Live Preview State
+  // Editable Live Preview Values
   const [previewIndex, setPreviewIndex] = useState<number>(0);
   const [previewEventName, setPreviewEventName] = useState("Frontend Arena Hackathon 2026");
   const [previewDate, setPreviewDate] = useState("August 9, 2026");
   const [previewDescription, setPreviewDescription] = useState(
     "For outstanding performance, dedication, and technical excellence in the development of Project Viksit Bharat 2026 National-Level Innovation Hackathon."
   );
+  const [previewOrgName, setPreviewOrgName] = useState("Frontend Arena Organization");
 
   // Save / Toast State
   const [saving, setSaving] = useState(false);
@@ -176,8 +177,8 @@ export function FigmaCertificateEditor({
       align: "center",
       visible: true,
       zIndex: maxZ + 1,
-      width: type === "description" ? 750 : type === "qrCode" ? 90 : type === "logo" ? 120 : 600,
-      height: type === "qrCode" ? 90 : type === "logo" ? 60 : 50,
+      width: type === "description" ? 750 : type === "qrCode" ? 100 : type === "logo" ? 120 : 600,
+      height: type === "qrCode" ? 100 : type === "logo" ? 60 : 50,
       opacity: 1,
       rotation: 0,
       isLocked: false,
@@ -232,7 +233,6 @@ export function FigmaCertificateEditor({
       const dataUrl = event.target?.result as string;
       if (dataUrl) {
         if (mode === "create_template") {
-          // Option 2: Set background AND pre-populate standard 7 editable overlay elements
           const freshLayout: CertificateLayout = {
             width: 1000,
             height: 700,
@@ -247,7 +247,6 @@ export function FigmaCertificateEditor({
           setLayout(freshLayout);
           pushHistory(freshLayout);
         } else {
-          // Option 1: Use as background only
           updateLayout((prev) => ({
             ...prev,
             backgroundImage: dataUrl,
@@ -259,7 +258,7 @@ export function FigmaCertificateEditor({
     reader.readAsDataURL(file);
   };
 
-  // Upload Logo or Signature Asset
+  // Upload Logo or Signature Asset (Synchronous State Update)
   const handleAssetUpload = (e: React.ChangeEvent<HTMLInputElement>, type: "logo" | "signature") => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -268,30 +267,46 @@ export function FigmaCertificateEditor({
     reader.onload = (event) => {
       const dataUrl = event.target?.result as string;
       if (dataUrl) {
-        const existing = layout.elements.find((el) => el.type === type);
-        if (existing) {
-          updateElement(existing.id, { dataUrl, visible: true });
-        } else {
-          handleAddElement(type, type === "logo" ? "Organization Logo" : "Official Signature");
-          setTimeout(() => {
-            const added = layout.elements.find((el) => el.type === type);
-            if (added) updateElement(added.id, { dataUrl });
-          }, 50);
-        }
+        updateLayout((prev) => {
+          const existing = prev.elements.find((el) => el.type === type);
+          if (existing) {
+            return {
+              ...prev,
+              elements: prev.elements.map((el) => (el.id === existing.id ? { ...el, dataUrl, visible: true } : el)),
+            };
+          } else {
+            const maxZ = prev.elements.reduce((max, el) => Math.max(max, el.zIndex || 0), 0);
+            const newEl: CanvasElement = {
+              id: `el-${type}-${Date.now()}`,
+              type,
+              label: type === "logo" ? "Organization Logo" : "Official Signature",
+              text: "",
+              dataUrl,
+              x: 50,
+              y: 20,
+              fontSize: 16,
+              fontFamily: "Inter, sans-serif",
+              color: "#0F172A",
+              align: "center",
+              visible: true,
+              zIndex: maxZ + 1,
+              width: type === "logo" ? 120 : 160,
+              height: type === "logo" ? 60 : 60,
+              opacity: 1,
+              rotation: 0,
+              isLocked: false,
+            };
+            return { ...prev, elements: [...prev.elements, newEl] };
+          }
+        });
+
+        setTimeout(() => {
+          const added = layout.elements.find((el) => el.type === type);
+          if (added) setSelectedElementId(added.id);
+        }, 50);
       }
     };
     reader.readAsDataURL(file);
-  };
-
-  const handleApplyPreset = (presetId: string) => {
-    const preset = PRESET_TEMPLATES.find((p) => p.id === presetId);
-    if (preset) {
-      const freshLayout = JSON.parse(JSON.stringify(preset.layout));
-      setLayout(freshLayout);
-      pushHistory(freshLayout);
-      setTemplateTitle(preset.name);
-      setTemplateDescription(preset.description);
-    }
   };
 
   // Layer Reordering Controls
@@ -322,7 +337,7 @@ export function FigmaCertificateEditor({
     });
   };
 
-  // Mouse Drag to Position Elements or Resize Container Width
+  // Mouse Drag to Position Elements or Resize Container Width / Height
   const handleMouseDownElement = (e: React.MouseEvent, id: string, resizeHandle: string | null = null) => {
     e.stopPropagation();
     setSelectedElementId(id);
@@ -339,8 +354,8 @@ export function FigmaCertificateEditor({
     elementStartPosRef.current = {
       x: target.x,
       y: target.y,
-      width: target.width || 600,
-      height: target.height || 50,
+      width: target.width || (target.type === "qrCode" ? 100 : 600),
+      height: target.height || (target.type === "qrCode" ? 100 : 60),
     };
   };
 
@@ -368,18 +383,32 @@ export function FigmaCertificateEditor({
 
       const rect = containerRef.current.getBoundingClientRect();
 
-      // Handle Interactive Resizing (Left & Right Handles for Text Container Width)
+      // Handle Interactive Resizing (Handles for Width / Height)
       if (isResizingRef.current) {
         const deltaXPixels = (e.clientX - dragStartPosRef.current.x) / (zoom / 100);
-        let newWidth = elementStartPosRef.current.width;
+        const deltaYPixels = (e.clientY - dragStartPosRef.current.y) / (zoom / 100);
 
-        if (isResizingRef.current === "E" || isResizingRef.current === "SE" || isResizingRef.current === "NE") {
-          newWidth = Math.max(100, Math.min(950, elementStartPosRef.current.width + deltaXPixels * 2));
-        } else if (isResizingRef.current === "W" || isResizingRef.current === "SW" || isResizingRef.current === "NW") {
-          newWidth = Math.max(100, Math.min(950, elementStartPosRef.current.width - deltaXPixels * 2));
+        let newWidth = elementStartPosRef.current.width;
+        let newHeight = elementStartPosRef.current.height;
+
+        if (isResizingRef.current.includes("E")) {
+          newWidth = Math.max(30, Math.min(950, elementStartPosRef.current.width + deltaXPixels * 2));
+        } else if (isResizingRef.current.includes("W")) {
+          newWidth = Math.max(30, Math.min(950, elementStartPosRef.current.width - deltaXPixels * 2));
         }
 
-        updateElement(selectedElementId, { width: Math.round(newWidth) }, false);
+        if (isResizingRef.current.includes("S")) {
+          newHeight = Math.max(30, Math.min(600, elementStartPosRef.current.height + deltaYPixels * 2));
+        } else if (isResizingRef.current.includes("N")) {
+          newHeight = Math.max(30, Math.min(600, elementStartPosRef.current.height - deltaYPixels * 2));
+        }
+
+        // For QR Code, keep 1:1 aspect ratio
+        if (target.type === "qrCode") {
+          newHeight = newWidth;
+        }
+
+        updateElement(selectedElementId, { width: Math.round(newWidth), height: Math.round(newHeight) }, false);
         return;
       }
 
@@ -424,7 +453,7 @@ export function FigmaCertificateEditor({
     }
   }, [layout]);
 
-  // Keyboard Shortcuts (Arrow keys movement, Ctrl+Z, Ctrl+Shift+Z, Escape, Enter)
+  // Keyboard Shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (editingElementId) {
@@ -532,7 +561,7 @@ export function FigmaCertificateEditor({
             </Badge>
             <span className="text-xs text-emerald-600 font-bold flex items-center gap-1">
               <CheckCircle2 className="h-3.5 w-3.5" />
-              Multi-line Auto-Wrap & Direct Canvas Editing
+              Draggable & Resizable QR / Logo Engine
             </span>
           </div>
           <Input
@@ -612,7 +641,7 @@ export function FigmaCertificateEditor({
             >
               {PREVIEW_PARTICIPANTS.map((p, idx) => (
                 <option key={p.uniqueId} value={idx}>
-                  Live Preview: {p.name.length > 25 ? `${p.name.substring(0, 25)}...` : p.name}
+                  Live Preview: {p.name}
                 </option>
               ))}
             </select>
@@ -637,6 +666,50 @@ export function FigmaCertificateEditor({
         </div>
       )}
 
+      {/* Live Preview Variables Toolbar (Custom Event Name, Date, Org Name Input) */}
+      <Card className="border-[#E2E8F0] bg-[#F8FAFC] shadow-xs">
+        <CardContent className="p-3 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+          <div>
+            <label className="font-bold text-[#0F172A] block mb-1 flex items-center gap-1">
+              <Edit3 className="h-3 w-3 text-[#2563EB]" />
+              Live Preview Event Name:
+            </label>
+            <Input
+              value={previewEventName}
+              onChange={(e) => setPreviewEventName(e.target.value)}
+              className="bg-white border-[#E2E8F0] h-8 text-xs font-semibold"
+              placeholder="e.g. Viksit Bharat Hackathon 2026"
+            />
+          </div>
+
+          <div>
+            <label className="font-bold text-[#0F172A] block mb-1 flex items-center gap-1">
+              <Edit3 className="h-3 w-3 text-[#2563EB]" />
+              Live Preview Date:
+            </label>
+            <Input
+              value={previewDate}
+              onChange={(e) => setPreviewDate(e.target.value)}
+              className="bg-white border-[#E2E8F0] h-8 text-xs font-semibold"
+              placeholder="e.g. August 9, 2026"
+            />
+          </div>
+
+          <div>
+            <label className="font-bold text-[#0F172A] block mb-1 flex items-center gap-1">
+              <Edit3 className="h-3 w-3 text-[#2563EB]" />
+              Live Preview Org Name:
+            </label>
+            <Input
+              value={previewOrgName}
+              onChange={(e) => setPreviewOrgName(e.target.value)}
+              className="bg-white border-[#E2E8F0] h-8 text-xs font-semibold"
+              placeholder="e.g. Frontend Arena Organization"
+            />
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Main Designer Grid (Left Palette | Center Canvas | Right Inspector) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
         {/* LEFT PALETTE: Background Options, Tools, Elements */}
@@ -657,7 +730,7 @@ export function FigmaCertificateEditor({
                   </div>
                   <div className="flex gap-2">
                     <label className="flex-1 cursor-pointer py-1 px-2 rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] text-[10px] font-bold text-center text-[#0F172A] hover:bg-slate-200">
-                      Replace Image
+                      Replace Background
                       <input type="file" accept="image/*" onChange={(e) => handleBackgroundUpload(e, "background_only")} className="hidden" />
                     </label>
                     <button
@@ -778,7 +851,7 @@ export function FigmaCertificateEditor({
           </Card>
         </div>
 
-        {/* CENTER INTERACTIVE CANVAS: Drag, Double-Click Direct Typing, Resizable Text Boxes, Snap Guides */}
+        {/* CENTER INTERACTIVE CANVAS: Drag, Double-Click Direct Typing, Resizable Text Boxes & QR Codes */}
         <div className="lg:col-span-6 space-y-3 flex flex-col items-center">
           <Card className="w-full border-[#E2E8F0] bg-slate-900 shadow-lg overflow-hidden flex flex-col items-center justify-center p-4 min-h-[520px]">
             <div
@@ -824,6 +897,7 @@ export function FigmaCertificateEditor({
                 eventName={previewEventName}
                 issueDate={previewDate}
                 descriptionText={previewDescription}
+                orgName={previewOrgName}
                 width={1000}
                 height={700}
                 className="absolute inset-0 w-full h-full pointer-events-none"
@@ -834,7 +908,9 @@ export function FigmaCertificateEditor({
                 if (!el.visible) return null;
                 const isSelected = selectedElementId === el.id;
                 const isEditing = editingElementId === el.id;
-                const boxWidthPx = el.width || 600;
+                const isImageOrQR = el.type === "logo" || el.type === "signature" || el.type === "qrCode";
+                const boxWidthPx = el.width || (el.type === "qrCode" ? 100 : isImageOrQR ? 120 : 600);
+                const boxHeightPx = el.height || (el.type === "qrCode" ? 100 : isImageOrQR ? 60 : 50);
 
                 return (
                   <div
@@ -845,10 +921,11 @@ export function FigmaCertificateEditor({
                       left: `${el.x}%`,
                       top: `${el.y}%`,
                       width: `${boxWidthPx}px`,
+                      height: `${boxHeightPx}px`,
                       transform: `translate(-50%, -50%) rotate(${el.rotation || 0}deg)`,
                       zIndex: (el.zIndex || 1) + 20,
                     }}
-                    className={`absolute p-2 rounded cursor-move transition-all flex items-center justify-center ${
+                    className={`absolute p-1 rounded cursor-move transition-all flex items-center justify-center ${
                       isSelected
                         ? "ring-2 ring-[#2563EB] ring-offset-2 ring-offset-white bg-[#2563EB]/10"
                         : "hover:ring-1 hover:ring-[#2563EB]/50"
@@ -871,27 +948,49 @@ export function FigmaCertificateEditor({
                       isSelected && (
                         <>
                           {/* Selection Badge Header */}
-                          <div className="absolute -top-6 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded bg-[#2563EB] text-white text-[9px] font-bold whitespace-nowrap shadow-sm flex items-center gap-1 z-50">
+                          <div className="absolute -top-6 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded bg-[#2563EB] text-white text-[9px] font-bold whitespace-nowrap shadow-sm flex items-center gap-1 z-50 pointer-events-none">
                             {el.isLocked ? <Lock className="h-2.5 w-2.5" /> : <Move className="h-2.5 w-2.5" />}
-                            {el.label} • Width: {boxWidthPx}px (Double-click to Edit)
+                            {el.label} ({boxWidthPx}×{boxHeightPx}px)
                           </div>
 
-                          {/* Left and Right Interactive Resize Handles for Text Box Width */}
+                          {/* 4 Corner Interactive Resize Handles for Logos, Signatures, QR Codes, Text */}
                           <div
-                            onMouseDown={(e) => handleMouseDownElement(e, el.id, "W")}
-                            className="absolute -left-2 top-1/2 -translate-y-1/2 w-4 h-6 bg-white border-2 border-[#2563EB] rounded cursor-ew-resize flex items-center justify-center z-50 hover:bg-[#2563EB] hover:text-white"
-                            title="Drag to resize text box width"
-                          >
-                            <span className="text-[8px] font-bold">│</span>
-                          </div>
+                            onMouseDown={(e) => handleMouseDownElement(e, el.id, "NW")}
+                            className="absolute -top-1.5 -left-1.5 w-3 h-3 bg-white border-2 border-[#2563EB] rounded-full cursor-nwse-resize z-50"
+                          />
+                          <div
+                            onMouseDown={(e) => handleMouseDownElement(e, el.id, "NE")}
+                            className="absolute -top-1.5 -right-1.5 w-3 h-3 bg-white border-2 border-[#2563EB] rounded-full cursor-nesw-resize z-50"
+                          />
+                          <div
+                            onMouseDown={(e) => handleMouseDownElement(e, el.id, "SW")}
+                            className="absolute -bottom-1.5 -left-1.5 w-3 h-3 bg-white border-2 border-[#2563EB] rounded-full cursor-nesw-resize z-50"
+                          />
+                          <div
+                            onMouseDown={(e) => handleMouseDownElement(e, el.id, "SE")}
+                            className="absolute -bottom-1.5 -right-1.5 w-3 h-3 bg-white border-2 border-[#2563EB] rounded-full cursor-nwse-resize z-50"
+                          />
 
-                          <div
-                            onMouseDown={(e) => handleMouseDownElement(e, el.id, "E")}
-                            className="absolute -right-2 top-1/2 -translate-y-1/2 w-4 h-6 bg-white border-2 border-[#2563EB] rounded cursor-ew-resize flex items-center justify-center z-50 hover:bg-[#2563EB] hover:text-white"
-                            title="Drag to resize text box width"
-                          >
-                            <span className="text-[8px] font-bold">│</span>
-                          </div>
+                          {/* Left and Right Edge Handles for Text Box Container Width */}
+                          {!isImageOrQR && (
+                            <>
+                              <div
+                                onMouseDown={(e) => handleMouseDownElement(e, el.id, "W")}
+                                className="absolute -left-2 top-1/2 -translate-y-1/2 w-4 h-6 bg-white border-2 border-[#2563EB] rounded cursor-ew-resize flex items-center justify-center z-50 hover:bg-[#2563EB] hover:text-white"
+                                title="Drag to resize text box width"
+                              >
+                                <span className="text-[8px] font-bold">│</span>
+                              </div>
+
+                              <div
+                                onMouseDown={(e) => handleMouseDownElement(e, el.id, "E")}
+                                className="absolute -right-2 top-1/2 -translate-y-1/2 w-4 h-6 bg-white border-2 border-[#2563EB] rounded cursor-ew-resize flex items-center justify-center z-50 hover:bg-[#2563EB] hover:text-white"
+                                title="Drag to resize text box width"
+                              >
+                                <span className="text-[8px] font-bold">│</span>
+                              </div>
+                            </>
+                          )}
                         </>
                       )
                     )}
@@ -910,9 +1009,8 @@ export function FigmaCertificateEditor({
           )}
 
           <div className="text-[11px] text-slate-400 font-medium flex items-center gap-4">
-            <span>💡 Double-click text box to edit in-place</span>
-            <span>• Drag left/right handles to resize text box width</span>
-            <span>• Auto-wraps long descriptions</span>
+            <span>💡 Click and drag any element (including QR Code & Logo) to position</span>
+            <span>• Corner handles to resize</span>
           </div>
         </div>
 
@@ -988,7 +1086,33 @@ export function FigmaCertificateEditor({
                       </div>
                     </div>
 
-                    {/* Text Value (Use Textarea for long text / descriptions) */}
+                    {/* Image / Logo / Signature Preview & Controls */}
+                    {(selectedElement.type === "logo" || selectedElement.type === "signature") && (
+                      <div className="space-y-2 bg-[#F8FAFC] p-3 rounded-xl border border-[#E2E8F0]">
+                        <label className="font-bold text-[#0F172A] block uppercase tracking-wider text-[10px]">
+                          {selectedElement.label} Image
+                        </label>
+                        {selectedElement.dataUrl ? (
+                          <div className="space-y-2">
+                            <div className="h-20 w-full rounded border border-[#E2E8F0] bg-white p-1 flex items-center justify-center overflow-hidden">
+                              <img src={selectedElement.dataUrl} alt="Logo" className="max-h-full max-w-full object-contain" />
+                            </div>
+                            <label className="cursor-pointer block w-full py-1 text-center bg-white border border-[#E2E8F0] rounded font-semibold text-[10px] hover:bg-slate-100">
+                              Replace Image
+                              <input type="file" accept="image/*" onChange={(e) => handleAssetUpload(e, selectedElement.type as "logo" | "signature")} className="hidden" />
+                            </label>
+                          </div>
+                        ) : (
+                          <label className="cursor-pointer block w-full p-3 border border-dashed border-[#2563EB] rounded-xl text-center bg-white hover:bg-blue-50">
+                            <Upload className="h-4 w-4 text-[#2563EB] mx-auto mb-1" />
+                            <span className="font-bold text-[#2563EB] text-xs">Upload {selectedElement.type} Image</span>
+                            <input type="file" accept="image/*" onChange={(e) => handleAssetUpload(e, selectedElement.type as "logo" | "signature")} className="hidden" />
+                          </label>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Text Value */}
                     {selectedElement.type !== "logo" &&
                       selectedElement.type !== "signature" &&
                       selectedElement.type !== "qrCode" && (
@@ -1013,64 +1137,38 @@ export function FigmaCertificateEditor({
                         </div>
                       )}
 
-                    {/* Text Box Container Width Slider */}
-                    {selectedElement.type !== "logo" &&
-                      selectedElement.type !== "signature" &&
-                      selectedElement.type !== "qrCode" && (
-                        <div>
-                          <label className="font-semibold text-[#0F172A] flex justify-between mb-1 uppercase tracking-wider">
-                            <span>Text Box Width</span>
-                            <span className="font-bold text-[#2563EB]">{selectedElement.width || 600}px</span>
-                          </label>
-                          <input
-                            type="range"
-                            min="150"
-                            max="950"
-                            value={selectedElement.width || 600}
-                            onChange={(e) => updateElement(selectedElement.id, { width: Number(e.target.value) })}
-                            className="w-full accent-[#2563EB]"
-                          />
-                        </div>
-                      )}
+                    {/* Width & Height Sliders */}
+                    <div>
+                      <label className="font-semibold text-[#0F172A] flex justify-between mb-1 uppercase tracking-wider">
+                        <span>Width</span>
+                        <span className="font-bold text-[#2563EB]">{selectedElement.width || 100}px</span>
+                      </label>
+                      <input
+                        type="range"
+                        min="30"
+                        max="950"
+                        value={selectedElement.width || 100}
+                        onChange={(e) => updateElement(selectedElement.id, { width: Number(e.target.value) })}
+                        className="w-full accent-[#2563EB]"
+                      />
+                    </div>
 
-                    {/* Auto-Fit & Vertical Align Options */}
-                    {selectedElement.type !== "logo" &&
-                      selectedElement.type !== "signature" &&
-                      selectedElement.type !== "qrCode" && (
-                        <div className="grid grid-cols-2 gap-2 bg-[#F8FAFC] p-2.5 rounded-xl border border-[#E2E8F0]">
-                          <label className="flex items-center gap-1.5 font-semibold text-[#0F172A] cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={!!selectedElement.autoFitText}
-                              onChange={(e) => updateElement(selectedElement.id, { autoFitText: e.target.checked })}
-                              className="rounded accent-[#2563EB]"
-                            />
-                            <span>Auto-Fit Font</span>
-                          </label>
-
-                          <div>
-                            <label className="font-semibold text-[#0F172A] block mb-1 uppercase tracking-wider text-[9px]">
-                              Vertical Align
-                            </label>
-                            <div className="flex border border-[#E2E8F0] rounded overflow-hidden">
-                              {(["top", "center", "bottom"] as const).map((va) => (
-                                <button
-                                  key={va}
-                                  type="button"
-                                  onClick={() => updateElement(selectedElement.id, { verticalAlign: va })}
-                                  className={`flex-1 py-0.5 text-[9px] font-bold ${
-                                    (selectedElement.verticalAlign || "center") === va
-                                      ? "bg-[#2563EB] text-white"
-                                      : "bg-white text-[#475569]"
-                                  }`}
-                                >
-                                  {va}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-                      )}
+                    {(selectedElement.type === "logo" || selectedElement.type === "signature" || selectedElement.type === "qrCode") && (
+                      <div>
+                        <label className="font-semibold text-[#0F172A] flex justify-between mb-1 uppercase tracking-wider">
+                          <span>Height</span>
+                          <span className="font-bold text-[#2563EB]">{selectedElement.height || 60}px</span>
+                        </label>
+                        <input
+                          type="range"
+                          min="30"
+                          max="400"
+                          value={selectedElement.height || 60}
+                          onChange={(e) => updateElement(selectedElement.id, { height: Number(e.target.value) })}
+                          className="w-full accent-[#2563EB]"
+                        />
+                      </div>
+                    )}
 
                     {/* Font Family & Size */}
                     {selectedElement.type !== "logo" &&

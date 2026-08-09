@@ -143,11 +143,12 @@ export function CertificateCanvasRenderer({
 
             const imgW = (elem.width || 120) * scaleX;
             const imgH = (elem.height || 60) * scaleY;
-            let drawX = posX;
-            if (elem.align === "center") drawX = posX - imgW / 2;
+            let drawX = posX - imgW / 2;
+            if (elem.align === "left") drawX = posX;
             else if (elem.align === "right") drawX = posX - imgW;
+            const drawY = posY - imgH / 2; // Center vertically at posY
 
-            ctx.drawImage(img, drawX, posY, imgW, imgH);
+            ctx.drawImage(img, drawX, drawY, imgW, imgH);
           } catch (e) {
             console.error("Error drawing image element:", e);
           }
@@ -163,23 +164,26 @@ export function CertificateCanvasRenderer({
             color: { dark: elem.color || "#0F172A", light: "#FFFFFF" },
           });
 
-          let drawX = posX;
-          if (elem.align === "center") drawX = posX - qrSize / 2;
+          let drawX = posX - qrSize / 2;
+          if (elem.align === "left") drawX = posX;
           else if (elem.align === "right") drawX = posX - qrSize;
+          const drawY = posY - qrSize / 2; // Center vertically at posY
 
-          ctx.drawImage(qrCanvas, drawX, posY, qrSize, qrSize);
+          ctx.drawImage(qrCanvas, drawX, drawY, qrSize, qrSize);
         } catch (e) {
           console.error("Error drawing QR element:", e);
         }
       } else {
-        // Text Elements
-        let textContent = elem.text || "";
-        if (elem.type === "name") textContent = participantName;
-        else if (elem.type === "uniqueId") textContent = `ID: ${uniqueId}`;
-        else if (elem.type === "eventName") textContent = eventName;
-        else if (elem.type === "date") textContent = issueDate;
-        else if (elem.type === "description") textContent = descriptionText;
-        else if (elem.type === "orgName") textContent = orgName;
+        // Text Elements: Respect user's text or resolve template tags
+        let textContent = elem.text ?? "";
+        if (!textContent.trim()) {
+          if (elem.type === "name") textContent = "{{name}}";
+          else if (elem.type === "uniqueId") textContent = "ID: {{uniqueId}}";
+          else if (elem.type === "eventName") textContent = "{{eventName}}";
+          else if (elem.type === "date") textContent = "Issued on: {{date}}";
+          else if (elem.type === "description") textContent = "{{description}}";
+          else if (elem.type === "orgName") textContent = "{{organizationName}}";
+        }
 
         // Perform dynamic template variable replacements
         textContent = textContent
@@ -208,7 +212,7 @@ export function CertificateCanvasRenderer({
         ctx.textAlign = elem.align || "center";
         ctx.textBaseline = "middle";
 
-        // Calculated Text Container Width (defaults to 70% of canvas if unspecified)
+        // Calculated Text Container Width
         const boxWidth = ((elem.width || 700) / 1000) * width;
 
         // Auto-Fit font size scaling for names & single-line text
