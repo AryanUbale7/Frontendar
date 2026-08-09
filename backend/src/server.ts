@@ -1572,7 +1572,17 @@ async function boot(): Promise<void> {
           "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
         );
       `);
-      console.log("[DB] CertificateTemplate and Certificate PostgreSQL tables verified/created successfully.");
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "QrVerification" (
+          "id" TEXT NOT NULL PRIMARY KEY,
+          "uniqueId" TEXT NOT NULL UNIQUE,
+          "name" TEXT NOT NULL,
+          "status" TEXT NOT NULL DEFAULT 'ACTIVE',
+          "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+      console.log("[DB] CertificateTemplate, Certificate, and QrVerification PostgreSQL tables verified/created successfully.");
     } catch (err: any) {
       console.warn(`[DB] Auto Certificate DDL execution skipped/failed: ${err.message}`);
     }

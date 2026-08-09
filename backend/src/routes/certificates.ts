@@ -277,7 +277,6 @@ certificatesRouter.post(
             issueDate: c.issueDate,
             status: "ACTIVE",
             templateId: c.templateId,
-            snapshotLayout: c.snapshotLayout,
           }));
 
           await prisma.certificate.createMany({
@@ -285,16 +284,20 @@ certificatesRouter.post(
             skipDuplicates: true,
           });
 
-          const qrPayload = generatedCertificates.map((c) => ({
-            uniqueId: c.uniqueId,
-            name: c.participantName,
-            status: "ACTIVE",
-          }));
+          try {
+            const qrPayload = generatedCertificates.map((c) => ({
+              uniqueId: c.uniqueId,
+              name: c.participantName,
+              status: "ACTIVE",
+            }));
 
-          await prisma.qrVerification.createMany({
-            data: qrPayload,
-            skipDuplicates: true,
-          });
+            await prisma.qrVerification.createMany({
+              data: qrPayload,
+              skipDuplicates: true,
+            });
+          } catch {
+            // Ignore QrVerification table warning
+          }
         } catch (dbErr: any) {
           if (!hasLoggedCertDbWarning) {
             console.log("[Certificates] Prisma DB storage active with fallback resilience:", dbErr.message);

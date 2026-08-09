@@ -107,29 +107,34 @@ export async function proxyRequest(
               for (let i = 0; i < 8; i++) {
                 uniqueId += CHARS[Math.floor(Math.random() * CHARS.length)];
               }
-              try {
-                const cert = await prisma.certificate.create({
-                  data: {
-                    uniqueId,
-                    participantName: name.trim(),
-                    eventName: targetEventName,
-                    issueDate: formattedIssueDate,
-                    status: "ACTIVE",
-                    templateId: templateId || null,
-                  },
-                });
-                generated.push(cert);
-              } catch {
-                generated.push({
-                  id: `cert-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-                  uniqueId,
-                  participantName: name.trim(),
-                  eventName: targetEventName,
-                  issueDate: formattedIssueDate,
-                  status: "ACTIVE",
-                  createdAt: new Date().toISOString(),
-                });
-              }
+              generated.push({
+                id: `cert-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+                uniqueId,
+                participantName: name.trim(),
+                eventName: targetEventName,
+                issueDate: formattedIssueDate,
+                status: "ACTIVE",
+                templateId: templateId || null,
+                createdAt: new Date().toISOString(),
+              });
+            }
+
+            try {
+              const dbPayload = generated.map((c) => ({
+                id: c.id,
+                uniqueId: c.uniqueId,
+                participantName: c.participantName,
+                eventName: c.eventName,
+                issueDate: c.issueDate,
+                status: "ACTIVE",
+                templateId: c.templateId,
+              }));
+              await prisma.certificate.createMany({
+                data: dbPayload,
+                skipDuplicates: true,
+              });
+            } catch {
+              // Ignore fallback warning
             }
             return NextResponse.json(
               { message: `Successfully generated ${generated.length} certificates.`, certificates: generated },
