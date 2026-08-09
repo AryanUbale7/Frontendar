@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useCallback } from "react";
 import QRCode from "qrcode";
-import { CertificateLayout } from "./types";
+import { CertificateLayout, CanvasElement } from "./types";
 
 interface CertificateCanvasRendererProps {
   layout: CertificateLayout;
@@ -10,6 +10,8 @@ interface CertificateCanvasRendererProps {
   uniqueId?: string;
   eventName?: string;
   issueDate?: string;
+  descriptionText?: string;
+  orgName?: string;
   width?: number;
   height?: number;
   className?: string;
@@ -22,6 +24,8 @@ export function CertificateCanvasRenderer({
   uniqueId = "FA-8K29XQ71",
   eventName = "Frontend Arena Hackathon 2026",
   issueDate = "August 9, 2026",
+  descriptionText = "For outstanding performance, dedication, and technical excellence.",
+  orgName = "Frontend Arena Organization",
   width = 1000,
   height = 700,
   className = "w-full h-auto shadow-md rounded-lg border border-[#E2E8F0]",
@@ -41,39 +45,52 @@ export function CertificateCanvasRenderer({
     const scaleX = width / (layout.width || 1000);
     const scaleY = height / (layout.height || 700);
 
-    // 1. Draw Background
+    // 1. Fill Solid Background Color
     ctx.fillStyle = layout.backgroundColor || "#FFFFFF";
     ctx.fillRect(0, 0, width, height);
 
-    // 2. Draw Decorative Frames & Borders
+    // 2. Draw Background Template Image (if uploaded)
+    if (layout.backgroundImage) {
+      try {
+        const bgImg = new Image();
+        bgImg.crossOrigin = "anonymous";
+        bgImg.src = layout.backgroundImage;
+        await new Promise((resolve) => {
+          bgImg.onload = resolve;
+          bgImg.onerror = resolve;
+        });
+
+        ctx.save();
+        ctx.globalAlpha = layout.backgroundImageOpacity ?? 1;
+        ctx.drawImage(bgImg, 0, 0, width, height);
+        ctx.restore();
+      } catch (e) {
+        console.error("Error drawing certificate background image:", e);
+      }
+    }
+
+    // 3. Draw Decorative Frames & Borders (if enabled)
     const borderWidth = (layout.borderWidth || 8) * Math.min(scaleX, scaleY);
     const borderColor = layout.borderColor || "#2563EB";
 
-    if (layout.showFrame !== false) {
+    if (layout.showFrame && layout.frameStyle !== "none") {
+      ctx.save();
       if (layout.frameStyle === "classic") {
-        // Outer border
         ctx.strokeStyle = borderColor;
         ctx.lineWidth = borderWidth;
         ctx.strokeRect(15 * scaleX, 15 * scaleY, width - 30 * scaleX, height - 30 * scaleY);
 
-        // Inner gold/thin line
         ctx.strokeStyle = "#D97706";
         ctx.lineWidth = Math.max(1, borderWidth / 4);
         ctx.strokeRect(22 * scaleX, 22 * scaleY, width - 44 * scaleX, height - 44 * scaleY);
 
-        // Corner accents
         const cornerSize = 25 * scaleX;
         ctx.fillStyle = borderColor;
-        // Top-left
         ctx.fillRect(15 * scaleX, 15 * scaleY, cornerSize, cornerSize);
-        // Top-right
         ctx.fillRect(width - 15 * scaleX - cornerSize, 15 * scaleY, cornerSize, cornerSize);
-        // Bottom-left
         ctx.fillRect(15 * scaleX, height - 15 * scaleY - cornerSize, cornerSize, cornerSize);
-        // Bottom-right
         ctx.fillRect(width - 15 * scaleX - cornerSize, height - 15 * scaleY - cornerSize, cornerSize, cornerSize);
       } else if (layout.frameStyle === "dark") {
-        // Cyberpunk / Dark frame
         ctx.strokeStyle = "#06B6D4";
         ctx.lineWidth = borderWidth;
         ctx.strokeRect(12 * scaleX, 12 * scaleY, width - 24 * scaleX, height - 24 * scaleY);
@@ -82,26 +99,36 @@ export function CertificateCanvasRenderer({
         ctx.lineWidth = Math.max(1, borderWidth / 3);
         ctx.strokeRect(20 * scaleX, 20 * scaleY, width - 40 * scaleX, height - 40 * scaleY);
       } else if (layout.frameStyle === "minimal") {
-        // Minimal subtle border
         ctx.strokeStyle = borderColor;
         ctx.lineWidth = Math.max(2, borderWidth / 2);
         ctx.strokeRect(10 * scaleX, 10 * scaleY, width - 20 * scaleX, height - 20 * scaleY);
       } else {
-        // Modern Frame
         ctx.strokeStyle = borderColor;
         ctx.lineWidth = borderWidth;
         ctx.strokeRect(15 * scaleX, 15 * scaleY, width - 30 * scaleX, height - 30 * scaleY);
       }
+      ctx.restore();
     }
 
-    // 3. Render Elements
-    const elements = layout.elements || [];
+    // 4. Sort Elements by zIndex
+    const sortedElements = [...(layout.elements || [])].sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0));
 
-    for (const elem of elements) {
+    // 5. Render Canvas Elements
+    for (const elem of sortedElements) {
       if (!elem.visible) continue;
 
       const posX = (elem.x / 100) * width;
       const posY = (elem.y / 100) * height;
+
+      ctx.save();
+      ctx.globalAlpha = elem.opacity ?? 1;
+
+      // Handle Rotation
+      if (elem.rotation) {
+        ctx.translate(posX, posY);
+        ctx.rotate((elem.rotation * Math.PI) / 180);
+        ctx.translate(-posX, -posY);
+      }
 
       if (elem.type === "logo" || elem.type === "signature") {
         if (elem.dataUrl) {
@@ -151,31 +178,46 @@ export function CertificateCanvasRenderer({
         else if (elem.type === "uniqueId") textContent = `ID: ${uniqueId}`;
         else if (elem.type === "eventName") textContent = eventName;
         else if (elem.type === "date") textContent = issueDate;
+        else if (elem.type === "description") textContent = descriptionText;
+        else if (elem.type === "orgName") textContent = orgName;
 
-        // Perform dynamic template replacement
+        // Perform dynamic template variable replacements
         textContent = textContent
           .replace(/\{\{name\}\}/gi, participantName)
           .replace(/\{\{uniqueId\}\}/gi, uniqueId)
           .replace(/\{\{eventName\}\}/gi, eventName)
-          .replace(/\{\{date\}\}/gi, issueDate);
+          .replace(/\{\{date\}\}/gi, issueDate)
+          .replace(/\{\{description\}\}/gi, descriptionText)
+          .replace(/\{\{organizationName\}\}/gi, orgName)
+          .replace(/\{\{orgName\}\}/gi, orgName);
+
+        // Text Transformation
+        if (elem.textTransform === "uppercase") textContent = textContent.toUpperCase();
+        else if (elem.textTransform === "lowercase") textContent = textContent.toLowerCase();
+        else if (elem.textTransform === "capitalize") {
+          textContent = textContent.replace(/\b\w/g, (l) => l.toUpperCase());
+        }
 
         const scaledFontSize = Math.round((elem.fontSize || 16) * scaleY);
         const fontStyle = elem.fontStyle || "normal";
+        const fontWeight = elem.fontWeight || (fontStyle.includes("bold") ? "bold" : "normal");
         const fontFamily = elem.fontFamily || "Inter, sans-serif";
 
-        ctx.font = `${fontStyle} ${scaledFontSize}px ${fontFamily}`;
+        ctx.font = `${fontStyle.includes("italic") ? "italic" : ""} ${fontWeight} ${scaledFontSize}px ${fontFamily}`;
         ctx.fillStyle = elem.color || "#0F172A";
         ctx.textAlign = elem.align || "center";
         ctx.textBaseline = "middle";
 
         ctx.fillText(textContent, posX, posY);
       }
+
+      ctx.restore();
     }
 
     if (onCanvasReady) {
       onCanvasReady(canvas);
     }
-  }, [layout, participantName, uniqueId, eventName, issueDate, width, height, onCanvasReady]);
+  }, [layout, participantName, uniqueId, eventName, issueDate, descriptionText, orgName, width, height, onCanvasReady]);
 
   useEffect(() => {
     drawCertificate();
@@ -187,14 +229,56 @@ export function CertificateCanvasRenderer({
 /** Helper function to download canvas content as PNG */
 export function downloadCanvasAsPng(canvas: HTMLCanvasElement, filename: string) {
   const link = document.createElement("a");
-  link.download = filename;
+  link.download = filename.endsWith(".png") ? filename : `${filename}.png`;
   link.href = canvas.toDataURL("image/png", 1.0);
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
 }
 
-/** Helper function to export canvas as PNG data URL */
-export function exportCanvasAsPng(canvas: HTMLCanvasElement): string {
-  return canvas.toDataURL("image/png", 1.0);
+/** Helper function to download canvas content as crisp high-res PDF */
+export function downloadCertificateAsPdf(canvas: HTMLCanvasElement, filename: string) {
+  const dataUrl = canvas.toDataURL("image/png", 1.0);
+
+  // Open printable window for PDF output
+  const printWindow = window.open("", "_blank");
+  if (!printWindow) {
+    alert("Please allow popups to download the certificate PDF.");
+    return;
+  }
+
+  const cleanFilename = filename.endsWith(".pdf") ? filename : `${filename}.pdf`;
+
+  printWindow.document.write(`
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <title>${cleanFilename}</title>
+        <style>
+          @page {
+            size: A4 landscape;
+            margin: 0;
+          }
+          body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            background: #ffffff;
+          }
+          img {
+            width: 100vw;
+            height: 100vh;
+            object-fit: contain;
+          }
+        </style>
+      </head>
+      <body>
+        <img src="${dataUrl}" onload="window.print(); setTimeout(() => window.close(), 500);" />
+      </body>
+    </html>
+  `);
+  printWindow.document.close();
 }

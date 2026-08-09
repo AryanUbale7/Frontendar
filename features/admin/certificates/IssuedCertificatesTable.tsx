@@ -19,7 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { CertificateRecord } from "./types";
-import { CertificateCanvasRenderer, downloadCanvasAsPng } from "./CertificateCanvasRenderer";
+import { CertificateCanvasRenderer, downloadCanvasAsPng, downloadCertificateAsPdf } from "./CertificateCanvasRenderer";
 import { PRESET_TEMPLATES } from "./presets";
 
 export function IssuedCertificatesTable() {
@@ -312,13 +312,25 @@ export function IssuedCertificatesTable() {
                   onClick={() => {
                     if (activeCanvasRef.current) {
                       const cleanName = previewCert.participantName.replace(/[^a-zA-Z0-9]/g, "-");
+                      downloadCertificateAsPdf(activeCanvasRef.current, `${cleanName}-${previewCert.uniqueId}.pdf`);
+                    }
+                  }}
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs flex items-center gap-1.5"
+                >
+                  <FileDown className="h-4 w-4" />
+                  Download PDF
+                </Button>
+                <Button
+                  onClick={() => {
+                    if (activeCanvasRef.current) {
+                      const cleanName = previewCert.participantName.replace(/[^a-zA-Z0-9]/g, "-");
                       downloadCanvasAsPng(activeCanvasRef.current, `${cleanName}-${previewCert.uniqueId}.png`);
                     }
                   }}
                   className="bg-[#2563EB] hover:bg-[#1D4ED8] text-white font-semibold text-xs flex items-center gap-1.5"
                 >
                   <Download className="h-4 w-4" />
-                  Download Certificate PNG
+                  Download PNG
                 </Button>
               </div>
             </div>

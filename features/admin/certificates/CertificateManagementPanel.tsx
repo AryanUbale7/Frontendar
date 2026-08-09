@@ -2,12 +2,12 @@
 
 import React, { useState } from "react";
 import { Award, Layers, Users } from "lucide-react";
-import { CertificateEditor } from "./CertificateEditor";
+import { FigmaCertificateEditor } from "./FigmaCertificateEditor";
 import { BulkGenerator } from "./BulkGenerator";
 import { IssuedCertificatesTable } from "./IssuedCertificatesTable";
 
 export function CertificateManagementPanel() {
-  const [activeSubTab, setActiveSubTab] = useState<"generator" | "editor" | "issued">("generator");
+  const [activeSubTab, setActiveSubTab] = useState<"generator" | "editor" | "issued">("editor");
 
   return (
     <div className="space-y-6">
@@ -23,15 +23,27 @@ export function CertificateManagementPanel() {
             </span>
           </div>
           <h1 className="font-heading text-2xl font-bold text-[#0F172A]">
-            Certificate Management & Verification
+            Certificate Designer & QR Generator
           </h1>
           <p className="text-xs text-[#475569]">
-            Design custom certificate templates, import participant lists, bulk generate personalized certificates with verification QR codes, and export PNGs or standalone QRs.
+            Upload template images, interactively design certificates with Figma-style drag & drop, bulk generate unique participant IDs, and export PDF/PNG certificates.
           </p>
         </div>
 
         {/* Sub-Tab Switches */}
         <div className="flex items-center p-1.5 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC]">
+          <button
+            onClick={() => setActiveSubTab("editor")}
+            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
+              activeSubTab === "editor"
+                ? "bg-[#2563EB] text-white shadow-xs"
+                : "text-[#475569] hover:bg-[#E2E8F0]/60 hover:text-[#0F172A]"
+            }`}
+          >
+            <Layers className="h-4 w-4" />
+            Figma Designer
+          </button>
+
           <button
             onClick={() => setActiveSubTab("generator")}
             className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
@@ -45,18 +57,6 @@ export function CertificateManagementPanel() {
           </button>
 
           <button
-            onClick={() => setActiveSubTab("editor")}
-            className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
-              activeSubTab === "editor"
-                ? "bg-[#2563EB] text-white shadow-xs"
-                : "text-[#475569] hover:bg-[#E2E8F0]/60 hover:text-[#0F172A]"
-            }`}
-          >
-            <Layers className="h-4 w-4" />
-            Template Designer
-          </button>
-
-          <button
             onClick={() => setActiveSubTab("issued")}
             className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
               activeSubTab === "issued"
@@ -65,18 +65,18 @@ export function CertificateManagementPanel() {
             }`}
           >
             <Award className="h-4 w-4" />
-            Issued Certificates
+            Issued Registry
           </button>
         </div>
       </div>
 
       {/* Sub-Tab Content Views */}
-      {activeSubTab === "generator" && (
-        <BulkGenerator onSuccess={() => setActiveSubTab("issued")} />
+      {activeSubTab === "editor" && (
+        <FigmaCertificateEditor onSaveSuccess={() => setActiveSubTab("generator")} />
       )}
 
-      {activeSubTab === "editor" && (
-        <CertificateEditor onSaveSuccess={() => setActiveSubTab("generator")} />
+      {activeSubTab === "generator" && (
+        <BulkGenerator onSuccess={() => setActiveSubTab("issued")} />
       )}
 
       {activeSubTab === "issued" && (
