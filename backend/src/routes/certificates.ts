@@ -7,10 +7,18 @@ export const certificatesRouter = Router();
 
 const CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
-// In-memory fallback store for system resilience if DB is offline or unmigrated
+// In-memory fallback store for system resilience if DB is offline or unmigrated (capped at 150 items to prevent RAM leaks)
 const inMemoryCertificateStore = new Map<string, any>();
 const inMemoryTemplateStore = new Map<string, any>();
 let hasLoggedCertDbWarning = false;
+
+function setInMemoryCert(uniqueId: string, record: any) {
+  if (inMemoryCertificateStore.size >= 150) {
+    const firstKey = inMemoryCertificateStore.keys().next().value;
+    if (firstKey) inMemoryCertificateStore.delete(firstKey);
+  }
+  inMemoryCertificateStore.set(uniqueId, record);
+}
 
 function generateUniqueIdString(): string {
   let result = "FA-";
@@ -257,12 +265,11 @@ certificatesRouter.post(
           issueDate: formattedIssueDate,
           status: "ACTIVE",
           templateId: templateId || null,
-          snapshotLayout: resolvedLayout || {},
           createdAt: new Date(),
           updatedAt: new Date(),
         };
 
-        inMemoryCertificateStore.set(uniqueId, record);
+        setInMemoryCert(uniqueId, record);
         generatedCertificates.push(record);
       }
 
