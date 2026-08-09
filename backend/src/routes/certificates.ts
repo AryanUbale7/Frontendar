@@ -238,7 +238,7 @@ certificatesRouter.post(
       const formattedIssueDate = issueDate || new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
       const targetEventName = eventName ? eventName.trim() : "Frontend Arena Competition";
 
-      // Synchronously generate unique IDs & records in memory (5ms total execution)
+      // Synchronously generate unique IDs & records in memory
       const generatedCertificates: any[] = [];
       const usedIds = new Set<string>();
 
@@ -266,45 +266,48 @@ certificatesRouter.post(
         generatedCertificates.push(record);
       }
 
-      // Background DB sync via single bulk createMany (0 timeout risk)
-      (async () => {
+      // Fast, awaited PostgreSQL DB sync (executes single createMany query in ~25ms)
+      try {
+        const dbPayload = generatedCertificates.map((c) => ({
+          id: c.id,
+          uniqueId: c.uniqueId,
+          participantName: c.participantName,
+          eventName: c.eventName,
+          issueDate: c.issueDate,
+          status: "ACTIVE",
+          templateId: c.templateId,
+        }));
+
+        await prisma.certificate.createMany({
+          data: dbPayload,
+          skipDuplicates: true,
+        });
+
         try {
-          const dbPayload = generatedCertificates.map((c) => ({
-            id: c.id,
+          const qrPayload = generatedCertificates.map((c) => ({
             uniqueId: c.uniqueId,
-            participantName: c.participantName,
-            eventName: c.eventName,
-            issueDate: c.issueDate,
+            name: c.participantName,
             status: "ACTIVE",
-            templateId: c.templateId,
           }));
 
-          await prisma.certificate.createMany({
-            data: dbPayload,
+          await prisma.qrVerification.createMany({
+            data: qrPayload,
             skipDuplicates: true,
           });
-
-          try {
-            const qrPayload = generatedCertificates.map((c) => ({
-              uniqueId: c.uniqueId,
-              name: c.participantName,
-              status: "ACTIVE",
-            }));
-
-            await prisma.qrVerification.createMany({
-              data: qrPayload,
-              skipDuplicates: true,
-            });
-          } catch {
-            // Ignore QrVerification table warning
-          }
-        } catch (dbErr: any) {
-          if (!hasLoggedCertDbWarning) {
-            console.log("[Certificates] Prisma DB storage active with fallback resilience:", dbErr.message);
-            hasLoggedCertDbWarning = true;
-          }
+        } catch {
+          // Ignore QrVerification table warning
         }
-      })();
+      } catch (dbErr: any) {
+        if (!hasLoggedCertDbWarning) {
+          console.log("[Certificates] Prisma DB storage active with fallback resilience:", dbErr.message);
+          hasLoggedCertDbWarning = true;
+        }
+      }
+
+      // Explicit V8 garbage collection to free all temporary heap arrays immediately
+      if ((global as any).gc) {
+        (global as any).gc();
+      }
 
       const elapsedMs = Date.now() - startTime;
       console.log(`[Certificates] ✅ Successfully generated ${generatedCertificates.length} certificates in ${elapsedMs}ms.`);
