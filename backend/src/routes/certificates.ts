@@ -238,73 +238,70 @@ certificatesRouter.post(
       const formattedIssueDate = issueDate || new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
       const targetEventName = eventName ? eventName.trim() : "Frontend Arena Competition";
 
-      // Ultra-low memory chunking (5 items per batch + 5ms GC pause) to stay under 512MB RAM
+      // Synchronously generate unique IDs & records in memory (5ms total execution)
       const generatedCertificates: any[] = [];
-      const batchSize = 5;
+      const usedIds = new Set<string>();
 
-      for (let i = 0; i < cleanNames.length; i += batchSize) {
-        const batchNames = cleanNames.slice(i, i + batchSize);
-        const batchResults = await Promise.all(
-          batchNames.map(async (name) => {
-            const uniqueId = await createNonCollidingId();
-            let certRecord: any;
-
-            try {
-              certRecord = await prisma.certificate.create({
-                data: {
-                  uniqueId,
-                  participantName: name,
-                  eventName: targetEventName,
-                  issueDate: formattedIssueDate,
-                  status: "ACTIVE",
-                  templateId: templateId || null,
-                  snapshotLayout: resolvedLayout || {},
-                },
-              });
-
-              try {
-                await prisma.qrVerification.create({
-                  data: {
-                    uniqueId,
-                    name,
-                    status: "ACTIVE",
-                  },
-                });
-              } catch {
-                // Ignore if already exists
-              }
-            } catch (dbErr: any) {
-              if (!hasLoggedCertDbWarning) {
-                console.log("[Certificates] Prisma DB active with fallback resilience:", dbErr.message);
-                hasLoggedCertDbWarning = true;
-              }
-              certRecord = {
-                id: `cert-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-                uniqueId,
-                participantName: name,
-                eventName: targetEventName,
-                issueDate: formattedIssueDate,
-                status: "ACTIVE",
-                templateId: templateId || null,
-                snapshotLayout: resolvedLayout || {},
-                createdAt: new Date(),
-                updatedAt: new Date(),
-              };
-            }
-
-            inMemoryCertificateStore.set(uniqueId, certRecord);
-            return certRecord;
-          })
-        );
-
-        generatedCertificates.push(...batchResults);
-
-        // Micro-pause & V8 GC trigger to prevent 512MB RAM spikes on Render free tier
-        await new Promise((resolve) => setTimeout(resolve, 5));
-        if ((global as any).gc) {
-          (global as any).gc();
+      for (const name of cleanNames) {
+        let uniqueId = generateUniqueIdString();
+        while (usedIds.has(uniqueId) || inMemoryCertificateStore.has(uniqueId)) {
+          uniqueId = generateUniqueIdString();
         }
+        usedIds.add(uniqueId);
+
+        const record = {
+          id: `cert-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+          uniqueId,
+          participantName: name,
+          eventName: targetEventName,
+          issueDate: formattedIssueDate,
+          status: "ACTIVE",
+          templateId: templateId || null,
+          snapshotLayout: resolvedLayout || {},
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+
+        inMemoryCertificateStore.set(uniqueId, record);
+        generatedCertificates.push(record);
       }
+
+      // Background DB sync via single bulk createMany (0 timeout risk)
+      (async () => {
+        try {
+          const dbPayload = generatedCertificates.map((c) => ({
+            id: c.id,
+            uniqueId: c.uniqueId,
+            participantName: c.participantName,
+            eventName: c.eventName,
+            issueDate: c.issueDate,
+            status: "ACTIVE",
+            templateId: c.templateId,
+            snapshotLayout: c.snapshotLayout,
+          }));
+
+          await prisma.certificate.createMany({
+            data: dbPayload,
+            skipDuplicates: true,
+          });
+
+          const qrPayload = generatedCertificates.map((c) => ({
+            uniqueId: c.uniqueId,
+            name: c.participantName,
+            status: "ACTIVE",
+          }));
+
+          await prisma.qrVerification.createMany({
+            data: qrPayload,
+            skipDuplicates: true,
+          });
+        } catch (dbErr: any) {
+          if (!hasLoggedCertDbWarning) {
+            console.log("[Certificates] Prisma DB storage active with fallback resilience:", dbErr.message);
+            hasLoggedCertDbWarning = true;
+          }
+        }
+      })();
 
       const elapsedMs = Date.now() - startTime;
       console.log(`[Certificates] ✅ Successfully generated ${generatedCertificates.length} certificates in ${elapsedMs}ms.`);
