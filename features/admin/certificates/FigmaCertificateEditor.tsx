@@ -25,17 +25,17 @@ import {
   Redo,
   ZoomIn,
   ZoomOut,
-  Maximize2,
   Lock,
   Unlock,
   Move,
-  RotateCw,
   Copy,
   ChevronUp,
   ChevronDown,
   Grid,
   FileText,
   Sliders,
+  Edit2,
+  CheckCircle2,
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -43,7 +43,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { CertificateCanvasRenderer } from "./CertificateCanvasRenderer";
 import { CertificateLayout, CanvasElement, ElementType } from "./types";
-import { PRESET_TEMPLATES } from "./presets";
+import { PRESET_TEMPLATES, DEFAULT_OVERLAY_ELEMENTS } from "./presets";
 
 interface FigmaCertificateEditorProps {
   initialLayout?: CertificateLayout;
@@ -62,10 +62,10 @@ const FONT_FAMILIES = [
 ];
 
 const PREVIEW_PARTICIPANTS = [
-  { name: "Aryan Ubale", uniqueId: "FA-8K29XQ71" },
-  { name: "Rahul Sharma", uniqueId: "FA-P42LM8Q2" },
-  { name: "Priya Patil", uniqueId: "FA-X91KD73A" },
-  { name: "Aman Shah", uniqueId: "FA-[#991B1B]" },
+  { name: "ARYAN UBALE", uniqueId: "FA-8K29XQ71" },
+  { name: "RAHUL SHARMA", uniqueId: "FA-P42LM8Q2" },
+  { name: "PRIYA PATIL", uniqueId: "FA-X91KD73A" },
+  { name: "AMAN SHAH", uniqueId: "FA-991B1B88" },
 ];
 
 export function FigmaCertificateEditor({
@@ -79,6 +79,8 @@ export function FigmaCertificateEditor({
 
   // Editor State
   const [selectedElementId, setSelectedElementId] = useState<string | null>("el-name");
+  const [editingElementId, setEditingElementId] = useState<string | null>(null); // Inline Double-Click Editing
+  const [inlineEditText, setInlineEditText] = useState("");
   const [activeRightTab, setActiveRightTab] = useState<"properties" | "layers">("properties");
   const [zoom, setZoom] = useState<number>(100);
   const [showGrid, setShowGrid] = useState<boolean>(false);
@@ -102,7 +104,6 @@ export function FigmaCertificateEditor({
 
   const containerRef = useRef<HTMLDivElement | null>(null);
   const isDraggingRef = useRef<boolean>(false);
-  const isResizingRef = useRef<string | null>(null);
   const dragStartPosRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const elementStartPosRef = useRef<{ x: number; y: number; width: number; height: number }>({ x: 0, y: 0, width: 0, height: 0 });
 
@@ -159,15 +160,15 @@ export function FigmaCertificateEditor({
       text: defaultText,
       x: 50,
       y: 50,
-      fontSize: type === "name" ? 40 : type === "title" ? 32 : 18,
+      fontSize: type === "name" ? 42 : type === "title" ? 34 : 16,
       fontFamily: "Inter, sans-serif",
       fontStyle: type === "name" ? "bold" : "normal",
-      color: type === "name" ? "#1E3A8A" : "#0F172A",
+      color: type === "name" ? "#0F172A" : "#2563EB",
       align: "center",
       visible: true,
       zIndex: maxZ + 1,
-      width: type === "qrCode" ? 100 : type === "logo" ? 120 : 160,
-      height: type === "qrCode" ? 100 : type === "logo" ? 60 : 50,
+      width: type === "qrCode" ? 90 : type === "logo" ? 120 : 160,
+      height: type === "qrCode" ? 90 : type === "logo" ? 60 : 50,
       opacity: 1,
       rotation: 0,
       isLocked: false,
@@ -203,8 +204,8 @@ export function FigmaCertificateEditor({
     setSelectedElementId(dup.id);
   };
 
-  // Upload Custom Background Image (PNG/JPG/SVG)
-  const handleBackgroundUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Upload Custom Background Image (OPTION 1: Use as Background vs OPTION 2: Create Editable Template)
+  const handleBackgroundUpload = (e: React.ChangeEvent<HTMLInputElement>, mode: "background_only" | "create_template") => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -217,11 +218,29 @@ export function FigmaCertificateEditor({
     reader.onload = (event) => {
       const dataUrl = event.target?.result as string;
       if (dataUrl) {
-        updateLayout((prev) => ({
-          ...prev,
-          backgroundImage: dataUrl,
-          showFrame: false,
-        }));
+        if (mode === "create_template") {
+          // Option 2: Set background AND pre-populate standard 7 editable overlay elements
+          const freshLayout: CertificateLayout = {
+            width: 1000,
+            height: 700,
+            backgroundColor: "#FFFFFF",
+            borderColor: "#2563EB",
+            borderWidth: 0,
+            showFrame: false,
+            frameStyle: "none",
+            backgroundImage: dataUrl,
+            elements: JSON.parse(JSON.stringify(DEFAULT_OVERLAY_ELEMENTS)),
+          };
+          setLayout(freshLayout);
+          pushHistory(freshLayout);
+        } else {
+          // Option 1: Use as background only (keep current overlay elements)
+          updateLayout((prev) => ({
+            ...prev,
+            backgroundImage: dataUrl,
+            showFrame: false,
+          }));
+        }
       }
     };
     reader.readAsDataURL(file);
@@ -305,6 +324,22 @@ export function FigmaCertificateEditor({
       width: target.width || 100,
       height: target.height || 50,
     };
+  };
+
+  // Double-Click Inline Editing Activation
+  const handleDoubleClickElement = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    const target = layout.elements.find((el) => el.id === id);
+    if (!target || target.type === "logo" || target.type === "signature" || target.type === "qrCode") return;
+    setEditingElementId(id);
+    setInlineEditText(target.text || "");
+  };
+
+  const handleFinishInlineEdit = () => {
+    if (editingElementId) {
+      updateElement(editingElementId, { text: inlineEditText });
+      setEditingElementId(null);
+    }
   };
 
   const handleMouseMoveCanvas = useCallback(
@@ -446,9 +481,12 @@ export function FigmaCertificateEditor({
         <div className="space-y-1">
           <div className="flex items-center gap-2">
             <Badge variant="solid" className="bg-[#2563EB] text-white font-bold text-[10px] uppercase">
-              Canva / Figma Designer Mode
+              Editable Certificate Template Designer
             </Badge>
-            <span className="text-xs text-[#64748B] font-medium">Interactive Canvas & Layer System</span>
+            <span className="text-xs text-emerald-600 font-bold flex items-center gap-1">
+              <CheckCircle2 className="h-3.5 w-3.5" />
+              Dynamic Variable & Overlay Engine
+            </span>
           </div>
           <Input
             value={templateTitle}
@@ -527,7 +565,7 @@ export function FigmaCertificateEditor({
             >
               {PREVIEW_PARTICIPANTS.map((p, idx) => (
                 <option key={p.uniqueId} value={idx}>
-                  Preview: {p.name}
+                  Live Preview: {p.name}
                 </option>
               ))}
             </select>
@@ -554,42 +592,50 @@ export function FigmaCertificateEditor({
 
       {/* Main Designer Grid (Left Palette | Center Canvas | Right Inspector) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-        {/* LEFT PALETTE: Tools, Elements & Uploads */}
+        {/* LEFT PALETTE: Tools, Elements & Upload Modes */}
         <div className="lg:col-span-3 space-y-4">
-          {/* Upload Background Template */}
+          {/* Upload Background Template (Option 1 vs Option 2) */}
           <Card className="border-[#E2E8F0] bg-white shadow-sm">
             <CardHeader className="pb-2 border-b border-[#E2E8F0]">
               <CardTitle className="text-xs font-bold text-[#0F172A] uppercase tracking-wider flex items-center gap-1.5">
                 <ImageIcon className="h-4 w-4 text-[#2563EB]" />
-                Certificate Template Background
+                Template Background Upload
               </CardTitle>
             </CardHeader>
-            <CardContent className="p-3 space-y-2 text-xs">
+            <CardContent className="p-3 space-y-3 text-xs">
               {layout.backgroundImage ? (
                 <div className="space-y-2">
                   <div className="relative rounded-lg border border-[#E2E8F0] overflow-hidden bg-slate-100 h-24">
                     <img src={layout.backgroundImage} alt="Background Template" className="w-full h-full object-cover" />
                   </div>
                   <div className="flex gap-2">
-                    <label className="flex-1 cursor-pointer py-1 px-2 rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] text-[11px] font-semibold text-center text-[#0F172A] hover:bg-slate-200">
+                    <label className="flex-1 cursor-pointer py-1 px-2 rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] text-[10px] font-bold text-center text-[#0F172A] hover:bg-slate-200">
                       Replace Image
-                      <input type="file" accept="image/*" onChange={handleBackgroundUpload} className="hidden" />
+                      <input type="file" accept="image/*" onChange={(e) => handleBackgroundUpload(e, "background_only")} className="hidden" />
                     </label>
                     <button
                       onClick={() => updateLayout((prev) => ({ ...prev, backgroundImage: undefined }))}
-                      className="py-1 px-2 rounded-lg border border-red-200 bg-red-50 text-[11px] font-semibold text-red-600 hover:bg-red-100"
+                      className="py-1 px-2 rounded-lg border border-red-200 bg-red-50 text-[10px] font-bold text-red-600 hover:bg-red-100"
                     >
                       Remove
                     </button>
                   </div>
                 </div>
               ) : (
-                <label className="cursor-pointer flex flex-col items-center justify-center p-4 border border-dashed border-[#E2E8F0] rounded-xl bg-[#F8FAFC] hover:bg-[#E2E8F0]/50 transition-colors">
-                  <Upload className="h-6 w-6 text-[#2563EB] mb-1" />
-                  <span className="text-xs font-bold text-[#0F172A]">Upload Template Image</span>
-                  <span className="text-[10px] text-[#64748B]">PNG, JPG, SVG supported</span>
-                  <input type="file" accept="image/*" onChange={handleBackgroundUpload} className="hidden" />
-                </label>
+                <div className="space-y-2">
+                  <label className="cursor-pointer flex flex-col items-center justify-center p-3 border border-dashed border-[#2563EB]/40 rounded-xl bg-[#2563EB]/5 hover:bg-[#2563EB]/10 transition-colors">
+                    <Sparkles className="h-5 w-5 text-[#2563EB] mb-1" />
+                    <span className="text-xs font-bold text-[#2563EB]">Option 2: Create Editable Template</span>
+                    <span className="text-[10px] text-[#64748B] text-center">Uploads background & auto-places 7 editable overlay text fields</span>
+                    <input type="file" accept="image/*" onChange={(e) => handleBackgroundUpload(e, "create_template")} className="hidden" />
+                  </label>
+
+                  <label className="cursor-pointer flex flex-col items-center justify-center p-2.5 border border-dashed border-[#E2E8F0] rounded-xl bg-[#F8FAFC] hover:bg-[#E2E8F0]/50 transition-colors">
+                    <Upload className="h-4 w-4 text-[#475569] mb-1" />
+                    <span className="text-xs font-semibold text-[#0F172A]">Option 1: Use as Background Only</span>
+                    <input type="file" accept="image/*" onChange={(e) => handleBackgroundUpload(e, "background_only")} className="hidden" />
+                  </label>
+                </div>
               )}
             </CardContent>
           </Card>
@@ -599,24 +645,24 @@ export function FigmaCertificateEditor({
             <CardHeader className="pb-2 border-b border-[#E2E8F0]">
               <CardTitle className="text-xs font-bold text-[#0F172A] uppercase tracking-wider flex items-center gap-1.5">
                 <Plus className="h-4 w-4 text-[#2563EB]" />
-                Add Dynamic Elements
+                Add Editable Text Elements
               </CardTitle>
             </CardHeader>
             <CardContent className="p-3 grid grid-cols-2 gap-2 text-xs">
               <button
-                onClick={() => handleAddElement("name", "Participant Name Field", "{{name}}")}
+                onClick={() => handleAddElement("name", "Participant Name", "{{name}}")}
                 className="flex items-center gap-1.5 p-2 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] hover:bg-[#2563EB]/10 hover:border-[#2563EB] text-[#0F172A] font-semibold text-left"
               >
                 <Type className="h-3.5 w-3.5 text-[#2563EB] shrink-0" />
-                <span>Participant Name</span>
+                <span>{"{{name}}"}</span>
               </button>
 
               <button
-                onClick={() => handleAddElement("uniqueId", "Verification ID Field", "{{uniqueId}}")}
+                onClick={() => handleAddElement("uniqueId", "Verification ID", "ID: {{uniqueId}}")}
                 className="flex items-center gap-1.5 p-2 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] hover:bg-[#2563EB]/10 hover:border-[#2563EB] text-[#0F172A] font-semibold text-left"
               >
                 <FileText className="h-3.5 w-3.5 text-[#2563EB] shrink-0" />
-                <span>Unique ID</span>
+                <span>{"{{uniqueId}}"}</span>
               </button>
 
               <button
@@ -632,33 +678,33 @@ export function FigmaCertificateEditor({
                 className="flex items-center gap-1.5 p-2 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] hover:bg-[#2563EB]/10 hover:border-[#2563EB] text-[#0F172A] font-semibold text-left"
               >
                 <Award className="h-3.5 w-3.5 text-[#D97706] shrink-0" />
-                <span>Event Name</span>
+                <span>{"{{eventName}}"}</span>
               </button>
 
               <button
-                onClick={() => handleAddElement("date", "Issue Date", "{{date}}")}
+                onClick={() => handleAddElement("date", "Issue Date", "Issued on: {{date}}")}
                 className="flex items-center gap-1.5 p-2 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] hover:bg-[#2563EB]/10 hover:border-[#2563EB] text-[#0F172A] font-semibold text-left"
               >
                 <Type className="h-3.5 w-3.5 text-[#64748B] shrink-0" />
-                <span>Issue Date</span>
+                <span>{"{{date}}"}</span>
               </button>
 
               <button
-                onClick={() => handleAddElement("description", "Description", "{{description}}")}
+                onClick={() => handleAddElement("title", "Certificate Title", "CERTIFICATE OF EXCELLENCE")}
                 className="flex items-center gap-1.5 p-2 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] hover:bg-[#2563EB]/10 hover:border-[#2563EB] text-[#0F172A] font-semibold text-left"
               >
-                <FileText className="h-3.5 w-3.5 text-[#64748B] shrink-0" />
-                <span>Description</span>
+                <Type className="h-3.5 w-3.5 text-[#2563EB] shrink-0" />
+                <span>+ Add Text</span>
               </button>
             </CardContent>
           </Card>
 
-          {/* Brand Asset Uploaders */}
+          {/* Brand Assets */}
           <Card className="border-[#E2E8F0] bg-white shadow-sm">
             <CardHeader className="pb-2 border-b border-[#E2E8F0]">
               <CardTitle className="text-xs font-bold text-[#0F172A] uppercase tracking-wider flex items-center gap-1.5">
                 <Upload className="h-4 w-4 text-[#2563EB]" />
-                Logos & Signatures
+                Brand Assets
               </CardTitle>
             </CardHeader>
             <CardContent className="p-3 grid grid-cols-2 gap-2 text-xs">
@@ -675,38 +721,19 @@ export function FigmaCertificateEditor({
               </label>
             </CardContent>
           </Card>
-
-          {/* Presets Selector */}
-          <Card className="border-[#E2E8F0] bg-white shadow-sm">
-            <CardHeader className="pb-2 border-b border-[#E2E8F0]">
-              <CardTitle className="text-xs font-bold text-[#0F172A] uppercase tracking-wider flex items-center gap-1.5">
-                <Sparkles className="h-4 w-4 text-[#2563EB]" />
-                Presets
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-3 space-y-2">
-              {PRESET_TEMPLATES.map((preset) => (
-                <button
-                  key={preset.id}
-                  onClick={() => handleApplyPreset(preset.id)}
-                  className="w-full text-left p-2 rounded-xl border border-[#E2E8F0] bg-[#F8FAFC] hover:bg-[#2563EB]/10 hover:border-[#2563EB] transition-colors"
-                >
-                  <div className="text-xs font-bold text-[#0F172A]">{preset.name}</div>
-                  <div className="text-[10px] text-[#64748B] line-clamp-1">{preset.description}</div>
-                </button>
-              ))}
-            </CardContent>
-          </Card>
         </div>
 
-        {/* CENTER INTERACTIVE CANVAS: Drag, Position, Bounding Box, Snap Guides */}
+        {/* CENTER INTERACTIVE CANVAS: Drag, Double-Click Direct Typing, Snap Guides */}
         <div className="lg:col-span-6 space-y-3 flex flex-col items-center">
           <Card className="w-full border-[#E2E8F0] bg-slate-900 shadow-lg overflow-hidden flex flex-col items-center justify-center p-4 min-h-[500px]">
             <div
               ref={containerRef}
               onMouseMove={handleMouseMoveCanvas}
               onMouseUp={handleMouseUpCanvas}
-              onClick={() => setSelectedElementId(null)}
+              onClick={() => {
+                setSelectedElementId(null);
+                handleFinishInlineEdit();
+              }}
               style={{
                 transform: `scale(${zoom / 100})`,
                 transformOrigin: "center center",
@@ -751,11 +778,13 @@ export function FigmaCertificateEditor({
               {layout.elements.map((el) => {
                 if (!el.visible) return null;
                 const isSelected = selectedElementId === el.id;
+                const isEditing = editingElementId === el.id;
 
                 return (
                   <div
                     key={el.id}
                     onMouseDown={(e) => handleMouseDownElement(e, el.id)}
+                    onDoubleClick={(e) => handleDoubleClickElement(e, el.id)}
                     style={{
                       left: `${el.x}%`,
                       top: `${el.y}%`,
@@ -768,20 +797,26 @@ export function FigmaCertificateEditor({
                         : "hover:ring-1 hover:ring-[#2563EB]/50"
                     }`}
                   >
-                    {/* Selected Box Bounding Handles & Badge */}
-                    {isSelected && (
-                      <>
+                    {/* Inline Text Editing Input on Canvas */}
+                    {isEditing ? (
+                      <input
+                        type="text"
+                        autoFocus
+                        value={inlineEditText}
+                        onChange={(e) => setInlineEditText(e.target.value)}
+                        onBlur={handleFinishInlineEdit}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") handleFinishInlineEdit();
+                        }}
+                        className="bg-white border-2 border-[#2563EB] text-xs font-bold text-[#0F172A] px-2 py-1 rounded shadow-lg focus:outline-none z-50 min-w-[140px]"
+                      />
+                    ) : (
+                      isSelected && (
                         <div className="absolute -top-6 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded bg-[#2563EB] text-white text-[9px] font-bold whitespace-nowrap shadow-sm flex items-center gap-1 z-50">
                           {el.isLocked ? <Lock className="h-2.5 w-2.5" /> : <Move className="h-2.5 w-2.5" />}
-                          {el.label} ({Math.round(el.x)}%, {Math.round(el.y)}%)
+                          {el.label} (Double-click to Edit)
                         </div>
-
-                        {/* 4 Corner Resize Markers */}
-                        <div className="absolute -top-1.5 -left-1.5 w-3 h-3 bg-white border-2 border-[#2563EB] rounded-full" />
-                        <div className="absolute -top-1.5 -right-1.5 w-3 h-3 bg-white border-2 border-[#2563EB] rounded-full" />
-                        <div className="absolute -bottom-1.5 -left-1.5 w-3 h-3 bg-white border-2 border-[#2563EB] rounded-full" />
-                        <div className="absolute -bottom-1.5 -right-1.5 w-3 h-3 bg-white border-2 border-[#2563EB] rounded-full" />
-                      </>
+                      )
                     )}
                   </div>
                 );
@@ -790,9 +825,9 @@ export function FigmaCertificateEditor({
           </Card>
 
           <div className="text-[11px] text-slate-400 font-medium flex items-center gap-4">
-            <span>💡 Click and drag elements on canvas</span>
-            <span>• Keyboard Arrow keys to nudge (1px / 5px Shift)</span>
-            <span>• Ctrl+Z / Ctrl+Y to Undo/Redo</span>
+            <span>💡 Double-click text box to edit in-place</span>
+            <span>• Drag to move</span>
+            <span>• Arrow keys nudge 1px / 5px</span>
           </div>
         </div>
 
@@ -867,12 +902,12 @@ export function FigmaCertificateEditor({
                       selectedElement.type !== "qrCode" && (
                         <div>
                           <label className="font-semibold text-[#0F172A] block mb-1 uppercase tracking-wider">
-                            Text / Template Pattern
+                            Text / Variable Value
                           </label>
                           <Input
                             value={selectedElement.text || ""}
                             onChange={(e) => updateElement(selectedElement.id, { text: e.target.value })}
-                            className="bg-white border-[#E2E8F0] text-xs"
+                            className="bg-white border-[#E2E8F0] text-xs font-mono"
                           />
                         </div>
                       )}
@@ -902,7 +937,7 @@ export function FigmaCertificateEditor({
                           <div className="grid grid-cols-2 gap-2">
                             <div>
                               <label className="font-semibold text-[#0F172A] block mb-1 uppercase tracking-wider">
-                                Font Size ({selectedElement.fontSize}px)
+                                Size ({selectedElement.fontSize}px)
                               </label>
                               <input
                                 type="range"
@@ -929,122 +964,8 @@ export function FigmaCertificateEditor({
                               </div>
                             </div>
                           </div>
-
-                          {/* Alignment & Format */}
-                          <div className="flex items-center justify-between gap-2 pt-1">
-                            <div className="flex border border-[#E2E8F0] rounded-lg overflow-hidden flex-1">
-                              {(["left", "center", "right"] as const).map((align) => (
-                                <button
-                                  key={align}
-                                  type="button"
-                                  onClick={() => updateElement(selectedElement.id, { align })}
-                                  className={`flex-1 py-1 flex justify-center items-center text-xs ${
-                                    selectedElement.align === align
-                                      ? "bg-[#2563EB] text-white font-bold"
-                                      : "bg-white text-[#475569]"
-                                  }`}
-                                >
-                                  {align === "left" && <AlignLeft className="h-3.5 w-3.5" />}
-                                  {align === "center" && <AlignCenter className="h-3.5 w-3.5" />}
-                                  {align === "right" && <AlignRight className="h-3.5 w-3.5" />}
-                                </button>
-                              ))}
-                            </div>
-
-                            <button
-                              type="button"
-                              onClick={() =>
-                                updateElement(selectedElement.id, {
-                                  fontStyle: selectedElement.fontStyle?.includes("bold") ? "normal" : "bold",
-                                })
-                              }
-                              className={`p-1.5 rounded-lg border text-xs ${
-                                selectedElement.fontStyle?.includes("bold")
-                                  ? "bg-[#2563EB] text-white font-bold border-[#2563EB]"
-                                  : "border-[#E2E8F0] text-[#475569]"
-                              }`}
-                              title="Bold"
-                            >
-                              <Bold className="h-3.5 w-3.5" />
-                            </button>
-
-                            <button
-                              type="button"
-                              onClick={() =>
-                                updateElement(selectedElement.id, {
-                                  fontStyle: selectedElement.fontStyle?.includes("italic") ? "normal" : "italic",
-                                })
-                              }
-                              className={`p-1.5 rounded-lg border text-xs ${
-                                selectedElement.fontStyle?.includes("italic")
-                                  ? "bg-[#2563EB] text-white font-bold border-[#2563EB]"
-                                  : "border-[#E2E8F0] text-[#475569]"
-                              }`}
-                              title="Italic"
-                            >
-                              <Italic className="h-3.5 w-3.5" />
-                            </button>
-                          </div>
-
-                          {/* Text Transformation */}
-                          <div>
-                            <label className="font-semibold text-[#0F172A] block mb-1 uppercase tracking-wider">
-                              Text Transform
-                            </label>
-                            <div className="grid grid-cols-4 gap-1">
-                              {(["none", "uppercase", "lowercase", "capitalize"] as const).map((tt) => (
-                                <button
-                                  key={tt}
-                                  onClick={() => updateElement(selectedElement.id, { textTransform: tt })}
-                                  className={`py-1 text-[10px] font-bold rounded capitalize border ${
-                                    (selectedElement.textTransform || "none") === tt
-                                      ? "bg-[#2563EB] text-white border-[#2563EB]"
-                                      : "bg-white text-[#475569] border-[#E2E8F0]"
-                                  }`}
-                                >
-                                  {tt}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
                         </>
                       )}
-
-                    {/* Size & Opacity */}
-                    {(selectedElement.type === "logo" ||
-                      selectedElement.type === "signature" ||
-                      selectedElement.type === "qrCode") && (
-                      <div>
-                        <label className="font-semibold text-[#0F172A] flex justify-between mb-1 uppercase tracking-wider">
-                          <span>Element Width</span>
-                          <span className="font-bold text-[#2563EB]">{selectedElement.width || 100}px</span>
-                        </label>
-                        <input
-                          type="range"
-                          min="30"
-                          max="300"
-                          value={selectedElement.width || 100}
-                          onChange={(e) => updateElement(selectedElement.id, { width: Number(e.target.value) })}
-                          className="w-full accent-[#2563EB]"
-                        />
-                      </div>
-                    )}
-
-                    {/* Rotation */}
-                    <div>
-                      <label className="font-semibold text-[#0F172A] flex justify-between mb-1 uppercase tracking-wider">
-                        <span>Rotation</span>
-                        <span className="font-bold text-[#2563EB]">{selectedElement.rotation || 0}°</span>
-                      </label>
-                      <input
-                        type="range"
-                        min="0"
-                        max="360"
-                        value={selectedElement.rotation || 0}
-                        onChange={(e) => updateElement(selectedElement.id, { rotation: Number(e.target.value) })}
-                        className="w-full accent-[#2563EB]"
-                      />
-                    </div>
 
                     {/* X & Y Positioning Sliders */}
                     <div className="space-y-2 pt-2 border-t border-[#E2E8F0]">
@@ -1089,7 +1010,7 @@ export function FigmaCertificateEditor({
                 /* TAB 2: LAYER STACK MANAGER */
                 <div className="space-y-2">
                   <div className="text-[11px] font-bold text-[#0F172A] uppercase tracking-wider mb-2">
-                    Layer Order (Z-Index)
+                    Layer Order (Top to Bottom)
                   </div>
                   {[...layout.elements]
                     .sort((a, b) => (b.zIndex || 0) - (a.zIndex || 0))
@@ -1134,16 +1055,6 @@ export function FigmaCertificateEditor({
                             title="Send Backward"
                           >
                             <ChevronDown className="h-3.5 w-3.5" />
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              updateElement(el.id, { visible: !el.visible });
-                            }}
-                            className="p-1 rounded hover:bg-slate-200"
-                            title="Toggle Visibility"
-                          >
-                            <Eye className={`h-3.5 w-3.5 ${el.visible ? "text-emerald-600" : "text-slate-400"}`} />
                           </button>
                         </div>
                       </div>
