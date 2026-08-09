@@ -38,10 +38,10 @@ app.use(maintenanceGuard);
 setInterval(() => {
   const mem = process.memoryUsage();
   const heapUsedMb = Math.round(mem.heapUsed / 1024 / 1024);
-  if (heapUsedMb > 280 && (global as any).gc) {
+  if (heapUsedMb > 200 && (global as any).gc) {
     (global as any).gc();
   }
-}, 30_000);
+}, 20_000);
 
 // Auth Router mount
 app.use("/api/auth", authRouter);
