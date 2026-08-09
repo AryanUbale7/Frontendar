@@ -238,9 +238,9 @@ certificatesRouter.post(
       const formattedIssueDate = issueDate || new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
       const targetEventName = eventName ? eventName.trim() : "Frontend Arena Competition";
 
-      // Parallel batch generation for maximum speed & responsiveness
+      // Ultra-low memory chunking (5 items per batch + 5ms GC pause) to stay under 512MB RAM
       const generatedCertificates: any[] = [];
-      const batchSize = 15;
+      const batchSize = 5;
 
       for (let i = 0; i < cleanNames.length; i += batchSize) {
         const batchNames = cleanNames.slice(i, i + batchSize);
@@ -298,6 +298,12 @@ certificatesRouter.post(
         );
 
         generatedCertificates.push(...batchResults);
+
+        // Micro-pause & V8 GC trigger to prevent 512MB RAM spikes on Render free tier
+        await new Promise((resolve) => setTimeout(resolve, 5));
+        if ((global as any).gc) {
+          (global as any).gc();
+        }
       }
 
       const elapsedMs = Date.now() - startTime;
