@@ -10,6 +10,7 @@ import {
   Users,
   BarChart3,
   Settings,
+  QrCode,
   ChevronLeft,
   ChevronRight,
 } from "lucide-react";
@@ -25,6 +26,7 @@ const ICON_MAP: Record<string, React.ElementType> = {
   Scale,
   Medal,
   Users,
+  QrCode,
   BarChart3,
   Settings,
 };

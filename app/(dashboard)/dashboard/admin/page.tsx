@@ -45,6 +45,7 @@ import { EmptyState } from "@/components/design-system/EmptyState";
 import { useUIStore } from "@/store/uiStore";
 import { BlueprintEditor } from "@/features/admin/blueprint/BlueprintEditor";
 import { EvaluationReport } from "@/components/design-system/EvaluationReport";
+import { QrVerificationPanel } from "@/features/admin/qr/QrVerificationPanel";
 
 /** Build Authorization headers from localStorage token for admin API calls. */
 function authHeaders(): Record<string, string> {
@@ -818,6 +819,17 @@ export default function PlatformAdminDashboardPage() {
 
   const renderTabContent = () => {
     switch (activeTab) {
+      case "qr_verification":
+        return (
+          <motion.div
+            key="qr_verification"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+          >
+            <QrVerificationPanel />
+          </motion.div>
+        );
       case "overview":
         return (
           <motion.div

@@ -39,6 +39,7 @@ export const DEFAULT_NAVIGATION: NavGroup[] = [
     items: [
       { id: "leaderboard", label: "Leaderboards", href: "#", icon: "Medal" },
       { id: "teams", label: "Registrations", href: "#", icon: "Users" },
+      { id: "qr_verification", label: "QR Verification", href: "#", icon: "QrCode" },
       { id: "analytics", label: "Metrics & Logs", href: "#", icon: "BarChart3" },
       { id: "settings", label: "System Config", href: "#", icon: "Settings" },
     ],

@@ -187,3 +187,15 @@ model SystemConfig {
   forceEmailVerification Boolean  @default(false)
   updatedAt              DateTime @updatedAt
 }
+
+model QrVerification {
+  id        String   @id @default(uuid())
+  uniqueId  String   @unique
+  name      String
+  status    String   @default("ACTIVE") // ACTIVE, REVOKED
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([uniqueId])
+}
+
