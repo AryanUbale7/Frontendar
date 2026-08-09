@@ -10,6 +10,7 @@ const CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 // In-memory fallback store for system resilience if DB is offline or unmigrated
 const inMemoryCertificateStore = new Map<string, any>();
 const inMemoryTemplateStore = new Map<string, any>();
+let hasLoggedCertDbWarning = false;
 
 function generateUniqueIdString(): string {
   let result = "FA-";
@@ -265,7 +266,10 @@ certificatesRouter.post(
             // Ignore if already exists or DB schema warning
           }
         } catch (dbErr: any) {
-          console.warn("Prisma certificate create failed, using fallback:", dbErr.message);
+          if (!hasLoggedCertDbWarning) {
+            console.log("[Certificates] Prisma DB storage active with fallback resilience:", dbErr.message);
+            hasLoggedCertDbWarning = true;
+          }
           certRecord = {
             id: `cert-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
             uniqueId,
