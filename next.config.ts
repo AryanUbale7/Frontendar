@@ -1,6 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  experimental: {
+    workerThreads: false,
+    cpus: 1,
+  },
   compress: false,
   onDemandEntries: {
     maxInactiveAge: 15 * 1000,

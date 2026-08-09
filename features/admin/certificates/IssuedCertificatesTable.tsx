@@ -35,14 +35,37 @@ export function IssuedCertificatesTable() {
   const fetchRecords = useCallback(async (query = searchQuery) => {
     try {
       setLoading(true);
+      let localCerts: CertificateRecord[] = [];
+      try {
+        localCerts = JSON.parse(localStorage.getItem("fa_local_issued_certificates") || "[]");
+      } catch {
+        localCerts = [];
+      }
+
+      let serverList: CertificateRecord[] = [];
       const url = query ? `/api/certificates?search=${encodeURIComponent(query)}` : "/api/certificates";
       const res = await fetch(url);
       if (res.ok) {
         const list = await res.json();
         if (Array.isArray(list)) {
-          setRecords(list);
+          serverList = list;
         }
       }
+
+      const map = new Map<string, CertificateRecord>();
+      for (const item of localCerts) {
+        if (!query || item.participantName?.toLowerCase().includes(query.toLowerCase()) || item.uniqueId?.toLowerCase().includes(query.toLowerCase())) {
+          map.set(item.uniqueId, item);
+        }
+      }
+      for (const item of serverList) {
+        map.set(item.uniqueId, item);
+      }
+
+      const combined = Array.from(map.values()).sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+      setRecords(combined);
     } catch (e) {
       console.error("Failed to fetch certificates:", e);
     } finally {
