@@ -30,9 +30,18 @@ let evaluationQueue: EvaluationQueueDriver;
 let combinedWorkerHandle: EvaluationWorkerHandle | null = null;
 
 app.use(cors());
-app.use(express.json({ limit: "50mb" }));
-app.use(express.urlencoded({ limit: "50mb", extended: true }));
+app.use(express.json({ limit: "15mb" }));
+app.use(express.urlencoded({ limit: "15mb", extended: true }));
 app.use(maintenanceGuard);
+
+// Auto GC interval to keep V8 heap RAM strictly under 380MB on 512MB RAM instances
+setInterval(() => {
+  const mem = process.memoryUsage();
+  const heapUsedMb = Math.round(mem.heapUsed / 1024 / 1024);
+  if (heapUsedMb > 280 && (global as any).gc) {
+    (global as any).gc();
+  }
+}, 30_000);
 
 // Auth Router mount
 app.use("/api/auth", authRouter);
