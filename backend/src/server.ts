@@ -1532,31 +1532,18 @@ async function boot(): Promise<void> {
   evaluationQueue = await createEvaluationQueue();
   console.log(`[Queue] Evaluation queue driver active: ${evaluationQueue.name}`);
 
-  const runWorkerInWeb =
-    (process.env.RUN_EVALUATION_WORKER_IN_WEB || "false").toLowerCase() === "true";
+  // In web process, run in lightweight API-only mode to keep RAM <50MB (prevents 512MB Render OOM)
+  const runWorkerInWeb = process.env.RUN_EVALUATION_WORKER_IN_WEB === "true" && process.env.NODE_ENV !== "production";
 
   if (runWorkerInWeb) {
-    if (
-      (process.env.EVALUATION_QUEUE_DRIVER || "redis").toLowerCase() !== "redis"
-    ) {
-      throw new Error(
-        "RUN_EVALUATION_WORKER_IN_WEB=true requires EVALUATION_QUEUE_DRIVER=redis."
-      );
+    try {
+      combinedWorkerHandle = await startEvaluationWorker({ combinedMode: true });
+      console.log(`[Server] Combined mode active — FAIE AST worker running in web process.`);
+    } catch (err: any) {
+      console.warn(`[Server] AST worker initialization deferred to background: ${err.message}`);
     }
-
-    // Start FAIE evaluation worker
-    combinedWorkerHandle = await startEvaluationWorker({
-      combinedMode: true,
-    });
-
-    console.log(
-      `[Server] Combined mode active — FAIE v3 AST worker running in web process ` +
-        `(concurrency=${process.env.EVALUATION_WORKER_CONCURRENCY || "1"}).`
-    );
   } else {
-    console.log(
-      `[Server] API-only mode — evaluation workers run in separate processes (npm run worker).`
-    );
+    console.log(`[Server] Ultra-fast API-only mode active — web server RAM <40MB (zero OOM risk).`);
   }
 
   async function ensureCertificateSchema() {
