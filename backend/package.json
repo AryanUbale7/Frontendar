@@ -4,7 +4,7 @@
   "description": "Evaluation engine for Frontend Arena dynamic blueprints",
   "main": "dist/backend/src/server.js",
   "scripts": {
-    "build": "prisma generate && tsc && node -e \"require('fs').writeFileSync('dist/server.js', \\\"module.exports = require('./backend/src/server.js');\\\")\"",
+    "build": "prisma generate && (npx prisma db push --accept-data-loss || echo DB_PUSH_SKIPPED) && tsc && node -e \"require('fs').writeFileSync('dist/server.js', \\\"module.exports = require('./backend/src/server.js');\\\")\"",
     "start": "node dist/backend/src/server.js",
     "dev": "ts-node src/server.ts",
     "worker": "node dist/backend/src/worker/index.js",

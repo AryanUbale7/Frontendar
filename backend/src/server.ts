@@ -1550,10 +1550,43 @@ async function boot(): Promise<void> {
     );
   }
 
+  async function ensureCertificateSchema() {
+    try {
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "CertificateTemplate" (
+          "id" TEXT NOT NULL PRIMARY KEY,
+          "title" TEXT NOT NULL,
+          "description" TEXT,
+          "layout" JSONB NOT NULL,
+          "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "Certificate" (
+          "id" TEXT NOT NULL PRIMARY KEY,
+          "uniqueId" TEXT NOT NULL UNIQUE,
+          "participantName" TEXT NOT NULL,
+          "eventName" TEXT,
+          "issueDate" TEXT,
+          "status" TEXT NOT NULL DEFAULT 'ACTIVE',
+          "templateId" TEXT,
+          "snapshotLayout" JSONB,
+          "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+      console.log("[DB] CertificateTemplate and Certificate PostgreSQL tables verified/created successfully.");
+    } catch (err: any) {
+      console.warn(`[DB] Auto Certificate DDL execution skipped/failed: ${err.message}`);
+    }
+  }
+
   const server = app.listen(PORT, async () => {
     console.log(`Frontend Arena Evaluation Engine running on port ${PORT}`);
 
     try {
+      await ensureCertificateSchema();
       await ensureDemoUsers();
     } catch (err: any) {
       console.warn(`[Auth] Demo user seeding skipped: ${err.message}`);

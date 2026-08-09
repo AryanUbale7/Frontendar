@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { CertificateTemplateRecord } from "./types";
+import { PRESET_TEMPLATES } from "./presets";
 
 interface BulkGeneratorProps {
   onSuccess?: () => void;
@@ -24,7 +25,7 @@ interface BulkGeneratorProps {
 export function BulkGenerator({ onSuccess }: BulkGeneratorProps) {
   const [templates, setTemplates] = useState<CertificateTemplateRecord[]>([]);
   const [loadingTemplates, setLoadingTemplates] = useState(true);
-  const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>("modern-minimal");
 
   const [eventName, setEventName] = useState("Frontend Arena Hackathon 2026");
   const [issueDate, setIssueDate] = useState(() =>
@@ -47,15 +48,35 @@ export function BulkGenerator({ onSuccess }: BulkGeneratorProps) {
         const res = await fetch("/api/certificates/templates");
         if (res.ok) {
           const list = await res.json();
-          if (Array.isArray(list)) {
+          if (Array.isArray(list) && list.length > 0) {
             setTemplates(list);
-            if (list.length > 0) {
-              setSelectedTemplateId(list[0].id);
-            }
+            setSelectedTemplateId(list[0].id);
+          } else {
+            // Fallback to presets if no custom templates exist yet
+            const defaultPresets: CertificateTemplateRecord[] = PRESET_TEMPLATES.map((p) => ({
+              id: p.id,
+              title: p.name,
+              description: p.description,
+              layout: p.layout,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString(),
+            }));
+            setTemplates(defaultPresets);
+            setSelectedTemplateId(defaultPresets[0].id);
           }
         }
       } catch (e) {
         console.error("Failed to fetch templates:", e);
+        const defaultPresets: CertificateTemplateRecord[] = PRESET_TEMPLATES.map((p) => ({
+          id: p.id,
+          title: p.name,
+          description: p.description,
+          layout: p.layout,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        }));
+        setTemplates(defaultPresets);
+        setSelectedTemplateId(defaultPresets[0].id);
       } finally {
         setLoadingTemplates(false);
       }
@@ -63,7 +84,7 @@ export function BulkGenerator({ onSuccess }: BulkGeneratorProps) {
     fetchTemplates();
   }, []);
 
-  // Update parsed names when manualText changes
+  // Update parsed names when manualText changes (splits on newlines, commas, or multiple spaces)
   useEffect(() => {
     if (!manualText.trim()) {
       setParsedNames([]);
@@ -71,23 +92,25 @@ export function BulkGenerator({ onSuccess }: BulkGeneratorProps) {
       return;
     }
 
-    const lines = manualText
-      .split(/\r?\n/)
-      .map((line) => line.trim())
-      .filter((line) => line.length > 0);
+    const items = manualText
+      .split(/[\r\n,]+|\s{2,}/)
+      .map((name) => name.trim())
+      .filter((name) => name.length > 0);
 
     const nameSet = new Set<string>();
     let dupes = 0;
+    const finalNames: string[] = [];
 
-    for (const name of lines) {
+    for (const name of items) {
       if (nameSet.has(name.toLowerCase())) {
         dupes++;
       } else {
         nameSet.add(name.toLowerCase());
+        finalNames.push(name);
       }
     }
 
-    setParsedNames(lines);
+    setParsedNames(finalNames);
     setDuplicateCount(dupes);
   }, [manualText]);
 
