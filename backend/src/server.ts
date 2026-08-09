@@ -6,6 +6,7 @@ import { Prisma } from "@prisma/client";
 import { prisma } from "./config/db";
 import { authRouter } from "./routes/auth";
 import { qrVerificationRouter } from "./routes/qr-verification";
+import { certificatesRouter } from "./routes/certificates";
 import { verifyToken, optionalAuth, requireRole, AuthenticatedRequest, maintenanceGuard } from "./middleware/auth";
 import { createEvaluationQueue, EvaluationQueueDriver } from "./engine/queue";
 import { startEvaluationWorker, EvaluationWorkerHandle } from "./worker";
@@ -36,6 +37,7 @@ app.use(maintenanceGuard);
 // Auth Router mount
 app.use("/api/auth", authRouter);
 app.use("/api/qr-verification", qrVerificationRouter);
+app.use("/api/certificates", certificatesRouter);
 
 // Health check endpoint
 app.get("/health", (req: Request, res: Response) => {

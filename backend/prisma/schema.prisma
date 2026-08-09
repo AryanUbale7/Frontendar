@@ -199,3 +199,31 @@ model QrVerification {
   @@index([uniqueId])
 }
 
+model CertificateTemplate {
+  id           String        @id @default(uuid())
+  title        String
+  description  String?
+  layout       Json          // Canvas size, background, frame, elements (positions, text, fonts, colors, logo/signature data URLs)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  certificates Certificate[]
+}
+
+model Certificate {
+  id              String               @id @default(uuid())
+  uniqueId        String               @unique
+  participantName String
+  eventName       String?
+  issueDate       String?
+  status          String               @default("ACTIVE") // ACTIVE, REVOKED
+  templateId      String?
+  template        CertificateTemplate? @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  snapshotLayout  Json?                // Frozen snapshot of layout at issuance time
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  @@index([uniqueId])
+  @@index([templateId])
+}
+
+

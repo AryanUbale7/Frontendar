@@ -46,6 +46,7 @@ import { useUIStore } from "@/store/uiStore";
 import { BlueprintEditor } from "@/features/admin/blueprint/BlueprintEditor";
 import { EvaluationReport } from "@/components/design-system/EvaluationReport";
 import { QrVerificationPanel } from "@/features/admin/qr/QrVerificationPanel";
+import { CertificateManagementPanel } from "@/features/admin/certificates/CertificateManagementPanel";
 
 /** Build Authorization headers from localStorage token for admin API calls. */
 function authHeaders(): Record<string, string> {
@@ -819,6 +820,17 @@ export default function PlatformAdminDashboardPage() {
 
   const renderTabContent = () => {
     switch (activeTab) {
+      case "certificates":
+        return (
+          <motion.div
+            key="certificates"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+          >
+            <CertificateManagementPanel />
+          </motion.div>
+        );
       case "qr_verification":
         return (
           <motion.div

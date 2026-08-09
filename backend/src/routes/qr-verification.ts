@@ -60,8 +60,27 @@ qrVerificationRouter.get("/public/:uniqueId", async (req: Request, res: Response
   try {
     const rawId = String(req.params.uniqueId || "").trim();
     
-    // Try Prisma DB first
+    // Try Prisma DB first (Certificate table, then QrVerification)
     try {
+      const certRecord = await prisma.certificate.findUnique({
+        where: { uniqueId: rawId },
+        select: {
+          uniqueId: true,
+          participantName: true,
+          status: true,
+          createdAt: true,
+        },
+      });
+
+      if (certRecord) {
+        return res.json({
+          uniqueId: certRecord.uniqueId,
+          name: certRecord.participantName,
+          status: certRecord.status,
+          createdAt: certRecord.createdAt,
+        });
+      }
+
       const record = await prisma.qrVerification.findUnique({
         where: { uniqueId: rawId },
         select: {
