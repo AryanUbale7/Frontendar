@@ -220,6 +220,9 @@ certificatesRouter.post(
         return res.status(400).json({ error: "VALIDATION_ERROR", message: "No valid participant names found." });
       }
 
+      const startTime = Date.now();
+      console.log(`[Certificates] 🚀 Bulk generation requested for ${cleanNames.length} participants (Event: "${eventName || 'Frontend Arena Competition'}")`);
+
       // Resolve template layout if templateId provided
       let resolvedLayout = layout || null;
       if (!resolvedLayout && templateId) {
@@ -232,64 +235,76 @@ certificatesRouter.post(
         }
       }
 
-      const generatedCertificates: any[] = [];
       const formattedIssueDate = issueDate || new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+      const targetEventName = eventName ? eventName.trim() : "Frontend Arena Competition";
 
-      for (const name of cleanNames) {
-        const uniqueId = await createNonCollidingId();
-        let certRecord: any;
+      // Parallel batch generation for maximum speed & responsiveness
+      const generatedCertificates: any[] = [];
+      const batchSize = 15;
 
-        try {
-          // Create in Certificate model
-          certRecord = await prisma.certificate.create({
-            data: {
-              uniqueId,
-              participantName: name,
-              eventName: eventName ? eventName.trim() : "Frontend Arena Competition",
-              issueDate: formattedIssueDate,
-              status: "ACTIVE",
-              templateId: templateId || null,
-              snapshotLayout: resolvedLayout || {},
-            },
-          });
+      for (let i = 0; i < cleanNames.length; i += batchSize) {
+        const batchNames = cleanNames.slice(i, i + batchSize);
+        const batchResults = await Promise.all(
+          batchNames.map(async (name) => {
+            const uniqueId = await createNonCollidingId();
+            let certRecord: any;
 
-          // Also upsert into QrVerification for backward compatibility
-          try {
-            await prisma.qrVerification.create({
-              data: {
+            try {
+              certRecord = await prisma.certificate.create({
+                data: {
+                  uniqueId,
+                  participantName: name,
+                  eventName: targetEventName,
+                  issueDate: formattedIssueDate,
+                  status: "ACTIVE",
+                  templateId: templateId || null,
+                  snapshotLayout: resolvedLayout || {},
+                },
+              });
+
+              try {
+                await prisma.qrVerification.create({
+                  data: {
+                    uniqueId,
+                    name,
+                    status: "ACTIVE",
+                  },
+                });
+              } catch {
+                // Ignore if already exists
+              }
+            } catch (dbErr: any) {
+              if (!hasLoggedCertDbWarning) {
+                console.log("[Certificates] Prisma DB active with fallback resilience:", dbErr.message);
+                hasLoggedCertDbWarning = true;
+              }
+              certRecord = {
+                id: `cert-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
                 uniqueId,
-                name,
+                participantName: name,
+                eventName: targetEventName,
+                issueDate: formattedIssueDate,
                 status: "ACTIVE",
-              },
-            });
-          } catch {
-            // Ignore if already exists or DB schema warning
-          }
-        } catch (dbErr: any) {
-          if (!hasLoggedCertDbWarning) {
-            console.log("[Certificates] Prisma DB storage active with fallback resilience:", dbErr.message);
-            hasLoggedCertDbWarning = true;
-          }
-          certRecord = {
-            id: `cert-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-            uniqueId,
-            participantName: name,
-            eventName: eventName ? eventName.trim() : "Frontend Arena Competition",
-            issueDate: formattedIssueDate,
-            status: "ACTIVE",
-            templateId: templateId || null,
-            snapshotLayout: resolvedLayout || {},
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          };
-        }
+                templateId: templateId || null,
+                snapshotLayout: resolvedLayout || {},
+                createdAt: new Date(),
+                updatedAt: new Date(),
+              };
+            }
 
-        inMemoryCertificateStore.set(uniqueId, certRecord);
-        generatedCertificates.push(certRecord);
+            inMemoryCertificateStore.set(uniqueId, certRecord);
+            return certRecord;
+          })
+        );
+
+        generatedCertificates.push(...batchResults);
       }
 
+      const elapsedMs = Date.now() - startTime;
+      console.log(`[Certificates] ✅ Successfully generated ${generatedCertificates.length} certificates in ${elapsedMs}ms.`);
+
       return res.status(201).json({
-        message: `Successfully generated ${generatedCertificates.length} certificates.`,
+        message: `Successfully generated ${generatedCertificates.length} certificates in ${elapsedMs}ms.`,
         certificates: generatedCertificates,
       });
     } catch (error: any) {
