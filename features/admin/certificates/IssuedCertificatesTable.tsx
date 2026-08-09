@@ -344,7 +344,24 @@ export function IssuedCertificatesTable() {
 
             <div className="bg-[#F8FAFC] p-4 rounded-xl border border-[#E2E8F0] flex justify-center">
               <CertificateCanvasRenderer
-                layout={previewCert.snapshotLayout || PRESET_TEMPLATES[0].layout}
+                layout={(() => {
+                  if (previewCert.snapshotLayout && Object.keys(previewCert.snapshotLayout).length > 0 && (previewCert.snapshotLayout as any).elements) {
+                    return previewCert.snapshotLayout;
+                  }
+                  try {
+                    const customTpls = JSON.parse(localStorage.getItem("fa_custom_certificate_templates") || "[]");
+                    if (previewCert.templateId) {
+                      const match = customTpls.find((t: any) => t.id === previewCert.templateId);
+                      if (match && match.layout) return match.layout;
+                    }
+                    if (customTpls.length > 0 && customTpls[0].layout) {
+                      return customTpls[0].layout;
+                    }
+                  } catch {
+                    // Ignore
+                  }
+                  return PRESET_TEMPLATES[0].layout;
+                })()}
                 participantName={previewCert.participantName}
                 uniqueId={previewCert.uniqueId}
                 eventName={previewCert.eventName || "Frontend Arena Competition"}
