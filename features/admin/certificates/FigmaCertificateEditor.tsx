@@ -256,10 +256,11 @@ export function FigmaCertificateEditor({
       }
     };
     reader.readAsDataURL(file);
+    e.target.value = "";
   };
 
-  // Upload Logo or Signature Asset (Synchronous State Update)
-  const handleAssetUpload = (e: React.ChangeEvent<HTMLInputElement>, type: "logo" | "signature") => {
+  // Add a NEW Logo or Signature Element (Supports Multiple Logos!)
+  const handleAddImageAsset = (e: React.ChangeEvent<HTMLInputElement>, type: "logo" | "signature") => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -267,46 +268,58 @@ export function FigmaCertificateEditor({
     reader.onload = (event) => {
       const dataUrl = event.target?.result as string;
       if (dataUrl) {
+        let newId = "";
         updateLayout((prev) => {
-          const existing = prev.elements.find((el) => el.type === type);
-          if (existing) {
-            return {
-              ...prev,
-              elements: prev.elements.map((el) => (el.id === existing.id ? { ...el, dataUrl, visible: true } : el)),
-            };
-          } else {
-            const maxZ = prev.elements.reduce((max, el) => Math.max(max, el.zIndex || 0), 0);
-            const newEl: CanvasElement = {
-              id: `el-${type}-${Date.now()}`,
-              type,
-              label: type === "logo" ? "Organization Logo" : "Official Signature",
-              text: "",
-              dataUrl,
-              x: 50,
-              y: 20,
-              fontSize: 16,
-              fontFamily: "Inter, sans-serif",
-              color: "#0F172A",
-              align: "center",
-              visible: true,
-              zIndex: maxZ + 1,
-              width: type === "logo" ? 120 : 160,
-              height: type === "logo" ? 60 : 60,
-              opacity: 1,
-              rotation: 0,
-              isLocked: false,
-            };
-            return { ...prev, elements: [...prev.elements, newEl] };
-          }
+          const count = prev.elements.filter((el) => el.type === type).length + 1;
+          const maxZ = prev.elements.reduce((max, el) => Math.max(max, el.zIndex || 0), 0);
+          newId = `el-${type}-${Date.now()}`;
+
+          const newEl: CanvasElement = {
+            id: newId,
+            type,
+            label: type === "logo" ? `Logo ${count}` : `Signature ${count}`,
+            text: "",
+            dataUrl,
+            x: Math.min(85, 20 + count * 12),
+            y: type === "logo" ? 15 : 82,
+            fontSize: 16,
+            fontFamily: "Inter, sans-serif",
+            color: "#0F172A",
+            align: "center",
+            visible: true,
+            zIndex: maxZ + 1,
+            width: type === "logo" ? 120 : 160,
+            height: type === "logo" ? 60 : 60,
+            opacity: 1,
+            rotation: 0,
+            isLocked: false,
+          };
+          return { ...prev, elements: [...prev.elements, newEl] };
         });
 
-        setTimeout(() => {
-          const added = layout.elements.find((el) => el.type === type);
-          if (added) setSelectedElementId(added.id);
-        }, 50);
+        if (newId) {
+          setSelectedElementId(newId);
+        }
       }
     };
     reader.readAsDataURL(file);
+    e.target.value = "";
+  };
+
+  // Replace Image for the SPECIFIC Selected Logo / Signature
+  const handleReplaceSelectedImage = (e: React.ChangeEvent<HTMLInputElement>, id: string) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const dataUrl = event.target?.result as string;
+      if (dataUrl) {
+        updateElement(id, { dataUrl, visible: true });
+      }
+    };
+    reader.readAsDataURL(file);
+    e.target.value = "";
   };
 
   // Layer Reordering Controls
@@ -383,7 +396,7 @@ export function FigmaCertificateEditor({
 
       const rect = containerRef.current.getBoundingClientRect();
 
-      // Handle Interactive Resizing (Handles for Width / Height)
+      // Handle Interactive Resizing
       if (isResizingRef.current) {
         const deltaXPixels = (e.clientX - dragStartPosRef.current.x) / (zoom / 100);
         const deltaYPixels = (e.clientY - dragStartPosRef.current.y) / (zoom / 100);
@@ -403,7 +416,6 @@ export function FigmaCertificateEditor({
           newHeight = Math.max(30, Math.min(600, elementStartPosRef.current.height - deltaYPixels * 2));
         }
 
-        // For QR Code, keep 1:1 aspect ratio
         if (target.type === "qrCode") {
           newHeight = newWidth;
         }
@@ -420,7 +432,6 @@ export function FigmaCertificateEditor({
         let newX = Math.round(elementStartPosRef.current.x + deltaX);
         let newY = Math.round(elementStartPosRef.current.y + deltaY);
 
-        // Snap guides (Center horizontal & vertical)
         if (showSnapGuides) {
           if (Math.abs(newX - 50) < 2) {
             newX = 50;
@@ -561,7 +572,7 @@ export function FigmaCertificateEditor({
             </Badge>
             <span className="text-xs text-emerald-600 font-bold flex items-center gap-1">
               <CheckCircle2 className="h-3.5 w-3.5" />
-              Draggable & Resizable QR / Logo Engine
+              Multiple Logo & Brand Asset Engine
             </span>
           </div>
           <Input
@@ -666,7 +677,7 @@ export function FigmaCertificateEditor({
         </div>
       )}
 
-      {/* Live Preview Variables Toolbar (Custom Event Name, Date, Org Name Input) */}
+      {/* Live Preview Variables Toolbar */}
       <Card className="border-[#E2E8F0] bg-[#F8FAFC] shadow-xs">
         <CardContent className="p-3 grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
           <div>
@@ -827,25 +838,25 @@ export function FigmaCertificateEditor({
             </CardContent>
           </Card>
 
-          {/* Brand Assets */}
+          {/* Brand Assets (Add Multiple Logos & Signatures!) */}
           <Card className="border-[#E2E8F0] bg-white shadow-sm">
             <CardHeader className="pb-2 border-b border-[#E2E8F0]">
               <CardTitle className="text-xs font-bold text-[#0F172A] uppercase tracking-wider flex items-center gap-1.5">
                 <Upload className="h-4 w-4 text-[#2563EB]" />
-                Brand Assets
+                Brand Assets (Multiple Logos)
               </CardTitle>
             </CardHeader>
             <CardContent className="p-3 grid grid-cols-2 gap-2 text-xs">
-              <label className="cursor-pointer flex flex-col items-center justify-center p-2.5 border border-dashed border-[#E2E8F0] rounded-xl bg-[#F8FAFC] hover:bg-[#E2E8F0]/50 transition-colors">
+              <label className="cursor-pointer flex flex-col items-center justify-center p-2.5 border border-dashed border-[#2563EB]/40 bg-[#2563EB]/5 rounded-xl hover:bg-[#2563EB]/10 transition-colors">
                 <ImageIcon className="h-4 w-4 text-[#2563EB] mb-1" />
-                <span className="text-[10px] font-bold text-[#0F172A]">Add Logo</span>
-                <input type="file" accept="image/*" onChange={(e) => handleAssetUpload(e, "logo")} className="hidden" />
+                <span className="text-[10px] font-bold text-[#2563EB]">+ Add Logo</span>
+                <input type="file" accept="image/*" onChange={(e) => handleAddImageAsset(e, "logo")} className="hidden" />
               </label>
 
-              <label className="cursor-pointer flex flex-col items-center justify-center p-2.5 border border-dashed border-[#E2E8F0] rounded-xl bg-[#F8FAFC] hover:bg-[#E2E8F0]/50 transition-colors">
+              <label className="cursor-pointer flex flex-col items-center justify-center p-2.5 border border-dashed border-[#D97706]/40 bg-amber-50/50 rounded-xl hover:bg-amber-100/50 transition-colors">
                 <Award className="h-4 w-4 text-[#D97706] mb-1" />
-                <span className="text-[10px] font-bold text-[#0F172A]">Add Signature</span>
-                <input type="file" accept="image/*" onChange={(e) => handleAssetUpload(e, "signature")} className="hidden" />
+                <span className="text-[10px] font-bold text-[#D97706]">+ Add Signature</span>
+                <input type="file" accept="image/*" onChange={(e) => handleAddImageAsset(e, "signature")} className="hidden" />
               </label>
             </CardContent>
           </Card>
@@ -953,7 +964,7 @@ export function FigmaCertificateEditor({
                             {el.label} ({boxWidthPx}×{boxHeightPx}px)
                           </div>
 
-                          {/* 4 Corner Interactive Resize Handles for Logos, Signatures, QR Codes, Text */}
+                          {/* 4 Corner Interactive Resize Handles */}
                           <div
                             onMouseDown={(e) => handleMouseDownElement(e, el.id, "NW")}
                             className="absolute -top-1.5 -left-1.5 w-3 h-3 bg-white border-2 border-[#2563EB] rounded-full cursor-nwse-resize z-50"
@@ -971,7 +982,7 @@ export function FigmaCertificateEditor({
                             className="absolute -bottom-1.5 -right-1.5 w-3 h-3 bg-white border-2 border-[#2563EB] rounded-full cursor-nwse-resize z-50"
                           />
 
-                          {/* Left and Right Edge Handles for Text Box Container Width */}
+                          {/* Left and Right Edge Handles for Text Container Width */}
                           {!isImageOrQR && (
                             <>
                               <div
@@ -1009,7 +1020,8 @@ export function FigmaCertificateEditor({
           )}
 
           <div className="text-[11px] text-slate-400 font-medium flex items-center gap-4">
-            <span>💡 Click and drag any element (including QR Code & Logo) to position</span>
+            <span>💡 Add as many logos as needed (Sponsors, Partners, Org)</span>
+            <span>• Drag to move</span>
             <span>• Corner handles to resize</span>
           </div>
         </div>
@@ -1086,7 +1098,7 @@ export function FigmaCertificateEditor({
                       </div>
                     </div>
 
-                    {/* Image / Logo / Signature Preview & Controls */}
+                    {/* Image / Logo / Signature Specific Controls */}
                     {(selectedElement.type === "logo" || selectedElement.type === "signature") && (
                       <div className="space-y-2 bg-[#F8FAFC] p-3 rounded-xl border border-[#E2E8F0]">
                         <label className="font-bold text-[#0F172A] block uppercase tracking-wider text-[10px]">
@@ -1099,14 +1111,14 @@ export function FigmaCertificateEditor({
                             </div>
                             <label className="cursor-pointer block w-full py-1 text-center bg-white border border-[#E2E8F0] rounded font-semibold text-[10px] hover:bg-slate-100">
                               Replace Image
-                              <input type="file" accept="image/*" onChange={(e) => handleAssetUpload(e, selectedElement.type as "logo" | "signature")} className="hidden" />
+                              <input type="file" accept="image/*" onChange={(e) => handleReplaceSelectedImage(e, selectedElement.id)} className="hidden" />
                             </label>
                           </div>
                         ) : (
                           <label className="cursor-pointer block w-full p-3 border border-dashed border-[#2563EB] rounded-xl text-center bg-white hover:bg-blue-50">
                             <Upload className="h-4 w-4 text-[#2563EB] mx-auto mb-1" />
-                            <span className="font-bold text-[#2563EB] text-xs">Upload {selectedElement.type} Image</span>
-                            <input type="file" accept="image/*" onChange={(e) => handleAssetUpload(e, selectedElement.type as "logo" | "signature")} className="hidden" />
+                            <span className="font-bold text-[#2563EB] text-xs">Upload Image</span>
+                            <input type="file" accept="image/*" onChange={(e) => handleReplaceSelectedImage(e, selectedElement.id)} className="hidden" />
                           </label>
                         )}
                       </div>
