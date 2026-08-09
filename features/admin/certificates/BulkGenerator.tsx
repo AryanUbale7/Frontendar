@@ -45,28 +45,22 @@ export function BulkGenerator({ onSuccess }: BulkGeneratorProps) {
     const fetchTemplates = async () => {
       try {
         setLoadingTemplates(true);
+        let customLocal: CertificateTemplateRecord[] = [];
+        try {
+          customLocal = JSON.parse(localStorage.getItem("fa_custom_certificate_templates") || "[]");
+        } catch {
+          customLocal = [];
+        }
+
+        let serverTemplates: CertificateTemplateRecord[] = [];
         const res = await fetch("/api/certificates/templates");
         if (res.ok) {
           const list = await res.json();
-          if (Array.isArray(list) && list.length > 0) {
-            setTemplates(list);
-            setSelectedTemplateId(list[0].id);
-          } else {
-            // Fallback to presets if no custom templates exist yet
-            const defaultPresets: CertificateTemplateRecord[] = PRESET_TEMPLATES.map((p) => ({
-              id: p.id,
-              title: p.name,
-              description: p.description,
-              layout: p.layout,
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString(),
-            }));
-            setTemplates(defaultPresets);
-            setSelectedTemplateId(defaultPresets[0].id);
+          if (Array.isArray(list)) {
+            serverTemplates = list;
           }
         }
-      } catch (e) {
-        console.error("Failed to fetch templates:", e);
+
         const defaultPresets: CertificateTemplateRecord[] = PRESET_TEMPLATES.map((p) => ({
           id: p.id,
           title: p.name,
@@ -75,8 +69,25 @@ export function BulkGenerator({ onSuccess }: BulkGeneratorProps) {
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
         }));
-        setTemplates(defaultPresets);
-        setSelectedTemplateId(defaultPresets[0].id);
+
+        const map = new Map<string, CertificateTemplateRecord>();
+        for (const t of customLocal) {
+          map.set(t.id, t);
+        }
+        for (const t of serverTemplates) {
+          map.set(t.id, t);
+        }
+        for (const t of defaultPresets) {
+          if (!map.has(t.id)) map.set(t.id, t);
+        }
+
+        const mergedTemplates = Array.from(map.values());
+        setTemplates(mergedTemplates);
+        if (mergedTemplates.length > 0) {
+          setSelectedTemplateId(mergedTemplates[0].id);
+        }
+      } catch (e) {
+        console.error("Failed to fetch templates:", e);
       } finally {
         setLoadingTemplates(false);
       }
@@ -160,6 +171,7 @@ export function BulkGenerator({ onSuccess }: BulkGeneratorProps) {
       setError(null);
       setResultMessage(null);
 
+      const selectedTemplate = templates.find((t) => t.id === selectedTemplateId);
       const CHARS = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
       const localGenerated = parsedNames.map((name) => {
         let uniqueId = "FA-";
@@ -173,6 +185,8 @@ export function BulkGenerator({ onSuccess }: BulkGeneratorProps) {
           eventName: eventName.trim() || "Frontend Arena Competition",
           issueDate: issueDate.trim() || new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" }),
           status: "ACTIVE",
+          templateId: selectedTemplateId || null,
+          snapshotLayout: selectedTemplate ? selectedTemplate.layout : undefined,
           createdAt: new Date().toISOString(),
         };
       });

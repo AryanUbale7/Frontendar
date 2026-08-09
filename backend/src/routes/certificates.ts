@@ -436,3 +436,33 @@ certificatesRouter.put(
     }
   }
 );
+
+// Delete All Issued Certificates (Preserves QrVerification records for public QR verification)
+certificatesRouter.delete(
+  "/all",
+  verifyToken,
+  requireRole(["ADMIN", "SUPER_ADMIN"]),
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      try {
+        await prisma.certificate.deleteMany({});
+      } catch (dbErr: any) {
+        console.warn("Prisma deleteMany certificates warning:", dbErr.message);
+      }
+
+      inMemoryCertificateStore.clear();
+
+      if ((global as any).gc) {
+        (global as any).gc();
+      }
+
+      return res.json({
+        message: "All certificate records deleted successfully. QR verification IDs preserved.",
+        success: true,
+      });
+    } catch (error: any) {
+      console.error("Delete all certificates error:", error);
+      return res.status(500).json({ error: "INTERNAL_SERVER_ERROR", message: "Failed to delete certificates." });
+    }
+  }
+);

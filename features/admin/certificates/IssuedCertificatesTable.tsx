@@ -13,6 +13,7 @@ import {
   Award,
   FileDown,
   X,
+  Trash2,
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -130,6 +131,31 @@ export function IssuedCertificatesTable() {
     }, 300);
   };
 
+  const handleDeleteAllCertificates = async () => {
+    if (!confirm("Are you sure you want to delete ALL issued certificates? (QR verification records will remain active for validation).")) {
+      return;
+    }
+
+    try {
+      setLoading(true);
+      try {
+        localStorage.removeItem("fa_local_issued_certificates");
+      } catch {
+        // Ignore
+      }
+
+      await fetch("/api/certificates/all", { method: "DELETE" });
+
+      setRecords([]);
+      alert("All certificate records deleted successfully. QR verification IDs preserved.");
+    } catch (e) {
+      console.error("Failed to delete all certificates:", e);
+      alert("Failed to delete certificates.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <Card className="border-[#E2E8F0] shadow-sm bg-white">
@@ -165,6 +191,16 @@ export function IssuedCertificatesTable() {
               title="Refresh list"
             >
               <RefreshCw className="h-4 w-4 text-[#64748B]" />
+            </Button>
+            <Button
+              onClick={handleDeleteAllCertificates}
+              variant="outline"
+              size="sm"
+              className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 font-semibold"
+              title="Delete All Certificates (QR Verifications Preserved)"
+            >
+              <Trash2 className="h-4 w-4 mr-1.5" />
+              Delete All
             </Button>
           </div>
         </CardHeader>

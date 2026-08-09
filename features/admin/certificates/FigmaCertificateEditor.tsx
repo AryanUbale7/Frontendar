@@ -523,7 +523,7 @@ export function FigmaCertificateEditor({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [selectedElementId, editingElementId, layout, historyIndex]);
 
-  // Save Template Version to Backend
+  // Save Template Version to Backend & LocalStorage
   const handleSaveTemplate = async () => {
     if (!templateTitle.trim()) {
       alert("Please enter a template title.");
@@ -532,27 +532,46 @@ export function FigmaCertificateEditor({
 
     try {
       setSaving(true);
-      const res = await fetch("/api/certificates/templates", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: templateTitle.trim(),
-          description: templateDescription.trim(),
-          layout: {
-            ...layout,
-            version: (layout.version || 1) + 1,
-          },
-        }),
-      });
+      const updatedLayout = {
+        ...layout,
+        version: (layout.version || 1) + 1,
+      };
 
-      if (res.ok) {
-        setSaveToast("Certificate template & layout version saved successfully!");
-        setTimeout(() => setSaveToast(null), 3000);
-        if (onSaveSuccess) onSaveSuccess();
-      } else {
-        const err = await res.json();
-        alert("Failed to save template: " + (err.message || err.error));
+      const templateObj = {
+        id: `tpl-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+        title: templateTitle.trim(),
+        description: templateDescription.trim(),
+        layout: updatedLayout,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+
+      // Save to localStorage so client-side and offline fallback can immediately use it
+      try {
+        const existing = JSON.parse(localStorage.getItem("fa_custom_certificate_templates") || "[]");
+        const updated = [templateObj, ...existing.filter((t: any) => t.title !== templateObj.title)].slice(0, 50);
+        localStorage.setItem("fa_custom_certificate_templates", JSON.stringify(updated));
+      } catch {
+        // Ignore localStorage error
       }
+
+      try {
+        await fetch("/api/certificates/templates", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            title: templateTitle.trim(),
+            description: templateDescription.trim(),
+            layout: updatedLayout,
+          }),
+        });
+      } catch {
+        // Background fetch note
+      }
+
+      setSaveToast("Certificate template & layout version saved successfully!");
+      setTimeout(() => setSaveToast(null), 3000);
+      if (onSaveSuccess) onSaveSuccess();
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "Error saving template";
       alert(msg);

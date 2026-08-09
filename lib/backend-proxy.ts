@@ -91,6 +91,14 @@ export async function proxyRequest(
           return NextResponse.json(certs, { status: 200 });
         }
 
+        if (path === "/api/certificates/all" && init.method === "DELETE") {
+          nextCertStore.clear();
+          return NextResponse.json({
+            message: "All certificate records deleted successfully. QR verification IDs preserved.",
+            success: true,
+          });
+        }
+
         if (path === "/api/certificates/templates") {
           const tpls = Array.from(nextTemplateStore.values()).sort(
             (a, b) => new Date(b.updatedAt || b.createdAt).getTime() - new Date(a.updatedAt || a.createdAt).getTime()
