@@ -25,9 +25,9 @@ export default function DashboardLayout({
       <Navbar />
 
       {/* Main Body Shell */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 overflow-x-hidden w-full min-w-0">
         {showSidebar && <Sidebar />}
-        <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
+        <main className="flex-1 overflow-y-auto p-3 sm:p-4 md:p-6 lg:p-8 w-full min-w-0">
           <div className="mx-auto max-w-7xl space-y-8">{children}</div>
         </main>
       </div>

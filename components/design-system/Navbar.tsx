@@ -2,7 +2,7 @@
 
 import React from "react";
 import Link from "next/link";
-import { Search, Bell, Menu, ShieldCheck, Terminal } from "lucide-react";
+import { Search, Bell, Menu, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -14,22 +14,19 @@ import { useUser } from "@/hooks/useUser";
 export function Navbar() {
   const { toggleSidebar, searchQuery, setSearchQuery } = useUIStore();
   const { user } = useUser();
-  const isParticipant = user?.role === "participant";
 
   return (
     <header className="sticky top-0 z-40 flex h-18 w-full items-center justify-between border-b border-[#E2E8F0] bg-white/95 px-4 md:px-6 backdrop-blur-sm shadow-xs">
       <div className="flex items-center gap-3">
-        {!isParticipant && (
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={toggleSidebar}
-            aria-label="Toggle Sidebar"
-            className="text-[#475569] hover:text-[#0F172A]"
-          >
-            <Menu className="h-5 w-5" />
-          </Button>
-        )}
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={toggleSidebar}
+          aria-label="Toggle Sidebar"
+          className="text-[#475569] hover:text-[#0F172A]"
+        >
+          <Menu className="h-5 w-5" />
+        </Button>
 
         {/* Brand Logo & Title */}
         <Link href="/" className="flex items-center gap-3 group">

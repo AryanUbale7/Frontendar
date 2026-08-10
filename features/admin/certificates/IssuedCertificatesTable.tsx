@@ -342,7 +342,7 @@ export function IssuedCertificatesTable() {
               </button>
             </div>
 
-            <div className="bg-[#F8FAFC] p-4 rounded-xl border border-[#E2E8F0] flex justify-center">
+            <div className="bg-[#F8FAFC] p-2 sm:p-4 rounded-xl border border-[#E2E8F0] flex justify-center overflow-x-auto max-w-full no-scrollbar">
               <CertificateCanvasRenderer
                 layout={(() => {
                   if (previewCert.snapshotLayout && Object.keys(previewCert.snapshotLayout).length > 0 && (previewCert.snapshotLayout as any).elements) {

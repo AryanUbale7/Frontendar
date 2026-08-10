@@ -882,8 +882,8 @@ export function FigmaCertificateEditor({
         </div>
 
         {/* CENTER INTERACTIVE CANVAS: Drag, Double-Click Direct Typing, Resizable Text Boxes & QR Codes */}
-        <div className="lg:col-span-6 space-y-3 flex flex-col items-center">
-          <Card className="w-full border-[#E2E8F0] bg-slate-900 shadow-lg overflow-hidden flex flex-col items-center justify-center p-4 min-h-[520px]">
+        <div className="lg:col-span-6 space-y-3 flex flex-col items-center w-full overflow-x-auto no-scrollbar">
+          <Card className="w-full border-[#E2E8F0] bg-slate-900 shadow-lg overflow-x-auto max-w-full flex flex-col items-center justify-center p-2 sm:p-4 min-h-[520px]">
             <div
               ref={containerRef}
               onMouseMove={handleMouseMoveCanvas}

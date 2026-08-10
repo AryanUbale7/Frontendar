@@ -66,7 +66,7 @@ export function PlatformStatsSection() {
         </div>
 
         {/* 4 Stat Cards */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
           {COMMUNITY_STATS.map((stat, idx) => (
             <motion.div
               key={idx}
@@ -75,8 +75,8 @@ export function PlatformStatsSection() {
               viewport={{ once: true }}
               transition={{ duration: 0.4, delay: idx * 0.1 }}
             >
-              <Card className="p-6 text-center space-y-2 hover:border-[#FF006E]/40 hover:shadow-lg transition-all duration-300">
-                <span className="font-heading text-4xl sm:text-5xl font-extrabold text-[#FF006E] block">
+              <Card className="p-4 sm:p-6 text-center space-y-2 hover:border-[#FF006E]/40 hover:shadow-lg transition-all duration-300">
+                <span className="font-heading text-3xl sm:text-5xl font-extrabold text-[#FF006E] block">
                   <AnimatedCounter value={stat.value} />
                 </span>
                 <h4 className="font-heading text-base font-bold text-[#0F172A]">
