@@ -99,7 +99,7 @@ export function Footer() {
               <div className="flex items-center gap-3">
                 {/* GitHub */}
                 <a
-                  href="https://github.com"
+                  href="https://github.com/FrontendArenaOfficial"
                   target="_blank"
                   rel="noreferrer"
                   aria-label="GitHub"
@@ -111,7 +111,7 @@ export function Footer() {
                 </a>
                 {/* LinkedIn */}
                 <a
-                  href="https://linkedin.com"
+                  href="https://www.linkedin.com/company/frontend-arena7/"
                   target="_blank"
                   rel="noreferrer"
                   aria-label="LinkedIn"
@@ -123,7 +123,7 @@ export function Footer() {
                 </a>
                 {/* Instagram */}
                 <a
-                  href="https://instagram.com"
+                  href="https://www.instagram.com/frontend_arena?igsh=M3FpcTZoNmd6cmx4"
                   target="_blank"
                   rel="noreferrer"
                   aria-label="Instagram"

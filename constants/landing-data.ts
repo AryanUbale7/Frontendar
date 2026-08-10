@@ -339,9 +339,9 @@ export const FOOTER_SECTIONS = {
     { label: "Contact Us", href: "#" },
   ],
   socials: [
-    { label: "GitHub", href: "https://github.com", icon: "Github" },
-    { label: "LinkedIn", href: "https://linkedin.com", icon: "Linkedin" },
-    { label: "Instagram", href: "https://instagram.com", icon: "Instagram" },
+    { label: "GitHub", href: "https://github.com/FrontendArenaOfficial", icon: "Github" },
+    { label: "LinkedIn", href: "https://www.linkedin.com/company/frontend-arena7/", icon: "Linkedin" },
+    { label: "Instagram", href: "https://www.instagram.com/frontend_arena?igsh=M3FpcTZoNmd6cmx4", icon: "Instagram" },
     { label: "Discord", href: "https://discord.gg", icon: "MessageSquare" },
   ],
 };
