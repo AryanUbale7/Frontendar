@@ -334,7 +334,7 @@ export const FOOTER_SECTIONS = {
     { label: "FAQs", href: "#faq" },
   ],
   legal: [
-    { label: "Privacy Policy", href: "#" },
+    { label: "Privacy Policy", href: "/privacy-policy" },
     { label: "Terms of Service", href: "#" },
     { label: "Contact Us", href: "#" },
   ],
