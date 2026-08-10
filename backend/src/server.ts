@@ -1582,6 +1582,63 @@ async function boot(): Promise<void> {
           "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
         );
       `);
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "Submission" (
+          "id" TEXT NOT NULL PRIMARY KEY,
+          "hackathonId" TEXT NOT NULL,
+          "problemStatementId" TEXT,
+          "userId" TEXT NOT NULL,
+          "repoUrl" TEXT NOT NULL,
+          "deploymentUrl" TEXT,
+          "projectName" TEXT NOT NULL DEFAULT 'Untitled Project',
+          "shortDesc" TEXT NOT NULL DEFAULT '',
+          "detailedDesc" TEXT NOT NULL DEFAULT '',
+          "problemSolved" TEXT NOT NULL DEFAULT '',
+          "features" JSONB NOT NULL DEFAULT '[]'::jsonb,
+          "techStack" JSONB NOT NULL DEFAULT '{}'::jsonb,
+          "videoUrl" TEXT,
+          "presentationPdf" TEXT,
+          "architectureDiagram" TEXT,
+          "teamContributions" JSONB NOT NULL DEFAULT '[]'::jsonb,
+          "version" INTEGER NOT NULL DEFAULT 1,
+          "status" TEXT NOT NULL DEFAULT 'PENDING',
+          "score" INTEGER,
+          "grade" TEXT,
+          "bestScore" INTEGER,
+          "latestAttemptId" TEXT,
+          "blueprintId" TEXT,
+          "blueprintVersion" INTEGER,
+          "completedAt" TIMESTAMP(3),
+          "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "EvaluationAttempt" (
+          "id" TEXT NOT NULL PRIMARY KEY,
+          "submissionId" TEXT NOT NULL,
+          "attemptNumber" INTEGER NOT NULL,
+          "commitSha" TEXT,
+          "repoUrl" TEXT NOT NULL,
+          "deploymentUrl" TEXT,
+          "blueprintId" TEXT NOT NULL,
+          "blueprintVersion" INTEGER NOT NULL,
+          "status" TEXT NOT NULL DEFAULT 'QUEUED',
+          "score" INTEGER,
+          "grade" TEXT,
+          "reportPayload" JSONB,
+          "completedAt" TIMESTAMP(3),
+          "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "EvaluationReport" (
+          "id" TEXT NOT NULL PRIMARY KEY,
+          "submissionId" TEXT NOT NULL UNIQUE,
+          "payload" JSONB NOT NULL,
+          "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
       try {
         await prisma.$executeRawUnsafe(`ALTER TABLE "Submission" ADD COLUMN IF NOT EXISTS "bestScore" INTEGER;`);
         await prisma.$executeRawUnsafe(`ALTER TABLE "Submission" ADD COLUMN IF NOT EXISTS "latestAttemptId" TEXT;`);
@@ -1591,7 +1648,7 @@ async function boot(): Promise<void> {
       } catch {
         // Ignore column alter warnings if already present
       }
-      console.log("[DB] CertificateTemplate, Certificate, QrVerification, and Submission PostgreSQL schemas verified/synced successfully.");
+      console.log("[DB] CertificateTemplate, Certificate, QrVerification, Submission, EvaluationAttempt, and EvaluationReport PostgreSQL schemas verified/created successfully.");
     } catch (err: any) {
       console.warn(`[DB] Auto DDL execution skipped/failed: ${err.message}`);
     }
