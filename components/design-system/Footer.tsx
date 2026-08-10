@@ -154,7 +154,7 @@ export function Footer() {
           <div className="flex items-center gap-6 font-semibold">
             <a href="/privacy-policy" className="hover:text-[#FF006E] transition-colors">Privacy Policy</a>
             <a href="/terms-of-service" className="hover:text-[#FF006E] transition-colors">Terms of Service</a>
-            <a href="#" className="hover:text-[#FF006E] transition-colors">Community Guidelines</a>
+            <a href="/community-guidelines" className="hover:text-[#FF006E] transition-colors">Community Guidelines</a>
           </div>
         </div>
       </div>
