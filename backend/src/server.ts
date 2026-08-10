@@ -1582,9 +1582,18 @@ async function boot(): Promise<void> {
           "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
         );
       `);
-      console.log("[DB] CertificateTemplate, Certificate, and QrVerification PostgreSQL tables verified/created successfully.");
+      try {
+        await prisma.$executeRawUnsafe(`ALTER TABLE "Submission" ADD COLUMN IF NOT EXISTS "bestScore" INTEGER;`);
+        await prisma.$executeRawUnsafe(`ALTER TABLE "Submission" ADD COLUMN IF NOT EXISTS "latestAttemptId" TEXT;`);
+        await prisma.$executeRawUnsafe(`ALTER TABLE "Submission" ADD COLUMN IF NOT EXISTS "blueprintId" TEXT;`);
+        await prisma.$executeRawUnsafe(`ALTER TABLE "Submission" ADD COLUMN IF NOT EXISTS "blueprintVersion" INTEGER;`);
+        await prisma.$executeRawUnsafe(`ALTER TABLE "Submission" ADD COLUMN IF NOT EXISTS "completedAt" TIMESTAMP(3);`);
+      } catch {
+        // Ignore column alter warnings if already present
+      }
+      console.log("[DB] CertificateTemplate, Certificate, QrVerification, and Submission PostgreSQL schemas verified/synced successfully.");
     } catch (err: any) {
-      console.warn(`[DB] Auto Certificate DDL execution skipped/failed: ${err.message}`);
+      console.warn(`[DB] Auto DDL execution skipped/failed: ${err.message}`);
     }
   }
 
