@@ -69,9 +69,9 @@ export const metadata: Metadata = {
     },
   },
   icons: {
-    icon: "/logo.png",
-    shortcut: "/logo.png",
-    apple: "/logo.png",
+    icon: "/official_favicon.png",
+    shortcut: "/official_favicon.png",
+    apple: "/official_favicon.png",
   },
   openGraph: {
     title: "Frontend Arena — Premier Developer Community & Hackathons",
