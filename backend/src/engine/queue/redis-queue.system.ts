@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Redis/BullMQ evaluation queue driver (production, durable).
  *
  * - Jobs are persisted in Redis and survive API server restarts.
@@ -74,8 +74,8 @@ export class RedisEvaluationQueueDriver implements EvaluationQueueDriver {
 
   async enqueue(data: EvaluationJobData): Promise<{ jobId: string }> {
     const version = data.version ?? 1;
-    // BullMQ forbids ":" in custom job IDs (Redis key separator), so use "_v".
-    const jobId = `${data.submissionId}_v${version}`;
+    const attemptTag = data.attemptId ? `_a${data.attemptId}` : `_t${Date.now()}`;
+    const jobId = `${data.submissionId}${attemptTag}_v${version}`;
 
     // Backpressure check: if the queue is too deep, reject new submissions
     // to protect Redis memory and prevent unbounded queue growth.
@@ -87,7 +87,16 @@ export class RedisEvaluationQueueDriver implements EvaluationQueueDriver {
       );
     }
 
-    // Same jobId + data → BullMQ returns the existing job instead of duplicating.
+    // Remove any stale job with same ID if present
+    try {
+      const existingJob = await this.queue.getJob(jobId);
+      if (existingJob) {
+        await existingJob.remove();
+      }
+    } catch {
+      // Ignore cleanup error
+    }
+
     const job = await this.queue.add("evaluation", data, { jobId });
     return { jobId: job.id || jobId };
   }
