@@ -1532,18 +1532,18 @@ async function boot(): Promise<void> {
   evaluationQueue = await createEvaluationQueue();
   console.log(`[Queue] Evaluation queue driver active: ${evaluationQueue.name}`);
 
-  // In web process, run in lightweight API-only mode to keep RAM <50MB (prevents 512MB Render OOM)
-  const runWorkerInWeb = process.env.RUN_EVALUATION_WORKER_IN_WEB === "true" && process.env.NODE_ENV !== "production";
+  // Run evaluation worker in combined web process mode for single-instance deployments (Render)
+  const disableWorker = process.env.DISABLE_EVALUATION_WORKER === "true";
 
-  if (runWorkerInWeb) {
+  if (!disableWorker) {
     try {
       combinedWorkerHandle = await startEvaluationWorker({ combinedMode: true });
-      console.log(`[Server] Combined mode active — FAIE AST worker running in web process.`);
+      console.log(`[Server] Combined mode active — FAIE AST worker running and listening for evaluation jobs.`);
     } catch (err: any) {
-      console.warn(`[Server] AST worker initialization deferred to background: ${err.message}`);
+      console.warn(`[Server] AST worker initialization deferred: ${err.message}`);
     }
   } else {
-    console.log(`[Server] Ultra-fast API-only mode active — web server RAM <40MB (zero OOM risk).`);
+    console.log(`[Server] Ultra-fast API-only mode active (Worker disabled).`);
   }
 
   async function ensureCertificateSchema() {
