@@ -348,14 +348,15 @@ export function IssuedCertificatesTable() {
                   if (previewCert.snapshotLayout && Object.keys(previewCert.snapshotLayout).length > 0 && (previewCert.snapshotLayout as any).elements) {
                     return previewCert.snapshotLayout;
                   }
+                  if (previewCert.templateId) {
+                    const presetMatch = PRESET_TEMPLATES.find((p) => p.id === previewCert.templateId);
+                    if (presetMatch) return presetMatch.layout;
+                  }
                   try {
                     const customTpls = JSON.parse(localStorage.getItem("fa_custom_certificate_templates") || "[]");
                     if (previewCert.templateId) {
                       const match = customTpls.find((t: any) => t.id === previewCert.templateId);
                       if (match && match.layout) return match.layout;
-                    }
-                    if (customTpls.length > 0 && customTpls[0].layout) {
-                      return customTpls[0].layout;
                     }
                   } catch {
                     // Ignore

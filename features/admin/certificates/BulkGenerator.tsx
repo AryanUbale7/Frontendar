@@ -10,6 +10,7 @@ import {
   Users,
   Layers,
   ArrowRight,
+  Trash2,
 } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -158,6 +159,40 @@ export function BulkGenerator({ onSuccess }: BulkGeneratorProps) {
       setManualText(names.join("\n"));
     };
     reader.readAsText(file);
+  };
+
+  const handleDeleteTemplate = async () => {
+    const selectedTpl = templates.find((t) => t.id === selectedTemplateId);
+    if (!selectedTpl) return;
+
+    if (!confirm(`Are you sure you want to delete the template "${selectedTpl.title}"?`)) {
+      return;
+    }
+
+    try {
+      try {
+        const customLocal = JSON.parse(localStorage.getItem("fa_custom_certificate_templates") || "[]");
+        const updated = customLocal.filter((t: any) => t.id !== selectedTemplateId);
+        localStorage.setItem("fa_custom_certificate_templates", JSON.stringify(updated));
+      } catch {
+        // Ignore
+      }
+
+      try {
+        await fetch(`/api/certificates/templates/${selectedTemplateId}`, { method: "DELETE" });
+      } catch {
+        // Ignore
+      }
+
+      const nextTemplates = templates.filter((t) => t.id !== selectedTemplateId);
+      setTemplates(nextTemplates);
+      if (nextTemplates.length > 0) {
+        setSelectedTemplateId(nextTemplates[0].id);
+      }
+      setResultMessage(`Template "${selectedTpl.title}" deleted successfully.`);
+    } catch {
+      setError("Failed to delete template.");
+    }
   };
 
   const handleGenerateBulk = async () => {
@@ -313,17 +348,30 @@ export function BulkGenerator({ onSuccess }: BulkGeneratorProps) {
                   Using default preset template (Classic Gold).
                 </div>
               ) : (
-                <select
-                  value={selectedTemplateId}
-                  onChange={(e) => setSelectedTemplateId(e.target.value)}
-                  className="w-full h-9 rounded-md border border-[#E2E8F0] bg-white px-3 text-xs font-semibold text-[#0F172A]"
-                >
-                  {templates.map((tpl) => (
-                    <option key={tpl.id} value={tpl.id}>
-                      {tpl.title}
-                    </option>
-                  ))}
-                </select>
+                <div className="flex gap-2">
+                  <select
+                    value={selectedTemplateId}
+                    onChange={(e) => setSelectedTemplateId(e.target.value)}
+                    className="w-full h-9 rounded-md border border-[#E2E8F0] bg-white px-3 text-xs font-semibold text-[#0F172A]"
+                  >
+                    {templates.map((tpl) => (
+                      <option key={tpl.id} value={tpl.id}>
+                        {tpl.title}
+                      </option>
+                    ))}
+                  </select>
+                  {selectedTemplateId && !selectedTemplateId.startsWith("preset-") && (
+                    <Button
+                      onClick={handleDeleteTemplate}
+                      variant="outline"
+                      size="sm"
+                      className="h-9 px-2.5 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 shrink-0"
+                      title="Delete Custom Template"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
               )}
             </div>
 
