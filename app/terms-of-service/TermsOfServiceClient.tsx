@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect } from "react";
 import {
+  Scale,
   ShieldCheck,
-  Lock,
   Mail,
   Calendar,
   ChevronRight,
@@ -13,10 +13,10 @@ import {
 } from "lucide-react";
 import { LandingNavbar } from "@/features/landing/LandingNavbar";
 import { Footer } from "@/components/design-system/Footer";
-import { PRIVACY_CONFIG, PRIVACY_SECTIONS } from "@/constants/privacy-policy";
+import { TERMS_CONFIG, TERMS_SECTIONS } from "@/constants/terms-of-service";
 
-export function PrivacyPolicyClient() {
-  const [activeSectionId, setActiveSectionId] = useState<string>(PRIVACY_SECTIONS[0].id);
+export function TermsOfServiceClient() {
+  const [activeSectionId, setActiveSectionId] = useState<string>(TERMS_SECTIONS[0].id);
 
   // IntersectionObserver for active scrollspy highlighting
   useEffect(() => {
@@ -36,7 +36,7 @@ export function PrivacyPolicyClient() {
 
     const observer = new IntersectionObserver(handleIntersect, observerOptions);
 
-    PRIVACY_SECTIONS.forEach((sec) => {
+    TERMS_SECTIONS.forEach((sec) => {
       const el = document.getElementById(sec.id);
       if (el) observer.observe(el);
     });
@@ -68,24 +68,24 @@ export function PrivacyPolicyClient() {
           <div className="flex flex-col items-center text-center max-w-3xl mx-auto space-y-5">
             {/* Small Top Badge */}
             <div className="inline-flex items-center gap-2 rounded-full border border-[#2563EB]/20 bg-[#2563EB]/10 px-3.5 py-1 text-xs font-bold uppercase tracking-wider text-[#2563EB] shadow-2xs">
-              <ShieldCheck className="h-3.5 w-3.5 text-[#2563EB]" />
-              <span>{PRIVACY_CONFIG.brandName}</span>
+              <Scale className="h-3.5 w-3.5 text-[#2563EB]" />
+              <span>{TERMS_CONFIG.brandName}</span>
             </div>
 
             {/* Main Heading */}
             <h1 className="font-heading text-3xl sm:text-4xl md:text-5xl font-extrabold text-[#0F172A] tracking-tight leading-tight">
-              Privacy Policy
+              Terms of Service
             </h1>
 
             {/* Subtitle */}
             <p className="text-base sm:text-lg text-[#475569] font-medium leading-relaxed">
-              Your privacy matters to us. Learn how we collect, use, and safeguard your personal information.
+              Rules and guidelines governing your access to and use of Frontend Arena platform & events.
             </p>
 
-            {/* Last Updated Date & Shield Badge */}
+            {/* Last Updated Date Badge */}
             <div className="flex items-center gap-2.5 text-xs font-semibold text-[#334155] bg-[#F1F5F9] border border-[#E2E8F0] px-4 py-2 rounded-xl">
               <Calendar className="h-4 w-4 text-[#2563EB]" />
-              <span>Last Updated: {PRIVACY_CONFIG.lastUpdated}</span>
+              <span>Last Updated: {TERMS_CONFIG.lastUpdated}</span>
             </div>
           </div>
         </div>
@@ -96,7 +96,7 @@ export function PrivacyPolicyClient() {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
           {/* Main Legal Content Column (8 cols on lg) */}
           <div className="lg:col-span-8 space-y-8 max-w-4xl">
-            {PRIVACY_SECTIONS.map((sec) => (
+            {TERMS_SECTIONS.map((sec) => (
               <section
                 key={sec.id}
                 id={sec.id}
@@ -138,31 +138,31 @@ export function PrivacyPolicyClient() {
                         >
                           <div className="flex items-center gap-2 text-[#2563EB] font-bold text-base mb-2">
                             <ShieldCheck className="h-5 w-5" />
-                            <span>{PRIVACY_CONFIG.brandName}</span>
+                            <span>{TERMS_CONFIG.brandName}</span>
                           </div>
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-[#334155]">
                             <div>
                               <span className="text-[#64748B] block text-[11px] uppercase tracking-wider font-semibold">Founder</span>
-                              <span className="font-bold text-[#0F172A]">{PRIVACY_CONFIG.founder}</span>
+                              <span className="font-bold text-[#0F172A]">{TERMS_CONFIG.founder}</span>
                             </div>
                             <div>
                               <span className="text-[#64748B] block text-[11px] uppercase tracking-wider font-semibold">Email</span>
                               <a
-                                href={`mailto:${PRIVACY_CONFIG.officialEmail}`}
+                                href={`mailto:${TERMS_CONFIG.officialEmail}`}
                                 className="font-bold text-[#2563EB] hover:underline"
                               >
-                                {PRIVACY_CONFIG.officialEmail}
+                                {TERMS_CONFIG.officialEmail}
                               </a>
                             </div>
                             <div className="sm:col-span-2">
                               <span className="text-[#64748B] block text-[11px] uppercase tracking-wider font-semibold">Website</span>
                               <a
-                                href={PRIVACY_CONFIG.websiteUrl}
+                                href={TERMS_CONFIG.websiteUrl}
                                 target="_blank"
                                 rel="noreferrer"
                                 className="font-bold text-[#2563EB] hover:underline flex items-center gap-1"
                               >
-                                {PRIVACY_CONFIG.websiteUrl}
+                                {TERMS_CONFIG.websiteUrl}
                                 <ArrowUpRight className="h-3.5 w-3.5" />
                               </a>
                             </div>
@@ -182,18 +182,18 @@ export function PrivacyPolicyClient() {
               <div className="space-y-1 text-center sm:text-left">
                 <div className="flex items-center justify-center sm:justify-start gap-2 text-[#2563EB] font-bold text-xs uppercase tracking-wider">
                   <HelpCircle className="h-4 w-4" />
-                  <span>Privacy Support</span>
+                  <span>Terms Support</span>
                 </div>
                 <h3 className="font-heading text-lg font-bold text-[#0F172A]">
-                  Have a question about your privacy?
+                  Have a question about our Terms of Service?
                 </h3>
                 <p className="text-xs text-[#475569]">
-                  Contact the Frontend Arena team for any questions or data requests.
+                  Contact the Frontend Arena team for any clarifications or requests.
                 </p>
               </div>
 
               <a
-                href={`mailto:${PRIVACY_CONFIG.officialEmail}`}
+                href={`mailto:${TERMS_CONFIG.officialEmail}`}
                 className="shrink-0 inline-flex items-center gap-2 rounded-xl bg-[#2563EB] px-5 py-2.5 text-xs font-bold text-white hover:bg-[#1D4ED8] transition-all shadow-md hover:shadow-lg"
               >
                 <Mail className="h-4 w-4" />
@@ -211,7 +211,7 @@ export function PrivacyPolicyClient() {
               </div>
 
               <nav className="space-y-1 max-h-[70vh] overflow-y-auto pr-1 text-xs">
-                {PRIVACY_SECTIONS.map((sec) => {
+                {TERMS_SECTIONS.map((sec) => {
                   const isActive = activeSectionId === sec.id;
                   return (
                     <button
@@ -238,11 +238,11 @@ export function PrivacyPolicyClient() {
             {/* Small Quick Info Box */}
             <div className="rounded-xl border border-[#E2E8F0] bg-white p-4 text-[11px] text-[#64748B] space-y-2 shadow-2xs">
               <div className="flex items-center gap-1.5 text-[#0F172A] font-bold">
-                <Lock className="h-3.5 w-3.5 text-[#2563EB]" />
-                <span>{PRIVACY_CONFIG.tagline}</span>
+                <Scale className="h-3.5 w-3.5 text-[#2563EB]" />
+                <span>{TERMS_CONFIG.tagline}</span>
               </div>
               <p>
-                © {new Date().getFullYear()} {PRIVACY_CONFIG.brandName}. All rights reserved.
+                © {new Date().getFullYear()} {TERMS_CONFIG.brandName}. All rights reserved.
               </p>
             </div>
           </aside>

@@ -74,7 +74,7 @@ export function Footer() {
                 <span className="text-xs font-extrabold uppercase tracking-wider text-[#0F172A]">Legal</span>
                 <ul className="space-y-2 text-sm font-semibold text-[#334155]">
                   <li><a href="/privacy-policy" className="hover:text-[#FF006E] transition-colors">Privacy Policy</a></li>
-                  <li><a href="#" className="hover:text-[#FF006E] transition-colors">Terms of Service</a></li>
+                  <li><a href="/terms-of-service" className="hover:text-[#FF006E] transition-colors">Terms of Service</a></li>
                 </ul>
               </div>
             </div>
@@ -153,7 +153,7 @@ export function Footer() {
           <p>© {new Date().getFullYear()} Frontend Arena. All rights reserved.</p>
           <div className="flex items-center gap-6 font-semibold">
             <a href="/privacy-policy" className="hover:text-[#FF006E] transition-colors">Privacy Policy</a>
-            <a href="#" className="hover:text-[#FF006E] transition-colors">Terms of Service</a>
+            <a href="/terms-of-service" className="hover:text-[#FF006E] transition-colors">Terms of Service</a>
             <a href="#" className="hover:text-[#FF006E] transition-colors">Community Guidelines</a>
           </div>
         </div>
