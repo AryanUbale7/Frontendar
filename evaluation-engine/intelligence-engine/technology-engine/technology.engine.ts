@@ -314,6 +314,8 @@ export class TechnologyEngine {
     if (missingRequired.length > 0) score -= 25 * missingRequired.length;
     if (!fwMatched) score -= 20;
     if (!dbMatched) score -= 15;
+    if (!hostMatched) score -= 10;
+    if (unallowedDetected.length > 0) score -= 10 * unallowedDetected.length;
     if (preferredDetected.length > 0) score += 5 * preferredDetected.length;
 
     return {

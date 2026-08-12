@@ -3,7 +3,7 @@ import { ASTRepositoryAnalysis } from "../ast-engine/ast-analysis.engine";
 import { QualityModuleReport, ModuleCheckResult } from "./quality.interface";
 
 export class ResponsiveQualityModule {
-  public evaluate(repo: VirtualRepository, ast: ASTRepositoryAnalysis): QualityModuleReport {
+  public evaluate(repo: VirtualRepository, ast: ASTRepositoryAnalysis, responsiveRules?: any): QualityModuleReport {
     const checks: ModuleCheckResult[] = [];
     const evidenceCitations: string[] = [];
     const recommendations: string[] = [];
@@ -31,7 +31,11 @@ export class ResponsiveQualityModule {
       }
     }
 
-    if (breakpointMatches >= 5 && detectedBreakpoints.size >= 2) {
+    const rules = responsiveRules || { desktop: true, laptop: true, tablet: true, mobile: true };
+    const requiredBreakpointsCount = (rules.desktop ? 1 : 0) + (rules.laptop ? 1 : 0) + (rules.tablet ? 1 : 0) + (rules.mobile ? 1 : 0);
+    const targetBreakpointSize = Math.max(1, requiredBreakpointsCount - 1);
+
+    if (breakpointMatches >= 5 && detectedBreakpoints.size >= targetBreakpointSize) {
       totalScore += 2.0;
       const ev = `Extensive Tailwind responsive utility classes verified (${breakpointMatches} instances across ${Array.from(detectedBreakpoints).join(", ")} breakpoints).`;
       evidenceCitations.push(ev);
@@ -161,7 +165,18 @@ export class ResponsiveQualityModule {
       }
     }
 
-    if (mobileFirstPatternCount >= 2) {
+    if (rules.mobile === false) {
+      totalScore += 1.5;
+      const ev = "Mobile responsive layout verification bypassed (disabled in Blueprint).";
+      evidenceCitations.push(ev);
+      checks.push({
+        checkName: "Mobile-First Design Pattern",
+        passed: true,
+        awardedScore: 1.5,
+        maxScore: 1.5,
+        evidence: ev,
+      });
+    } else if (mobileFirstPatternCount >= 2) {
       totalScore += 1.5;
       const ev = `Mobile-first responsive layout patterns (e.g. flex-col md:flex-row, hidden md:block) verified (${mobileFirstPatternCount} instances).`;
       evidenceCitations.push(ev);

@@ -14,19 +14,31 @@ async function resolveBlueprintForJob(data: EvaluationJobData): Promise<Blueprin
       orderBy: { version: "desc" },
     });
     if (snapshot) {
-      return snapshot.payload as unknown as Blueprint;
+      const bp = snapshot.payload as unknown as Blueprint;
+      if (bp && bp.performanceRules && (bp.performanceRules as any).responsiveRules) {
+        bp.responsiveRules = (bp.performanceRules as any).responsiveRules;
+      }
+      return bp;
     }
   }
 
   if (data.hackathonId && data.blueprintId) {
     const bp = await prisma.blueprint.findUnique({ where: { id: data.blueprintId } });
     if (bp) {
-      return bp as unknown as Blueprint;
+      const parsedBp = bp as unknown as Blueprint;
+      if (parsedBp && parsedBp.performanceRules && (parsedBp.performanceRules as any).responsiveRules) {
+        parsedBp.responsiveRules = (parsedBp.performanceRules as any).responsiveRules;
+      }
+      return parsedBp;
     }
   }
 
   if (data.blueprint) {
-    return data.blueprint as Blueprint;
+    const bp = data.blueprint as Blueprint;
+    if (bp && bp.performanceRules && (bp.performanceRules as any).responsiveRules) {
+      bp.responsiveRules = (bp.performanceRules as any).responsiveRules;
+    }
+    return bp;
   }
 
   return null;
@@ -38,7 +50,7 @@ async function finalizeReport(
   jobData: EvaluationJobData
 ): Promise<void> {
   const finalScore = Math.round(report.scoreSummary.finalScore);
-  const grade = report.scoreSummary.finalScore >= PASS_GRADE_THRESHOLD ? "PASSED" : "FAILED";
+  const grade = (report.status === "pass" || report.status === "PASSED" || report.status === "passed") ? "PASSED" : "FAILED";
   const commitSha = report.commitSha || null;
 
   // 1. Update EvaluationAttempt if attemptId is present (or target latest attempt)

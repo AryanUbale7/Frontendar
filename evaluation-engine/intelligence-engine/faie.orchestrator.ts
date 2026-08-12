@@ -169,11 +169,31 @@ export class FAIEOrchestrator {
     const fqeReport: FQEReport = this.qualityEngine.evaluateQuality(
       repoData,
       astData,
-      passedBlueprint.codeQualityRules as any
+      passedBlueprint.codeQualityRules as any,
+      passedBlueprint
     );
     logs.push(
       `[FAIE v3] FQE Quality Score: ${fqeReport.totalScore}/40.`
     );
+
+    // Perform in-memory secrets check on RAM files
+    const secretsFound: string[] = [];
+    const secretPatterns = [
+      /gsk_[a-zA-Z0-9]{48}/,
+      /AIzaSy[a-zA-Z0-9-_]{35}/,
+      /GOCSPX-[a-zA-Z0-9-_]{28}/,
+      /sk-[a-zA-Z0-9]{48}/
+    ];
+    Object.entries(repoData.files || {}).forEach(([filePath, file]) => {
+      const lines = file.content.split("\n");
+      lines.forEach((line, index) => {
+        secretPatterns.forEach((pat) => {
+          if (pat.test(line)) {
+            secretsFound.push(`File: ${filePath}:L${index + 1} leaked potential API key.`);
+          }
+        });
+      });
+    });
 
     // 7. Dynamic Category Scoring & Rule Engine
     logs.push(`[FAIE v3] Calculating Dynamic Category Scores & Rules...`);
@@ -216,7 +236,7 @@ export class FAIEOrchestrator {
     const activeProblemTitle =
       (passedBlueprint as any).problemStatement?.title ||
       (passedBlueprint as any).problemStatements?.[0]?.title ||
-      "Hackathon Challenge";
+      "Challenge Title";
 
     return {
       hackathonTitle: activeProblemTitle,
@@ -248,7 +268,9 @@ export class FAIEOrchestrator {
       auditableReportId: `rep_v3_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
       timestamp: new Date().toISOString(),
       rejectedClaims: [],
-      capabilityVerifications: []
-    };
+      capabilityVerifications: [],
+      secretsFound,
+      downloadedFilesCount: repoData.downloadedFilesCount
+    } as any;
   }
 }

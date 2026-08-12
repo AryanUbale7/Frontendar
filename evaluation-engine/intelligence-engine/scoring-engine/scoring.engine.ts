@@ -42,6 +42,29 @@ export interface DynamicScoringReport {
 }
 
 export class ScoringEngine {
+  public resolvePassingThreshold(blueprint: KnowledgeBlueprint): number {
+    const rules = blueprint.autoPassFailRules || [];
+    for (const r of rules) {
+      const ruleLower = (r.rule || "").toLowerCase();
+      if (
+        ruleLower.includes("threshold") ||
+        ruleLower.includes("passing score") ||
+        ruleLower.includes("minimum score") ||
+        ruleLower.includes("score below") ||
+        ruleLower.includes("pass threshold")
+      ) {
+        if (typeof r.points === "number" && r.points > 0) {
+          return r.points;
+        }
+        const match = r.rule.match(/\b(50|60|65|70|75|80|85|90)\b/);
+        if (match) {
+          return parseInt(match[1], 10);
+        }
+      }
+    }
+    return 75; // Default fallback
+  }
+
   public calculateDynamicScores(
     blueprint: KnowledgeBlueprint,
     featureReport: FeatureDetectionReport,
@@ -98,7 +121,29 @@ export class ScoringEngine {
         const perfRatio = (fqeReport.performanceScore + fqeReport.accessibilityScore) / 14;
         awardedMarks = Math.round(perfRatio * maxMarks);
         catCitations.push(...fqeReport.modules.performance.evidenceCitations, ...fqeReport.modules.accessibility.evidenceCitations);
-      } else if (lowerName.includes("ui") || lowerName.includes("ux") || lowerName.includes("responsiveness")) {
+      } else if (lowerName.includes("submission") || lowerName.includes("requirement") || lowerName.includes("deliverable")) {
+        evaluatorName = "FAIE Submission Requirements Validator";
+        awardedMarks = Math.round((subReqReport.compliancePercent / 100) * maxMarks);
+        catCitations.push(...subReqReport.evidenceCitations);
+      } else if (lowerName.includes("innovation") || lowerName.includes("creativity")) {
+        evaluatorName = "FAIE Innovation & Creativity Engine";
+        const requiredFeatureNames = (blueprint.requiredFeatures || []).map((f: any) => f.name.toLowerCase());
+        const detectedExtraFeatures = featureReport.features.filter(
+          (f) => !f.mandatory && f.awardedScore > 0 && !requiredFeatureNames.includes(f.featureName.toLowerCase())
+        ).length;
+        const usesAnimations = techReport.detectedTechnologies.some((t) => t.technology === "Framer Motion");
+        let scorePct = 50; // base score for fully meeting standard
+        if (detectedExtraFeatures > 0) scorePct += 20;
+        if (usesAnimations) scorePct += 20;
+        if (astData && astData.totalJsxElements > 40) scorePct += 10;
+        scorePct = Math.min(100, scorePct);
+        awardedMarks = Math.round((scorePct / 100) * maxMarks);
+        catCitations.push(
+          `Innovation/Creativity evaluation: Extra features detected: ${detectedExtraFeatures}.`,
+          `Animation libs used: ${usesAnimations ? "Yes" : "No"}.`,
+          `JSX element density: ${astData ? astData.totalJsxElements : 0} tags.`
+        );
+      } else if (/\b(ui|ux|responsive)\b/.test(lowerName) || lowerName.includes("responsiveness")) {
         evaluatorName = "FAIE Responsive UI Module";
         const respRatio = fqeReport.responsiveScore / 7;
         awardedMarks = Math.round(respRatio * maxMarks);
@@ -145,7 +190,7 @@ export class ScoringEngine {
       let triggered = false;
       let detail = "";
 
-      if (ruleLower.includes("github") || ruleLower.includes("no repository")) {
+      if (ruleLower.includes("github") || ruleLower.includes("no repository") || ruleLower.includes("no github")) {
         const gh = subReqReport.requirements.find((req) => req.requirementKey === "githubRepo");
         if (gh && !gh.passed) {
           triggered = true;
@@ -157,7 +202,7 @@ export class ScoringEngine {
           triggered = true;
           detail = "Missing mandatory live deployment link.";
         }
-      } else if (ruleLower.includes("mandatory") || ruleLower.includes("feature")) {
+      } else if (ruleLower.includes("mandatory") || ruleLower.includes("required feature")) {
         if (!featureReport.mandatoryFeaturesPassed) {
           triggered = true;
           detail = `Missing mandatory features: [${featureReport.missingMandatoryFeatures.join(", ")}].`;
@@ -172,6 +217,27 @@ export class ScoringEngine {
         if (techReport.restrictedTechViolations.length > 0) {
           triggered = true;
           detail = `Restricted technologies detected: [${techReport.restrictedTechViolations.join("; ")}].`;
+        }
+      } else if (ruleLower.includes("lighthouse") || ruleLower.includes("performance")) {
+        const threshold = parseInt(ruleLower.match(/\b\d+\b/)?.[0] || "70", 10);
+        const score = fqeReport.performanceScore * (100 / 7);
+        if (score < threshold) {
+          triggered = true;
+          detail = `Performance score (${Math.round(score)}) below threshold of ${threshold}.`;
+        }
+      } else if (ruleLower.includes("accessibility")) {
+        const threshold = parseInt(ruleLower.match(/\b\d+\b/)?.[0] || "60", 10);
+        const score = fqeReport.accessibilityScore * (100 / 7);
+        if (score < threshold) {
+          triggered = true;
+          detail = `Accessibility score (${Math.round(score)}) below threshold of ${threshold}.`;
+        }
+      } else if (ruleLower.includes("seo")) {
+        const threshold = parseInt(ruleLower.match(/\b\d+\b/)?.[0] || "70", 10);
+        const score = fqeReport.modules.documentation.score * (100 / 6);
+        if (score < threshold) {
+          triggered = true;
+          detail = `SEO score (${Math.round(score)}) below threshold of ${threshold}.`;
         }
       }
 
@@ -215,32 +281,67 @@ export class ScoringEngine {
       let awarded = false;
       let detail = "";
 
-      if (bLower.includes("ui") || bLower.includes("design")) {
-        if (fqeReport.responsiveScore >= 6) {
+      const cond = (b.condition || b.name || "").toLowerCase();
+
+      if (cond.includes("features >=") || cond.includes("feature coverage >=")) {
+        const threshold = parseInt(cond.match(/\b\d+\b/)?.[0] || "90", 10);
+        if (featureReport.totalFeatureCoveragePercent >= threshold) {
           awarded = true;
-          detail = `High responsive UI layout verified (${fqeReport.responsiveScore}/7).`;
+          detail = `Feature coverage reached ${featureReport.totalFeatureCoveragePercent}% (threshold: ${threshold}%).`;
         }
-      } else if (bLower.includes("readme") || bLower.includes("doc")) {
-        if (fqeReport.documentationScore >= 5) {
+      } else if (cond.includes("responsive >=") || cond.includes("ui/ux >=")) {
+        const threshold = parseInt(cond.match(/\b\d+\b/)?.[0] || "6", 10);
+        if (fqeReport.responsiveScore >= threshold) {
           awarded = true;
-          detail = `Comprehensive README documentation verified (${fqeReport.documentationScore}/6).`;
+          detail = `High responsive UI layout verified (${fqeReport.responsiveScore}/7, threshold: ${threshold}).`;
         }
-      } else if (bLower.includes("animation") || bLower.includes("motion")) {
-        const hasMotion = techReport.detectedTechnologies.some((t) => t.technology === "Framer Motion");
-        if (hasMotion) {
+      } else if (cond.includes("readme >=") || cond.includes("documentation >=")) {
+        const threshold = parseInt(cond.match(/\b\d+\b/)?.[0] || "5", 10);
+        if (fqeReport.documentationScore >= threshold) {
           awarded = true;
-          detail = `Framer Motion animation library detected in source code.`;
+          detail = `Comprehensive README documentation verified (${fqeReport.documentationScore}/6, threshold: ${threshold}).`;
         }
-      } else if (bLower.includes("coverage") || bLower.includes("feature")) {
-        if (featureReport.totalFeatureCoveragePercent >= 90) {
+      } else if (cond.includes("tech contains") || cond.includes("has tech") || cond.includes("animation") || cond.includes("motion")) {
+        let techName = "framer motion";
+        if (cond.includes("tech contains")) {
+          const match = (b.condition || b.name || "").match(/tech contains\s+([a-zA-Z0-9\s\.\-_]+)/i);
+          if (match) techName = match[1].toLowerCase().trim();
+        }
+        const hasTech = techReport.detectedTechnologies.some((t) => t.technology.toLowerCase().includes(techName));
+        if (hasTech) {
           awarded = true;
-          detail = `Feature coverage reached ${featureReport.totalFeatureCoveragePercent}%.`;
+          detail = `Required technology "${techName}" detected in source code.`;
+        }
+      } else if (cond.includes("accessibility >=")) {
+        const threshold = parseInt(cond.match(/\b\d+\b/)?.[0] || "80", 10);
+        const score = fqeReport.accessibilityScore * (100 / 7);
+        if (score >= threshold) {
+          awarded = true;
+          detail = `Accessibility score reached ${Math.round(score)}% (threshold: ${threshold}%).`;
         }
       } else {
-        // Generic fallback for bonus
-        if (featureReport.totalFeatureCoveragePercent > 80) {
-          awarded = true;
-          detail = `Feature coverage high (${featureReport.totalFeatureCoveragePercent}%).`;
+        // Fallback checks by name keywords
+        if (bLower.includes("ui") || bLower.includes("design")) {
+          if (fqeReport.responsiveScore >= 6) {
+            awarded = true;
+            detail = `High responsive UI layout verified (${fqeReport.responsiveScore}/7).`;
+          }
+        } else if (bLower.includes("readme") || bLower.includes("doc")) {
+          if (fqeReport.documentationScore >= 5) {
+            awarded = true;
+            detail = `Comprehensive README documentation verified (${fqeReport.documentationScore}/6).`;
+          }
+        } else if (bLower.includes("animation") || bLower.includes("motion")) {
+          const hasMotion = techReport.detectedTechnologies.some((t) => t.technology === "Framer Motion");
+          if (hasMotion) {
+            awarded = true;
+            detail = `Framer Motion animation library detected in source code.`;
+          }
+        } else {
+          if (featureReport.totalFeatureCoveragePercent > 80) {
+            awarded = true;
+            detail = `Feature coverage high (${featureReport.totalFeatureCoveragePercent}%).`;
+          }
         }
       }
 
@@ -263,9 +364,10 @@ export class ScoringEngine {
       ? Math.min(30, Math.max(0, Math.round(rawScore * 0.3)))
       : Math.max(0, Math.min(100, Math.round(rawScore)));
 
-    const status: "pass" | "fail" = !autoFailTriggered && finalScore >= 75 ? "pass" : "fail";
+    const passThreshold = this.resolvePassingThreshold(blueprint);
+    const status: "pass" | "fail" = !autoFailTriggered && finalScore >= passThreshold ? "pass" : "fail";
 
-    logs.push(`[Scoring Engine] Final Score computed: ${finalScore}/100 [${status.toUpperCase()}]. Category sum: ${sumCategoryMarks}, Bonuses: +${totalBonusPoints}, Deductions: -${totalDeductions}.`);
+    logs.push(`[Scoring Engine] Final Score computed: ${finalScore}/100 [${status.toUpperCase()}]. Pass Threshold: ${passThreshold}. Category sum: ${sumCategoryMarks}, Bonuses: +${totalBonusPoints}, Deductions: -${totalDeductions}.`);
 
     return {
       finalScore,

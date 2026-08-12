@@ -540,6 +540,7 @@ export function BlueprintEditor({ hackathonId, onClose }: { hackathonId?: string
         seoMin,
         bestPracticesMin,
         performanceWeight: perfWeight,
+        responsiveRules: responsiveCheck,
       },
       securityRules: securityCheck,
       scoringSystem: { categories },

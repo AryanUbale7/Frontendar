@@ -154,7 +154,18 @@ app.get("/api/blueprints/:hackathonId", async (req: Request, res: Response) => {
       };
     }
 
-    res.json(bp);
+    const bpWithResponsive = {
+      ...bp,
+      responsiveRules: (bp.performanceRules as any)?.responsiveRules || {
+        desktop: true,
+        laptop: true,
+        tablet: true,
+        mobile: true,
+        ultraWide: false
+      }
+    };
+
+    res.json(bpWithResponsive);
   } catch (err: any) {
     res.status(500).json({ error: "Failed to fetch blueprint: " + err.message });
   }
@@ -1462,6 +1473,35 @@ app.get("/api/hackathons/:hackathonId/leaderboard", async (req: Request, res: Re
       return a.userId < b.userId ? -1 : a.userId > b.userId ? 1 : 0;
     });
 
+    const bp = await prisma.blueprint.findFirst({
+      where: { hackathonId, status: "published" },
+      orderBy: { version: "desc" }
+    });
+    let passThreshold = 75;
+    if (bp) {
+      const rules = (bp.autoPassFailRules as any[]) || [];
+      for (const r of rules) {
+        const ruleLower = (r.rule || "").toLowerCase();
+        if (
+          ruleLower.includes("threshold") ||
+          ruleLower.includes("passing score") ||
+          ruleLower.includes("minimum score") ||
+          ruleLower.includes("score below") ||
+          ruleLower.includes("pass threshold")
+        ) {
+          if (typeof r.points === "number" && r.points > 0) {
+            passThreshold = r.points;
+            break;
+          }
+          const match = r.rule.match(/\b(50|60|65|70|75|80|85|90)\b/);
+          if (match) {
+            passThreshold = parseInt(match[1], 10);
+            break;
+          }
+        }
+      }
+    }
+
     // Assign ranks
     let currentRank = 0;
     let lastScore: number | null = null;
@@ -1485,7 +1525,7 @@ app.get("/api/hackathons/:hackathonId/leaderboard", async (req: Request, res: Re
         score,
         bestScore: rec.bestScore,
         latestScore: rec.latestScore,
-        grade: rec.bestAttempt?.grade || rec.submission.grade || (score >= 75 ? "PASSED" : "FAILED"),
+        grade: rec.bestAttempt?.grade || rec.submission.grade || (score >= passThreshold ? "PASSED" : "FAILED"),
         status: rec.submission.status,
         timestamp: rec.submission.updatedAt,
         attemptCount: rec.attemptCount,

@@ -19,36 +19,51 @@ export class FAIEQualityEngine {
   public evaluateQuality(
     repo: VirtualRepository,
     ast: ASTRepositoryAnalysis,
-    blueprintCodeQualityRules?: Record<string, number>
+    blueprintCodeQualityRules?: Record<string, number>,
+    blueprint?: any
   ): FQEReport {
+    const responsiveRules = blueprint?.performanceRules?.responsiveRules || blueprint?.responsiveRules;
+
     const perfReport = this.perfModule.evaluate(repo, ast);
     const accessReport = this.accessModule.evaluate(repo, ast);
-    const respReport = this.respModule.evaluate(repo, ast);
+    const respReport = this.respModule.evaluate(repo, ast, responsiveRules);
     const codeReport = this.codeModule.evaluate(repo, ast);
     const archReport = this.archModule.evaluate(repo, ast);
     const docReport = this.docModule.evaluate(repo, ast);
 
-    // If Admin configured custom code quality rules (e.g., readme: 10, folders: 25, comments: 25, typescript: 40)
-    // Scale or adjust module scores dynamically based on configured weights
+    // Dynamic weights from admin blueprint configuration
     let codeQualityWeight = 7;
     let archWeight = 6;
     let docWeight = 6;
 
     if (blueprintCodeQualityRules) {
-      if (typeof blueprintCodeQualityRules.readme === "number") docWeight = blueprintCodeQualityRules.readme / 10;
-      if (typeof blueprintCodeQualityRules.folders === "number") archWeight = blueprintCodeQualityRules.folders / 4;
-      if (typeof blueprintCodeQualityRules.comments === "number") codeQualityWeight = blueprintCodeQualityRules.comments / 4;
+      const readmeVal = blueprintCodeQualityRules.readmeQuality ?? blueprintCodeQualityRules.readme;
+      const foldersVal = blueprintCodeQualityRules.folderStructure ?? blueprintCodeQualityRules.folders;
+      const commentsVal = blueprintCodeQualityRules.comments;
+
+      // Scale to match typical quality module ranges (0-7, 0-6)
+      if (typeof readmeVal === "number") docWeight = readmeVal / 1.5;
+      if (typeof foldersVal === "number") archWeight = foldersVal / 1.5;
+      if (typeof commentsVal === "number") codeQualityWeight = commentsVal / 1.5;
     }
 
     const rawTotal =
       perfReport.score +
       accessReport.score +
       respReport.score +
-      codeReport.score +
-      archReport.score +
-      docReport.score;
+      (codeReport.score / codeReport.maxScore) * codeQualityWeight +
+      (archReport.score / archReport.maxScore) * archWeight +
+      (docReport.score / docReport.maxScore) * docWeight;
 
-    const totalScore = Math.min(40, Math.round(rawTotal * 100) / 100);
+    const maxPossible =
+      perfReport.maxScore +
+      accessReport.maxScore +
+      respReport.maxScore +
+      codeQualityWeight +
+      archWeight +
+      docWeight;
+
+    const totalScore = Math.min(40, Math.round((rawTotal / maxPossible) * 40 * 100) / 100);
 
     const evidenceCitations = [
       ...perfReport.evidenceCitations,
