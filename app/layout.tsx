@@ -3,6 +3,7 @@ import Script from "next/script";
 import { Sora, Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
+import { GatekeeperWrapper } from "@/components/design-system/GatekeeperWrapper";
 
 const sora = Sora({
   subsets: ["latin"],
@@ -129,7 +130,9 @@ export default function RootLayout({
         </Script>
       </head>
       <body className="min-h-screen bg-[#0A0E1A] text-[#E2E8F0] font-body antialiased overflow-x-hidden w-full selection:bg-[#2563EB]/30 selection:text-blue-200">
-        <Providers>{children}</Providers>
+        <Providers>
+          <GatekeeperWrapper>{children}</GatekeeperWrapper>
+        </Providers>
       </body>
     </html>
   );
