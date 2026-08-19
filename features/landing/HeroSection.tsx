@@ -21,7 +21,7 @@ export function HeroSection() {
   return (
     <section
       id="hero"
-      className="relative min-h-[85vh] flex items-center justify-center py-16 md:py-20 overflow-hidden bg-[#080C14] selection:bg-rose-500/20 selection:text-rose-100"
+      className="relative min-h-[85vh] flex items-center justify-center py-16 md:py-20 overflow-hidden bg-[#000000] selection:bg-rose-500/20 selection:text-rose-100"
     >
       {/* Background Glowing Ambient Light Blobs (Rich colors on dark background) */}
       <div className="absolute top-[-10%] left-[-15%] w-[450px] md:w-[750px] h-[450px] md:h-[750px] bg-blue-600/10 rounded-full blur-[120px] md:blur-[200px] pointer-events-none" />
@@ -113,7 +113,7 @@ export function HeroSection() {
             {/* Line 1 */}
             <span className="block sm:inline-block">
               Build.{" "}
-              <span className="inline-block align-middle mx-1.5 sm:mx-3 w-[80px] sm:w-[130px] lg:w-[160px] h-[36px] sm:h-[55px] lg:h-[65px] rounded-full overflow-hidden border border-white/10 shadow-sm transition-transform duration-300 hover:scale-105 select-none pointer-events-none">
+              <span className="inline-block align-middle -translate-y-[4px] sm:-translate-y-[6px] lg:-translate-y-[8px] mx-1.5 sm:mx-3 w-[80px] sm:w-[130px] lg:w-[160px] h-[36px] sm:h-[55px] lg:h-[65px] rounded-full overflow-hidden border border-white/10 shadow-sm transition-transform duration-300 hover:scale-105 select-none pointer-events-none">
                 <img
                   src="https://images.unsplash.com/photo-1555066931-4365d14bab8c?q=80&w=300&auto=format&fit=crop"
                   alt="Developer coding"
@@ -125,7 +125,7 @@ export function HeroSection() {
             
             {/* Line 2 */}
             <span className="block sm:mt-4">
-              <span className="inline-block align-middle mx-1.5 sm:mx-3 w-[80px] sm:w-[130px] lg:w-[160px] h-[36px] sm:h-[55px] lg:h-[65px] rounded-full overflow-hidden border border-white/10 shadow-sm transition-transform duration-300 hover:scale-105 select-none pointer-events-none">
+              <span className="inline-block align-middle -translate-y-[4px] sm:-translate-y-[6px] lg:-translate-y-[8px] mx-1.5 sm:mx-3 w-[80px] sm:w-[130px] lg:w-[160px] h-[36px] sm:h-[55px] lg:h-[65px] rounded-full overflow-hidden border border-white/10 shadow-sm transition-transform duration-300 hover:scale-105 select-none pointer-events-none">
                 <img
                   src="https://images.unsplash.com/photo-1522071820081-009f0129c71c?q=80&w=300&auto=format&fit=crop"
                   alt="Hackathon team collaborating"
@@ -135,7 +135,7 @@ export function HeroSection() {
               <span className="bg-gradient-to-r from-[#FF2D73] via-[#FF6B57] to-[#FFB52E] bg-clip-text text-transparent inline-block">
                 Innovate.
               </span>{" "}
-              <span className="inline-block align-middle mx-1.5 sm:mx-3 w-[80px] sm:w-[130px] lg:w-[160px] h-[36px] sm:h-[55px] lg:h-[65px] rounded-full overflow-hidden border border-white/10 shadow-sm transition-transform duration-300 hover:scale-105 select-none pointer-events-none">
+              <span className="inline-block align-middle -translate-y-[4px] sm:-translate-y-[6px] lg:-translate-y-[8px] mx-1.5 sm:mx-3 w-[80px] sm:w-[130px] lg:w-[160px] h-[36px] sm:h-[55px] lg:h-[65px] rounded-full overflow-hidden border border-white/10 shadow-sm transition-transform duration-300 hover:scale-105 select-none pointer-events-none">
                 <img
                   src="https://images.unsplash.com/photo-1507238691740-187a5b1d37b8?q=80&w=300&auto=format&fit=crop"
                   alt="UI design mockups"

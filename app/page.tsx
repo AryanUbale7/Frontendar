@@ -46,7 +46,7 @@ export const metadata: Metadata = {
 
 export default function Home() {
   return (
-    <div className="min-h-screen flex flex-col bg-[#F8FAFC]">
+    <div className="min-h-screen flex flex-col bg-[#000000]">
       {/* 1. Navbar */}
       <LandingNavbar />
 
