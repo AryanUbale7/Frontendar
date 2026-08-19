@@ -15,7 +15,7 @@ export function CtaBannerSection() {
           whileInView={{ opacity: 1, scale: 1 }}
           viewport={{ once: true }}
           transition={{ duration: 0.5 }}
-          className="relative overflow-hidden rounded-[16px] bg-gradient-to-r from-[#ACC00B] to-[#FFD60A] p-8 md:p-14 text-white shadow-xl flex flex-col items-center text-center space-y-6"
+          className="relative overflow-hidden rounded-[16px] bg-gradient-to-r from-[#0F172A] to-[#FFD60A] p-8 md:p-14 text-white shadow-xl flex flex-col items-center text-center space-y-6"
         >
           <div className="flex h-12 w-12 items-center justify-center rounded-[16px] bg-white/20 backdrop-blur-sm shadow-sm">
             <Sparkles className="h-6 w-6 text-white" />
@@ -34,7 +34,7 @@ export function CtaBannerSection() {
               asChild
               variant="outline"
               size="lg"
-              className="bg-white text-[#ACC00B] hover:bg-[rgba(172,192,11,0.08)] hover:text-[#ACC00B] border-white font-semibold"
+              className="bg-white text-[#0F172A] hover:bg-[rgba(15,23,42,0.08)] hover:text-[#0F172A] border-white font-semibold"
             >
               <a href="#featured-hackathons" className="flex items-center gap-2">
                 <span>Explore Hackathons</span>

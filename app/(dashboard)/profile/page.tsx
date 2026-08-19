@@ -128,7 +128,7 @@ export default function ProfilePage() {
     >
       {/* Breadcrumb Header */}
       <div className="flex items-center gap-2 text-xs text-[#475569]">
-        <Link href="/" className="hover:text-[#ACC00B] flex items-center gap-1">
+        <Link href="/" className="hover:text-[#0F172A] flex items-center gap-1">
           <Home className="h-3.5 w-3.5" />
         </Link>
         <ChevronRight className="h-3 w-3 text-[#94A3B8]" />
@@ -183,7 +183,7 @@ export default function ProfilePage() {
               <div className="relative -mt-20">
                 <div
                   onClick={() => fileInputRef.current?.click()}
-                  className="relative flex h-28 w-28 items-center justify-center rounded-full bg-[#ACC00B] text-white font-heading font-bold text-3xl ring-4 ring-white shadow-md overflow-hidden cursor-pointer group"
+                  className="relative flex h-28 w-28 items-center justify-center rounded-full bg-[#0F172A] text-white font-heading font-bold text-3xl ring-4 ring-white shadow-md overflow-hidden cursor-pointer group"
                 >
                   {user?.avatarUrl ? (
                     <img src={user.avatarUrl} alt={user?.fullName || "Avatar"} className="h-full w-full rounded-full object-cover" />
@@ -203,7 +203,7 @@ export default function ProfilePage() {
                       fileInputRef.current?.click();
                     }}
                     aria-label="Upload profile photo"
-                    className="absolute bottom-0 right-0 flex h-8 w-8 items-center justify-center rounded-full bg-[#0F172A] text-white ring-2 ring-white hover:bg-[#ACC00B] transition-all shadow-md z-10"
+                    className="absolute bottom-0 right-0 flex h-8 w-8 items-center justify-center rounded-full bg-[#0F172A] text-white ring-2 ring-white hover:bg-[#0F172A] transition-all shadow-md z-10"
                   >
                     <Camera className="h-4 w-4" />
                   </button>
@@ -248,26 +248,26 @@ export default function ProfilePage() {
                     <h2 className="font-heading text-2xl font-bold text-[#0F172A]">
                       {fullName || "User Profile"}
                     </h2>
-                    <Pencil className="h-3.5 w-3.5 text-[#94A3B8] cursor-pointer hover:text-[#ACC00B]" onClick={() => setIsEditing(true)} />
+                    <Pencil className="h-3.5 w-3.5 text-[#94A3B8] cursor-pointer hover:text-[#0F172A]" onClick={() => setIsEditing(true)} />
                   </div>
 
                   <div className="space-y-1.5 text-xs text-[#475569]">
                     {location && (
                       <p className="flex items-center gap-2">
-                        <MapPin className="h-3.5 w-3.5 text-[#ACC00B]" />
+                        <MapPin className="h-3.5 w-3.5 text-[#0F172A]" />
                         <span>{location}</span>
                       </p>
                     )}
                     {username && (
                       <p className="flex items-center gap-2 font-code">
-                        <span className="text-[#ACC00B]">@</span>
+                        <span className="text-[#0F172A]">@</span>
                         <span>{username}</span>
-                        <Pencil className="h-3 w-3 text-[#94A3B8] cursor-pointer hover:text-[#ACC00B]" onClick={() => setIsEditing(true)} />
+                        <Pencil className="h-3 w-3 text-[#94A3B8] cursor-pointer hover:text-[#0F172A]" onClick={() => setIsEditing(true)} />
                       </p>
                     )}
                     {college && (
                       <p className="flex items-start gap-2 pt-1 leading-relaxed">
-                        <GraduationCap className="h-4 w-4 text-[#ACC00B] shrink-0 mt-0.5" />
+                        <GraduationCap className="h-4 w-4 text-[#0F172A] shrink-0 mt-0.5" />
                         <span>{college}</span>
                       </p>
                     )}
@@ -276,13 +276,13 @@ export default function ProfilePage() {
                   <div className="space-y-1.5 text-xs text-[#475569] pt-2 border-t border-[#E2E8F0]">
                     {email && (
                       <p className="flex items-center gap-2 font-code">
-                        <Mail className="h-3.5 w-3.5 text-[#ACC00B]" />
+                        <Mail className="h-3.5 w-3.5 text-[#0F172A]" />
                         <span>{email}</span>
                       </p>
                     )}
                     {phone && (
                       <p className="flex items-center gap-2 font-code">
-                        <Phone className="h-3.5 w-3.5 text-[#ACC00B]" />
+                        <Phone className="h-3.5 w-3.5 text-[#0F172A]" />
                         <span>{phone}</span>
                       </p>
                     )}
@@ -295,7 +295,7 @@ export default function ProfilePage() {
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between text-xs font-bold text-[#0F172A]">
                       <span>Skills</span>
-                      <Pencil className="h-3 w-3 text-[#94A3B8] cursor-pointer hover:text-[#ACC00B]" onClick={() => setIsEditing(true)} />
+                      <Pencil className="h-3 w-3 text-[#94A3B8] cursor-pointer hover:text-[#0F172A]" onClick={() => setIsEditing(true)} />
                     </div>
                     <div className="flex flex-wrap gap-1.5">
                       {["React", "Next.js", "Tailwind CSS", "TypeScript"].map((skill, sIdx) => (
@@ -310,7 +310,7 @@ export default function ProfilePage() {
                   <div className="space-y-1.5">
                     <div className="flex items-center justify-between text-xs font-bold text-[#0F172A]">
                       <span>Interests</span>
-                      <Pencil className="h-3 w-3 text-[#94A3B8] cursor-pointer hover:text-[#ACC00B]" onClick={() => setIsEditing(true)} />
+                      <Pencil className="h-3 w-3 text-[#94A3B8] cursor-pointer hover:text-[#0F172A]" onClick={() => setIsEditing(true)} />
                     </div>
                     <div className="flex flex-wrap gap-1.5">
                       {["Web Development", "AI Build Challenges", "UI/UX Design", "Hackathons"].map((interest, iIdx) => (
@@ -325,7 +325,7 @@ export default function ProfilePage() {
                   <div className="space-y-1.5 pt-1">
                     <div className="flex items-center justify-between text-xs font-bold text-[#0F172A]">
                       <span>Social Handles</span>
-                      <Pencil className="h-3 w-3 text-[#94A3B8] cursor-pointer hover:text-[#ACC00B]" onClick={() => setIsEditing(true)} />
+                      <Pencil className="h-3 w-3 text-[#94A3B8] cursor-pointer hover:text-[#0F172A]" onClick={() => setIsEditing(true)} />
                     </div>
                     <div className="flex items-center gap-3 pt-1">
                       {github && (
@@ -333,7 +333,7 @@ export default function ProfilePage() {
                           href={`https://github.com/${github}`}
                           target="_blank"
                           rel="noreferrer"
-                          className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] text-[#0F172A] hover:bg-[#ACC00B] hover:text-white transition-all"
+                          className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] text-[#0F172A] hover:bg-[#0F172A] hover:text-white transition-all"
                         >
                           <GitFork className="h-4 w-4" />
                         </a>
@@ -343,7 +343,7 @@ export default function ProfilePage() {
                           href={`https://linkedin.com/in/${linkedin}`}
                           target="_blank"
                           rel="noreferrer"
-                          className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] text-[#0F172A] hover:bg-[#ACC00B] hover:text-white transition-all"
+                          className="flex h-8 w-8 items-center justify-center rounded-lg border border-[#E2E8F0] bg-[#F8FAFC] text-[#0F172A] hover:bg-[#0F172A] hover:text-white transition-all"
                         >
                           <Globe className="h-4 w-4" />
                         </a>
@@ -407,7 +407,7 @@ export default function ProfilePage() {
           <Card className="p-6 border-[#E2E8F0] shadow-sm bg-white rounded-2xl space-y-3">
             <div className="flex items-center justify-between">
               <h3 className="font-heading text-base font-bold text-[#0F172A]">About</h3>
-              <Pencil className="h-3.5 w-3.5 text-[#94A3B8] cursor-pointer hover:text-[#ACC00B]" onClick={() => setIsEditing(true)} />
+              <Pencil className="h-3.5 w-3.5 text-[#94A3B8] cursor-pointer hover:text-[#0F172A]" onClick={() => setIsEditing(true)} />
             </div>
             <p className="text-xs text-[#475569] leading-relaxed">
               {bio}
@@ -418,7 +418,7 @@ export default function ProfilePage() {
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h3 className="font-heading text-lg font-bold text-[#0F172A]">Initiatives</h3>
-              <Link href="/dashboard/participant" className="text-xs font-semibold text-[#ACC00B] hover:underline flex items-center gap-1">
+              <Link href="/dashboard/participant" className="text-xs font-semibold text-[#0F172A] hover:underline flex items-center gap-1">
                 <span>View All</span>
                 <ChevronRight className="h-3.5 w-3.5" />
               </Link>
@@ -427,7 +427,7 @@ export default function ProfilePage() {
             {initiatives.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {initiatives.map((item, idx) => (
-                  <Card key={idx} className="p-4 border-[#E2E8F0] shadow-xs bg-white rounded-xl space-y-3 hover:border-[#ACC00B]/40 transition-all">
+                  <Card key={idx} className="p-4 border-[#E2E8F0] shadow-xs bg-white rounded-xl space-y-3 hover:border-[#0F172A]/40 transition-all">
                     <div className="flex items-center justify-between">
                       <div
                         className="h-8 w-8 rounded-lg text-white font-bold text-xs flex items-center justify-center font-heading"
@@ -447,7 +447,7 @@ export default function ProfilePage() {
                     </div>
                     <div className="flex items-center justify-between pt-2 border-t border-[#E2E8F0]/60 text-[11px]">
                       <span className="text-[#16A34A] font-semibold">Enrolled</span>
-                      <Link href={`/register?id=${item.id}&workspace=true`} className="text-[#ACC00B] hover:underline font-bold">
+                      <Link href={`/register?id=${item.id}&workspace=true`} className="text-[#0F172A] hover:underline font-bold">
                         Workspace →
                       </Link>
                     </div>
@@ -469,25 +469,25 @@ export default function ProfilePage() {
           <Card className="p-6 border-[#E2E8F0] shadow-sm bg-white rounded-2xl space-y-6 text-center">
             {/* Level 1 Emblem */}
             <div className="relative mx-auto h-24 w-24 flex items-center justify-center">
-              <div className="h-20 w-20 rounded-2xl bg-gradient-to-br from-[#ACC00B] via-[#FF8A00] to-[#FFD60A] p-0.5 shadow-md flex items-center justify-center transform rotate-45">
+              <div className="h-20 w-20 rounded-2xl bg-gradient-to-br from-[#0F172A] via-[#FF8A00] to-[#FFD60A] p-0.5 shadow-md flex items-center justify-center transform rotate-45">
                 <div className="h-full w-full bg-white rounded-[14px] flex flex-col items-center justify-center transform -rotate-45">
-                  <span className="font-heading text-2xl font-black text-[#ACC00B]">1</span>
+                  <span className="font-heading text-2xl font-black text-[#0F172A]">1</span>
                   <span className="text-[9px] font-bold uppercase tracking-wider text-[#0F172A]">LEVEL</span>
                 </div>
               </div>
             </div>
 
             <div className="space-y-3">
-              <div className="inline-block px-4 py-1.5 rounded-full bg-[rgba(172,192,11,0.08)] border border-[#FFCCD5] text-[#ACC00B] text-xs font-extrabold">
+              <div className="inline-block px-4 py-1.5 rounded-full bg-[rgba(15,23,42,0.08)] border border-[#FFCCD5] text-[#0F172A] text-xs font-extrabold">
                 Badges Earned: 0
               </div>
 
               <div className="space-y-1.5">
                 <div className="flex justify-between text-xs font-bold text-[#0F172A] px-1">
                   <span>XP Progress</span>
-                  <span className="text-[#ACC00B]">0 / 140xp</span>
+                  <span className="text-[#0F172A]">0 / 140xp</span>
                 </div>
-                <Progress value={15} indicatorClassName="bg-gradient-to-r from-[#ACC00B] to-[#FF8A00]" />
+                <Progress value={15} indicatorClassName="bg-gradient-to-r from-[#0F172A] to-[#FF8A00]" />
               </div>
             </div>
           </Card>

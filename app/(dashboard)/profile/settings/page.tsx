@@ -98,11 +98,11 @@ export default function SettingsPage() {
     >
       {/* Breadcrumb Header */}
       <div className="flex items-center gap-2 text-xs text-[#475569]">
-        <Link href="/" className="hover:text-[#ACC00B] flex items-center gap-1">
+        <Link href="/" className="hover:text-[#0F172A] flex items-center gap-1">
           <Home className="h-3.5 w-3.5" />
         </Link>
         <ChevronRight className="h-3 w-3 text-[#94A3B8]" />
-        <Link href="/profile" className="hover:text-[#ACC00B]">
+        <Link href="/profile" className="hover:text-[#0F172A]">
           User Profile
         </Link>
         <ChevronRight className="h-3 w-3 text-[#94A3B8]" />
@@ -130,7 +130,7 @@ export default function SettingsPage() {
       {/* Settings Header Title */}
       <div className="space-y-1.5">
         <h1 className="font-heading text-2xl md:text-3xl font-extrabold text-[#0F172A] flex items-center gap-2">
-          <Settings className="h-7 w-7 text-[#ACC00B]" />
+          <Settings className="h-7 w-7 text-[#0F172A]" />
           <span>Account Settings</span>
         </h1>
         <p className="text-xs text-[#475569]">
@@ -213,7 +213,7 @@ export default function SettingsPage() {
                     <label className="block text-xs font-medium uppercase tracking-wider text-[#0F172A]">
                       GitHub Username
                     </label>
-                    <div className="flex h-10 w-full rounded-[12px] border border-[#E2E8F0] bg-white overflow-hidden focus-within:ring-2 focus-within:ring-[#ACC00B]">
+                    <div className="flex h-10 w-full rounded-[12px] border border-[#E2E8F0] bg-white overflow-hidden focus-within:ring-2 focus-within:ring-[#0F172A]">
                       <span className="flex items-center px-3 bg-slate-50 border-r border-[#E2E8F0] text-xs font-medium text-[#475569] select-none shrink-0">
                         github.com/
                       </span>
@@ -231,7 +231,7 @@ export default function SettingsPage() {
                     <label className="block text-xs font-medium uppercase tracking-wider text-[#0F172A]">
                       LinkedIn Profile ID
                     </label>
-                    <div className="flex h-10 w-full rounded-[12px] border border-[#E2E8F0] bg-white overflow-hidden focus-within:ring-2 focus-within:ring-[#ACC00B]">
+                    <div className="flex h-10 w-full rounded-[12px] border border-[#E2E8F0] bg-white overflow-hidden focus-within:ring-2 focus-within:ring-[#0F172A]">
                       <span className="flex items-center px-3 bg-slate-50 border-r border-[#E2E8F0] text-xs font-medium text-[#475569] select-none shrink-0">
                         linkedin.com/in/
                       </span>

@@ -160,9 +160,8 @@ export function HeroSection() {
           >
             <Button
               asChild
-              variant="default"
               size="lg"
-              className="w-full sm:w-auto shadow-sm rounded-full h-14 px-8 font-bold"
+              className="w-full sm:w-auto bg-white text-black hover:bg-slate-200 border-transparent rounded-full h-14 px-8 font-bold shadow-sm transition-colors cursor-pointer"
             >
               <a href="#featured-hackathons" className="flex items-center justify-center gap-2">
                 <span>Explore Hackathons</span>
@@ -171,9 +170,8 @@ export function HeroSection() {
             </Button>
             <Button
               asChild
-              variant="outline"
               size="lg"
-              className="w-full sm:w-auto bg-white text-slate-900 hover:bg-slate-100 border-transparent rounded-full h-14 px-8 font-bold shadow-xs transition-colors"
+              className="w-full sm:w-auto bg-transparent text-white border border-white/20 hover:bg-white/10 hover:border-white/40 rounded-full h-14 px-8 font-bold shadow-xs transition-all cursor-pointer"
             >
               <a
                 href="https://chat.whatsapp.com/IEKu23HxPH19GMLfuKM3Eh"

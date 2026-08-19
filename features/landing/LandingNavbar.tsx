@@ -58,7 +58,7 @@ export function LandingNavbar() {
             <a
               key={link.label}
               href={link.href}
-              className="text-xs font-semibold text-slate-605 hover:text-[#ACC00B] transition-colors"
+              className="text-xs font-semibold text-slate-605 hover:text-[#0F172A] transition-colors"
             >
               {link.label}
             </a>
@@ -124,7 +124,7 @@ export function LandingNavbar() {
               key={link.label}
               href={link.href}
               onClick={() => setMobileMenuOpen(false)}
-              className="block py-1.5 text-xs font-semibold text-slate-600 hover:text-[#ACC00B]"
+              className="block py-1.5 text-xs font-semibold text-slate-600 hover:text-[#0F172A]"
             >
               {link.label}
             </a>

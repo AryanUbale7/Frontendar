@@ -27,7 +27,7 @@ export function Timeline({ events, className }: TimelineProps) {
                 "relative z-10 flex h-9 w-9 items-center justify-center rounded-full border-2 bg-white transition-all duration-200 shadow-xs",
                 isCompleted && "border-[#22C55E] text-[#22C55E]",
                 isCurrent &&
-                  "border-[#ACC00B] text-[#ACC00B] ring-4 ring-[#ACC00B]/15 scale-105",
+                  "border-[#0F172A] text-[#0F172A] ring-4 ring-[#0F172A]/15 scale-105",
                 isError && "border-[#EF4444] text-[#EF4444]",
                 !isCompleted &&
                   !isCurrent &&
@@ -65,7 +65,7 @@ export function Timeline({ events, className }: TimelineProps) {
 
               {event.user && (
                 <div className="flex items-center gap-2 pt-2 border-t border-[#E2E8F0]/60">
-                  <div className="flex h-5 w-5 items-center justify-center rounded-full bg-[#ACC00B] text-white text-[9px] font-bold">
+                  <div className="flex h-5 w-5 items-center justify-center rounded-full bg-[#0F172A] text-white text-[9px] font-bold">
                     {event.user.name.charAt(0)}
                   </div>
                   <span className="text-[11px] font-medium text-[#0F172A]">

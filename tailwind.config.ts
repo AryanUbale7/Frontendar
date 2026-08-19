@@ -11,7 +11,7 @@ const config: Config = {
     extend: {
       colors: {
         primary: {
-          DEFAULT: "#ACC00B",
+          DEFAULT: "#0F172A",
           foreground: "#FFFFFF",
         },
         secondary: {
@@ -23,7 +23,7 @@ const config: Config = {
           foreground: "#0F172A",
         },
         magenta: {
-          DEFAULT: "#ACC00B",
+          DEFAULT: "#0F172A",
           foreground: "#FFFFFF",
         },
         yellow: {
@@ -63,7 +63,7 @@ const config: Config = {
         code: ["var(--font-jetbrains-mono)", "monospace"],
       },
       backgroundImage: {
-        "gradient-primary": "linear-gradient(135deg, #ACC00B, #FFD60A)",
+        "gradient-primary": "linear-gradient(135deg, #0F172A, #FFD60A)",
       },
       boxShadow: {
         subtle: "0 1px 3px 0 rgba(15, 23, 42, 0.05), 0 1px 2px -1px rgba(15, 23, 42, 0.03)",

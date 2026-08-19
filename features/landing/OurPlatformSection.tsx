@@ -60,7 +60,7 @@ export function OurPlatformSection() {
                 <Card
                   className={`h-full p-6 space-y-4 transition-all duration-200 hover:shadow-md ${
                     item.isVirtualJudge
-                      ? "border-[#ACC00B]/40 bg-[#ACC00B]/5 ring-1 ring-[#ACC00B]/20"
+                      ? "border-[#0F172A]/40 bg-[#0F172A]/5 ring-1 ring-[#0F172A]/20"
                       : "hover:border-[#CBD5E1]"
                   }`}
                 >
@@ -69,8 +69,8 @@ export function OurPlatformSection() {
                       <div
                         className={`flex h-11 w-11 items-center justify-center rounded-[12px] ${
                           item.isVirtualJudge
-                            ? "bg-gradient-to-br from-[#ACC00B] to-[#FFD60A] text-white"
-                            : "bg-[#ACC00B]/10 text-[#ACC00B]"
+                            ? "bg-gradient-to-br from-[#0F172A] to-[#FFD60A] text-white"
+                            : "bg-[#0F172A]/10 text-[#0F172A]"
                         }`}
                       >
                         <Icon className="h-5 w-5" />

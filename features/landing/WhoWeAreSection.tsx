@@ -59,8 +59,8 @@ export function WhoWeAreSection() {
                 viewport={{ once: true }}
                 transition={{ duration: 0.4, delay: idx * 0.1 }}
               >
-                <Card className="h-full p-6 space-y-4 hover:border-[#ACC00B]/40 hover:shadow-md transition-all duration-300">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-[14px] bg-[#ACC00B]/10 text-[#ACC00B]">
+                <Card className="h-full p-6 space-y-4 hover:border-[#0F172A]/40 hover:shadow-md transition-all duration-300">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-[14px] bg-[#0F172A]/10 text-[#0F172A]">
                     <Icon className="h-6 w-6" />
                   </div>
                   <CardTitle className="text-lg text-[#0F172A]">{item.title}</CardTitle>
