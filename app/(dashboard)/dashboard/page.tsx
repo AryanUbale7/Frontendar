@@ -28,7 +28,7 @@ export default function DashboardRedirectPage() {
   return (
     <div className="flex h-96 w-full items-center justify-center">
       <div className="flex flex-col items-center gap-3">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#DEE32E] border-t-transparent" />
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#ACC00B] border-t-transparent" />
         <p className="text-xs text-[#475569]">Loading your dashboard environment...</p>
       </div>
     </div>

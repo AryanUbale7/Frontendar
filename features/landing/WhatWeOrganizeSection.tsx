@@ -100,7 +100,7 @@ export function WhatWeOrganizeSection() {
             our official developer competitions.
           </p>
           <span className="inline-flex items-center gap-1.5 text-xs text-[#94A3B8] font-medium pt-1">
-            <Zap className="h-3.5 w-3.5 text-[#DEE32E]" />
+            <Zap className="h-3.5 w-3.5 text-[#ACC00B]" />
             Use mouse wheel or drag to navigate cards
           </span>
         </div>
@@ -116,7 +116,7 @@ export function WhatWeOrganizeSection() {
           <button
             onClick={handlePrev}
             aria-label="Previous category"
-            className="absolute left-2 md:left-8 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-white shadow-lg border border-[#E2E8F0] text-[#0F172A] hover:bg-[#DEE32E] hover:text-white transition-all hover:scale-110 active:scale-95"
+            className="absolute left-2 md:left-8 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-white shadow-lg border border-[#E2E8F0] text-[#0F172A] hover:bg-[#ACC00B] hover:text-white transition-all hover:scale-110 active:scale-95"
           >
             <ChevronLeft className="h-6 w-6" />
           </button>
@@ -124,7 +124,7 @@ export function WhatWeOrganizeSection() {
           <button
             onClick={handleNext}
             aria-label="Next category"
-            className="absolute right-2 md:right-8 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-white shadow-lg border border-[#E2E8F0] text-[#0F172A] hover:bg-[#DEE32E] hover:text-white transition-all hover:scale-110 active:scale-95"
+            className="absolute right-2 md:right-8 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-white shadow-lg border border-[#E2E8F0] text-[#0F172A] hover:bg-[#ACC00B] hover:text-white transition-all hover:scale-110 active:scale-95"
           >
             <ChevronRight className="h-6 w-6" />
           </button>
@@ -183,7 +183,7 @@ export function WhatWeOrganizeSection() {
                   <Card
                     className={`h-[330px] flex flex-col justify-between rounded-3xl border overflow-hidden transition-all duration-300 ${
                       isActive
-                        ? "border-[#DEE32E] bg-white ring-4 ring-[#DEE32E]/15 shadow-2xl"
+                        ? "border-[#ACC00B] bg-white ring-4 ring-[#ACC00B]/15 shadow-2xl"
                         : "border-[#E2E8F0] bg-white/95 hover:border-[#0F172A]/30"
                     }`}
                   >
@@ -191,7 +191,7 @@ export function WhatWeOrganizeSection() {
                     <div
                       className={`h-1.5 w-full bg-gradient-to-r ${
                         isActive
-                          ? "from-[#DEE32E] via-[#FF8A00] to-[#FFD60A]"
+                          ? "from-[#ACC00B] via-[#FF8A00] to-[#FFD60A]"
                           : "from-[#CBD5E1] to-[#E2E8F0]"
                       }`}
                     />
@@ -199,8 +199,8 @@ export function WhatWeOrganizeSection() {
                     <CardHeader className="space-y-5 p-6 flex-1 flex flex-col justify-between">
                       <div className="flex items-center justify-between">
                         <div
-                          className={`flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-[#DEE32E] to-[#FFD60A] text-white shadow-lg transition-transform duration-300 ${
-                            isActive ? "scale-105 shadow-[#DEE32E]/30" : ""
+                          className={`flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-[#ACC00B] to-[#FFD60A] text-white shadow-lg transition-transform duration-300 ${
+                            isActive ? "scale-105 shadow-[#ACC00B]/30" : ""
                           }`}
                         >
                           <Icon className="h-7 w-7 text-white" />
@@ -208,7 +208,7 @@ export function WhatWeOrganizeSection() {
                         <Badge
                           variant={isActive ? "solid" : "outline"}
                           size="sm"
-                          className={isActive ? "bg-[#DEE32E] text-white font-bold" : "text-[#475569]"}
+                          className={isActive ? "bg-[#ACC00B] text-white font-bold" : "text-[#475569]"}
                         >
                           {item.tag}
                         </Badge>
@@ -226,10 +226,10 @@ export function WhatWeOrganizeSection() {
                       {/* Bottom Metric Badge with Lucide SVG Icon */}
                       <div className="pt-2 border-t border-[#F1F5F9] flex items-center justify-between">
                         <span className="text-xs font-semibold text-[#0F172A] flex items-center gap-1.5">
-                          <MetricIcon className="h-3.5 w-3.5 text-[#DEE32E]" />
+                          <MetricIcon className="h-3.5 w-3.5 text-[#ACC00B]" />
                           <span>{metric.label}</span>
                         </span>
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-[#DEE32E]">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-[#ACC00B]">
                           {isActive ? "Active View" : "Click to view"}
                         </span>
                       </div>
@@ -249,7 +249,7 @@ export function WhatWeOrganizeSection() {
                 aria-label={`Go to slide ${idx + 1}`}
                 className={`h-2.5 rounded-full transition-all duration-300 ${
                   activeIndex === idx
-                    ? "w-8 bg-[#DEE32E]"
+                    ? "w-8 bg-[#ACC00B]"
                     : "w-2.5 bg-[#CBD5E1] hover:bg-[#94A3B8]"
                 }`}
               />

@@ -75,8 +75,8 @@ export function PlatformStatsSection() {
               viewport={{ once: true }}
               transition={{ duration: 0.4, delay: idx * 0.1 }}
             >
-              <Card className="p-4 sm:p-6 text-center space-y-2 hover:border-[#DEE32E]/40 hover:shadow-lg transition-all duration-300">
-                <span className="font-heading text-3xl sm:text-5xl font-extrabold text-[#DEE32E] block">
+              <Card className="p-4 sm:p-6 text-center space-y-2 hover:border-[#ACC00B]/40 hover:shadow-lg transition-all duration-300">
+                <span className="font-heading text-3xl sm:text-5xl font-extrabold text-[#ACC00B] block">
                   <AnimatedCounter value={stat.value} />
                 </span>
                 <h4 className="font-heading text-base font-bold text-[#0F172A]">

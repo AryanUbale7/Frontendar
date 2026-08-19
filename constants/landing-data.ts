@@ -220,7 +220,7 @@ export const FEATURED_HACKATHONS = [
     status: "Registration Open",
     statusVariant: "success" as const,
     tags: ["React 19", "Next.js", "Tailwind CSS"],
-    bannerGradient: "from-[#DEE32E] to-[#FFD60A]",
+    bannerGradient: "from-[#ACC00B] to-[#FFD60A]",
   },
   {
     id: "h2",
@@ -231,7 +231,7 @@ export const FEATURED_HACKATHONS = [
     status: "Registration Open",
     statusVariant: "accent" as const,
     tags: ["Figma", "Design Tokens", "Micro-Interactions"],
-    bannerGradient: "from-[#FFD60A] via-[#FF8A00] to-[#DEE32E]",
+    bannerGradient: "from-[#FFD60A] via-[#FF8A00] to-[#ACC00B]",
   },
   {
     id: "h3",
@@ -242,7 +242,7 @@ export const FEATURED_HACKATHONS = [
     status: "Featured Event",
     statusVariant: "primary" as const,
     tags: ["AI Agents", "LangChain", "Python"],
-    bannerGradient: "from-[#DEE32E] to-[#8B5CF6]",
+    bannerGradient: "from-[#ACC00B] to-[#8B5CF6]",
   },
   {
     id: "h4",
@@ -253,7 +253,7 @@ export const FEATURED_HACKATHONS = [
     status: "Live Now",
     statusVariant: "success" as const,
     tags: ["TypeScript", "GraphQL", "PostgreSQL"],
-    bannerGradient: "from-[#F59E0B] to-[#DEE32E]",
+    bannerGradient: "from-[#F59E0B] to-[#ACC00B]",
   },
   {
     id: "h5",
@@ -264,7 +264,7 @@ export const FEATURED_HACKATHONS = [
     status: "Upcoming",
     statusVariant: "secondary" as const,
     tags: ["Open Source", "Rust", "WebAssembly"],
-    bannerGradient: "from-[#DEE32E] to-[#FFD60A]",
+    bannerGradient: "from-[#ACC00B] to-[#FFD60A]",
   },
 ];
 

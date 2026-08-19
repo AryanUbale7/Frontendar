@@ -35,7 +35,7 @@ const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(
               className="peer sr-only"
               {...props}
             />
-            <div className="h-4 w-4 rounded-[6px] border border-[#CBD5E1] bg-white transition-all peer-checked:bg-[#DEE32E] peer-checked:border-[#DEE32E] peer-focus-visible:ring-2 peer-focus-visible:ring-[#DEE32E] peer-focus-visible:ring-offset-1" />
+            <div className="h-4 w-4 rounded-[6px] border border-[#CBD5E1] bg-white transition-all peer-checked:bg-[#ACC00B] peer-checked:border-[#ACC00B] peer-focus-visible:ring-2 peer-focus-visible:ring-[#ACC00B] peer-focus-visible:ring-offset-1" />
             <Check className="absolute h-3 w-3 text-white stroke-[3] pointer-events-none opacity-0 peer-checked:opacity-100 transition-opacity left-0.5" />
           </div>
           {label && <span className="font-medium text-[#0F172A]">{label}</span>}

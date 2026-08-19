@@ -31,7 +31,7 @@ export function EmptyState({
         className
       )}
     >
-      <div className="flex h-14 w-14 items-center justify-center rounded-[16px] bg-[#DEE32E]/10 text-[#DEE32E] mb-4 shadow-xs">
+      <div className="flex h-14 w-14 items-center justify-center rounded-[16px] bg-[#ACC00B]/10 text-[#ACC00B] mb-4 shadow-xs">
         {icon || <FolderKanban className="h-7 w-7" />}
       </div>
 

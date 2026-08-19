@@ -62,7 +62,7 @@ export function PrivacyPolicyClient() {
       {/* 2. Light Theme Hero Section */}
       <section className="relative overflow-hidden border-b border-[#E2E8F0] bg-white py-16 md:py-20 shadow-2xs">
         {/* Top Brand Accent Line */}
-        <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-[#DEE32E] via-[#FF8A00] to-[#FFD60A]" />
+        <div className="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-[#ACC00B] via-[#FF8A00] to-[#FFD60A]" />
 
         <div className="mx-auto max-w-7xl px-4 md:px-6 relative z-10">
           <div className="flex flex-col items-center text-center max-w-3xl mx-auto space-y-5">
