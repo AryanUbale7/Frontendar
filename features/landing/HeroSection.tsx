@@ -44,7 +44,7 @@ export function HeroSection() {
             className="font-heading text-4xl sm:text-5xl lg:text-6xl font-bold tracking-tight text-[#0F172A] leading-tight"
           >
             Build. Compete.{" "}
-            <span className="block mt-1 bg-gradient-to-r from-[#FF006E] to-[#FFD60A] bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-[#FF006E] to-[#FFD60A] bg-clip-text text-transparent">
               Innovate.
             </span>
           </motion.h1>
