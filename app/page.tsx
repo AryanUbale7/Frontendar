@@ -3,7 +3,6 @@ import { LandingNavbar } from "@/features/landing/LandingNavbar";
 import { MarqueeBanner } from "@/features/landing/MarqueeBanner";
 import { HeroSection } from "@/features/landing/HeroSection";
 import { WhoWeAreSection } from "@/features/landing/WhoWeAreSection";
-import { WhatWeOrganizeSection } from "@/features/landing/WhatWeOrganizeSection";
 import { WhyJoinSection } from "@/features/landing/WhyJoinSection";
 import { FeaturedHackathonsSection } from "@/features/landing/FeaturedHackathonsSection";
 import { PlatformStatsSection } from "@/features/landing/PlatformStatsSection";
@@ -63,9 +62,6 @@ export default function Home() {
 
         {/* 3. Who We Are */}
         <WhoWeAreSection />
-
-        {/* 4. What We Organize */}
-        <WhatWeOrganizeSection />
 
         {/* 5. Why Join Frontend Arena */}
         <WhyJoinSection />
