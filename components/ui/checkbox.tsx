@@ -13,7 +13,8 @@ export interface CheckboxProps
 
 const Checkbox = React.forwardRef<HTMLInputElement, CheckboxProps>(
   ({ className, label, description, error, id, checked, onChange, disabled, ...props }, ref) => {
-    const checkboxId = id || (typeof label === "string" ? label.toLowerCase().replace(/\s+/g, "-") : undefined);
+    const defaultId = React.useId();
+    const checkboxId = id || defaultId;
 
     return (
       <div className="flex flex-col space-y-1">
