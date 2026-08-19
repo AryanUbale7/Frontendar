@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { Menu, X, Users, LayoutDashboard, LogOut, User } from "lucide-react";
+import { Menu, X, Users, LayoutDashboard, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BRAND_CONFIG } from "@/constants/design-system";
 import { LANDING_NAV_LINKS } from "@/constants/landing-data";
@@ -17,25 +17,25 @@ export function LandingNavbar() {
 
   useEffect(() => {
     const handleScroll = () => {
-      setScrolled(window.scrollY > 20);
+      setScrolled(window.scrollY > 15);
     };
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
   return (
-    <header
-      className={cn(
-        "sticky top-0 z-50 w-full transition-all duration-300",
-        scrolled
-          ? "bg-white/90 backdrop-blur-md border-b border-[#E2E8F0] shadow-xs"
-          : "bg-white/70 backdrop-blur-sm border-b border-[#E2E8F0]/50"
-      )}
-    >
-      <div className="mx-auto flex h-18 max-w-7xl items-center justify-between px-4 md:px-6">
+    <header className="sticky top-0 z-50 w-full pt-4 pb-2 px-4 pointer-events-none bg-transparent">
+      <div
+        className={cn(
+          "mx-auto flex h-14 max-w-5xl items-center justify-between px-4 sm:px-6 rounded-full border bg-white/80 backdrop-blur-md shadow-xs pointer-events-auto transition-all duration-300",
+          scrolled
+            ? "border-slate-200/80 shadow-md shadow-slate-100/50"
+            : "border-slate-200/40 shadow-xs"
+        )}
+      >
         {/* Brand Logo */}
-        <Link href="#hero" className="flex items-center gap-3 group">
-          <div className="flex h-13 w-13 items-center justify-center rounded-[14px] bg-black p-1 shadow-md group-hover:scale-105 transition-transform shrink-0">
+        <Link href="#hero" className="flex items-center gap-2 group">
+          <div className="flex h-9 w-9 items-center justify-center rounded-[11px] bg-black p-0.5 shadow-sm group-hover:scale-105 transition-transform shrink-0">
             <img
               src="/logo.png"
               alt="Frontend Arena Logo"
@@ -43,11 +43,11 @@ export function LandingNavbar() {
             />
           </div>
           <div className="flex flex-col">
-            <span className="font-heading text-base font-bold text-[#0F172A]">
+            <span className="font-heading text-xs font-extrabold text-[#0F172A] tracking-tight">
               {BRAND_CONFIG.name}
             </span>
-            <span className="text-[10px] font-medium text-[#475569]">
-              Developer Community & Hackathons
+            <span className="text-[8px] font-bold text-[#64748B] tracking-wider leading-none">
+              ARENA
             </span>
           </div>
         </Link>
@@ -58,7 +58,7 @@ export function LandingNavbar() {
             <a
               key={link.label}
               href={link.href}
-              className="text-sm font-medium text-[#475569] hover:text-[#FF006E] transition-colors"
+              className="text-xs font-semibold text-slate-500 hover:text-[#FF006E] transition-colors"
             >
               {link.label}
             </a>
@@ -66,12 +66,12 @@ export function LandingNavbar() {
         </nav>
 
         {/* Right Desktop CTAs / User Profile */}
-        <div className="hidden sm:flex items-center gap-3">
+        <div className="hidden sm:flex items-center gap-2.5">
           {isAuthenticated && user ? (
             <>
-              <Button asChild variant="default" size="sm">
-                <Link href="/dashboard" className="flex items-center gap-2">
-                  <LayoutDashboard className="h-4 w-4" />
+              <Button asChild variant="default" size="sm" className="rounded-full h-8 px-4 text-xs font-bold">
+                <Link href="/dashboard" className="flex items-center gap-1.5">
+                  <LayoutDashboard className="h-3.5 w-3.5" />
                   <span>Dashboard</span>
                 </Link>
               </Button>
@@ -79,17 +79,17 @@ export function LandingNavbar() {
             </>
           ) : (
             <>
-              <Button asChild variant="ghost" size="sm">
+              <Button asChild variant="ghost" size="sm" className="rounded-full text-slate-500 hover:text-slate-800 text-xs font-semibold h-8 px-3">
                 <Link href="/sign-in">Sign In</Link>
               </Button>
-              <Button asChild variant="default" size="sm">
+              <Button asChild variant="default" size="sm" className="rounded-full h-8 px-4 text-xs font-bold">
                 <a
                   href="https://chat.whatsapp.com/IEKu23HxPH19GMLfuKM3Eh"
                   target="_blank"
                   rel="noreferrer"
-                  className="flex items-center gap-2"
+                  className="flex items-center gap-1.5"
                 >
-                  <Users className="h-4 w-4" />
+                  <Users className="h-3.5 w-3.5" />
                   <span>Join Community</span>
                 </a>
               </Button>
@@ -98,7 +98,7 @@ export function LandingNavbar() {
         </div>
 
         {/* Mobile Menu Button */}
-        <div className="flex lg:hidden items-center gap-2">
+        <div className="flex lg:hidden items-center gap-1">
           {isAuthenticated && user && (
             <div className="mr-1">
               <UserMenu />
@@ -109,21 +109,22 @@ export function LandingNavbar() {
             size="icon"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             aria-label="Toggle menu"
+            className="h-8 w-8 rounded-full"
           >
-            {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            {mobileMenuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
           </Button>
         </div>
       </div>
 
       {/* Mobile Drawer Menu */}
       {mobileMenuOpen && (
-        <div className="lg:hidden border-b border-[#E2E8F0] bg-white p-4 space-y-3 animate-in slide-in-from-top-2">
+        <div className="lg:hidden border border-slate-200/50 bg-white/95 backdrop-blur-md p-4 mt-2 rounded-2xl shadow-lg space-y-3 animate-in slide-in-from-top-2 pointer-events-auto">
           {LANDING_NAV_LINKS.map((link) => (
             <a
               key={link.label}
               href={link.href}
               onClick={() => setMobileMenuOpen(false)}
-              className="block py-2 text-sm font-medium text-[#0F172A] hover:text-[#FF006E]"
+              className="block py-1.5 text-xs font-semibold text-slate-600 hover:text-[#FF006E]"
             >
               {link.label}
             </a>
@@ -132,49 +133,49 @@ export function LandingNavbar() {
           <div className="pt-2 border-t border-[#E2E8F0] flex flex-col gap-2">
             {isAuthenticated && user ? (
               <>
-                <div className="p-3 rounded-xl bg-[#F8FAFC] border border-[#E2E8F0] flex items-center justify-between">
-                  <div className="flex items-center gap-2.5">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#2563EB] text-white font-bold text-xs">
+                <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-200/40 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="flex h-7 w-7 items-center justify-center rounded-full bg-blue-600 text-white font-bold text-[10px]">
                       {user.firstName.charAt(0)}
                       {user.lastName.charAt(0)}
                     </div>
                     <div className="flex flex-col">
-                      <span className="text-xs font-bold text-[#0F172A]">{user.fullName}</span>
-                      <span className="text-[10px] text-[#64748B]">{user.email}</span>
+                      <span className="text-[11px] font-bold text-slate-800 leading-tight">{user.fullName}</span>
+                      <span className="text-[9px] text-slate-400">{user.email}</span>
                     </div>
                   </div>
                 </div>
-                <Button asChild variant="default" className="w-full">
-                  <Link href="/dashboard" className="flex items-center justify-center gap-2">
-                    <LayoutDashboard className="h-4 w-4" />
+                <Button asChild variant="default" className="w-full rounded-full text-xs font-bold h-9">
+                  <Link href="/dashboard" className="flex items-center justify-center gap-1.5">
+                    <LayoutDashboard className="h-3.5 w-3.5" />
                     <span>Go to Dashboard</span>
                   </Link>
                 </Button>
                 <Button
                   variant="outline"
-                  className="w-full text-[#EF4444] border-[#EF4444]/30 hover:bg-[#EF4444]/10"
+                  className="w-full rounded-full text-xs font-bold h-9 text-[#EF4444] border-[#EF4444]/20 hover:bg-[#EF4444]/5"
                   onClick={() => {
                     signOut();
                     setMobileMenuOpen(false);
                   }}
                 >
-                  <LogOut className="h-4 w-4 mr-2" />
+                  <LogOut className="h-3.5 w-3.5 mr-1.5" />
                   <span>Log Out</span>
                 </Button>
               </>
             ) : (
               <>
-                <Button asChild variant="outline" className="w-full">
+                <Button asChild variant="outline" className="w-full rounded-full text-xs font-bold h-9">
                   <Link href="/sign-in">Sign In</Link>
                 </Button>
-                <Button asChild variant="default" className="w-full">
+                <Button asChild variant="default" className="w-full rounded-full text-xs font-bold h-9">
                   <a
                     href="https://chat.whatsapp.com/IEKu23HxPH19GMLfuKM3Eh"
                     target="_blank"
                     rel="noreferrer"
-                    className="flex items-center justify-center gap-2"
+                    className="flex items-center justify-center gap-1.5"
                   >
-                    <Users className="h-4 w-4" />
+                    <Users className="h-3.5 w-3.5" />
                     <span>Join Community</span>
                   </a>
                 </Button>
