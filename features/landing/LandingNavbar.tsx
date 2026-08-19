@@ -35,7 +35,7 @@ export function LandingNavbar() {
       >
         {/* Brand Logo */}
         <Link href="#hero" className="flex items-center gap-2 group">
-          <div className="flex h-9 w-9 items-center justify-center rounded-[11px] bg-black p-0.5 shadow-sm group-hover:scale-105 transition-transform shrink-0 border border-slate-800">
+          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-black p-1 shadow-sm group-hover:scale-105 transition-transform shrink-0 border border-slate-200">
             <img
               src="/logo.png"
               alt="Frontend Arena Logo"
@@ -43,10 +43,10 @@ export function LandingNavbar() {
             />
           </div>
           <div className="flex flex-col">
-            <span className="font-heading text-xs font-extrabold text-[#0F172A] tracking-tight">
+            <span className="font-heading text-sm font-black text-[#0F172A] tracking-tight leading-none">
               {BRAND_CONFIG.name}
             </span>
-            <span className="text-[8px] font-bold text-slate-500 tracking-wider leading-none">
+            <span className="text-[9px] font-bold text-slate-500 tracking-widest mt-0.5">
               ARENA
             </span>
           </div>
