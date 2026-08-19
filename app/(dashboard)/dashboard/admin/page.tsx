@@ -853,10 +853,10 @@ export default function PlatformAdminDashboardPage() {
           >
             {/* Header Banner */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 rounded-[16px] border border-[#E2E8F0] bg-white p-6 shadow-sm relative overflow-hidden">
-              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-[#DEE32E]/5 via-transparent to-transparent pointer-events-none" />
+              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-[#2563EB]/5 via-transparent to-transparent pointer-events-none" />
               <div className="space-y-1 relative z-10">
                 <div className="flex items-center gap-2">
-                  <Badge variant="solid" size="sm" className="bg-[#DEE32E] text-white">
+                  <Badge variant="solid" size="sm" className="bg-[#2563EB] text-white">
                     Platform Insights
                   </Badge>
                   <span className="flex h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
@@ -895,18 +895,18 @@ export default function PlatformAdminDashboardPage() {
             {/* Metrics Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               {/* Card 1: Active Hackathons */}
-              <Card className="p-5 flex items-center justify-between border-[#E2E8F0] shadow-sm hover:border-[#DEE32E]/30 transition-all duration-200">
+              <Card className="p-5 flex items-center justify-between border-[#E2E8F0] shadow-sm hover:border-[#2563EB]/30 transition-all duration-200">
                 <div>
                   <p className="text-[10px] font-semibold uppercase tracking-wider text-[#475569]">Active Challenges</p>
                   <h3 className="font-heading text-2xl font-extrabold text-[#0F172A] mt-1">{hackathons.length}</h3>
                 </div>
-                <div className="flex h-11 w-11 items-center justify-center rounded-[12px] bg-[#DEE32E]/5 text-[#DEE32E]">
+                <div className="flex h-11 w-11 items-center justify-center rounded-[12px] bg-[#2563EB]/5 text-[#2563EB]">
                   <Trophy className="h-5 w-5" />
                 </div>
               </Card>
 
               {/* Card 2: Total Registrations */}
-              <Card className="p-5 flex items-center justify-between border-[#E2E8F0] shadow-sm hover:border-[#DEE32E]/30 transition-all duration-200">
+              <Card className="p-5 flex items-center justify-between border-[#E2E8F0] shadow-sm hover:border-[#2563EB]/30 transition-all duration-200">
                 <div>
                   <p className="text-[10px] font-semibold uppercase tracking-wider text-[#475569]">Total Enrollments</p>
                   <h3 className="font-heading text-2xl font-extrabold text-[#0F172A] mt-1">{globalRegistrations.length}</h3>
@@ -917,7 +917,7 @@ export default function PlatformAdminDashboardPage() {
               </Card>
 
               {/* Card 3: Shortlisted */}
-              <Card className="p-5 flex items-center justify-between border-[#E2E8F0] shadow-sm hover:border-[#DEE32E]/30 transition-all duration-200">
+              <Card className="p-5 flex items-center justify-between border-[#E2E8F0] shadow-sm hover:border-[#2563EB]/30 transition-all duration-200">
                 <div>
                   <p className="text-[10px] font-semibold uppercase tracking-wider text-[#475569]">Shortlisted Teams</p>
                   <h3 className="font-heading text-2xl font-extrabold text-[#0F172A] mt-1">
@@ -930,7 +930,7 @@ export default function PlatformAdminDashboardPage() {
               </Card>
 
               {/* Card 4: Evaluation Docker Sandbox Status */}
-              <Card className="p-5 flex items-center justify-between border-[#E2E8F0] shadow-sm hover:border-[#DEE32E]/30 transition-all duration-200">
+              <Card className="p-5 flex items-center justify-between border-[#E2E8F0] shadow-sm hover:border-[#2563EB]/30 transition-all duration-200">
                 <div>
                   <p className="text-[10px] font-semibold uppercase tracking-wider text-[#475569]">Docker Sandbox</p>
                   <h3 className="font-heading text-2xl font-extrabold text-emerald-600 mt-1">Active</h3>
@@ -952,7 +952,7 @@ export default function PlatformAdminDashboardPage() {
                     Real-time participant registrations across all live challenges.
                   </CardDescription>
                 </div>
-                <Badge variant="outline" className="text-[#DEE32E] border-[#DEE32E]/20 bg-[#DEE32E]/5 font-bold">
+                <Badge variant="outline" className="text-[#2563EB] border-[#2563EB]/20 bg-[#2563EB]/5 font-bold">
                   Live Feed
                 </Badge>
               </CardHeader>
@@ -1044,7 +1044,7 @@ export default function PlatformAdminDashboardPage() {
                 <button
                   type="button"
                   onClick={() => setActiveManageHackathonId(null)}
-                  className="flex items-center gap-1 text-xs text-[#DEE32E] font-bold hover:underline"
+                  className="flex items-center gap-1 text-xs text-[#2563EB] font-bold hover:underline"
                 >
                   <ChevronLeft className="h-4 w-4" />
                   <span>Back to Management List</span>
@@ -1140,7 +1140,7 @@ export default function PlatformAdminDashboardPage() {
                   <Card className="p-6 space-y-6 bg-white border-[#E2E8F0] shadow-sm rounded-2xl animate-in fade-in duration-200">
                     <div className="space-y-1.5 border-b border-[#F1F5F9] pb-4">
                       <h2 className="font-heading text-lg font-bold text-[#0F172A] flex items-center gap-2">
-                        <FileCode2 className="h-5 w-5 text-[#DEE32E]" />
+                        <FileCode2 className="h-5 w-5 text-[#2563EB]" />
                         <span>{selectedHackathon.problemTitle}</span>
                       </h2>
                       <p className="text-xs text-[#475569]">
@@ -1198,7 +1198,7 @@ export default function PlatformAdminDashboardPage() {
                   <Card className="p-6 bg-white border-[#E2E8F0] shadow-sm rounded-2xl animate-in fade-in duration-200">
                     <div className="space-y-1.5 border-b border-[#F1F5F9] pb-4 mb-4">
                       <h2 className="font-heading text-lg font-bold text-[#0F172A] flex items-center gap-2">
-                        <BookOpen className="h-5 w-5 text-[#DEE32E]" />
+                        <BookOpen className="h-5 w-5 text-[#2563EB]" />
                         <span>Hackathon Guidelines & Rules</span>
                       </h2>
                       <p className="text-xs text-[#475569]">
@@ -1224,7 +1224,7 @@ export default function PlatformAdminDashboardPage() {
                   <Card className="p-6 bg-white border-[#E2E8F0] shadow-sm rounded-2xl animate-in fade-in duration-200">
                     <div className="space-y-1.5 border-b border-[#F1F5F9] pb-4 mb-4">
                       <h2 className="font-heading text-lg font-bold text-[#0F172A] flex items-center gap-2">
-                        <LinkIcon className="h-5 w-5 text-[#DEE32E]" />
+                        <LinkIcon className="h-5 w-5 text-[#2563EB]" />
                         <span>Developer Resources</span>
                       </h2>
                       <p className="text-xs text-[#475569]">
@@ -1237,7 +1237,7 @@ export default function PlatformAdminDashboardPage() {
                         {selectedHackathon.resources.map((res, resIdx) => (
                           <div
                             key={resIdx}
-                            className="p-4 border border-[#E2E8F0] rounded-xl flex items-start justify-between gap-4 hover:border-[#DEE32E]/30 transition-all bg-[#F8FAFC]"
+                            className="p-4 border border-[#E2E8F0] rounded-xl flex items-start justify-between gap-4 hover:border-[#2563EB]/30 transition-all bg-[#F8FAFC]"
                           >
                             <div className="space-y-1">
                               <Badge variant="outline" size="sm" className="bg-white text-xs">
@@ -1252,7 +1252,7 @@ export default function PlatformAdminDashboardPage() {
                               href={res.url}
                               target="_blank"
                               rel="noreferrer"
-                              className="p-2 rounded-lg bg-white border border-[#E2E8F0] text-[#475569] hover:bg-[#DEE32E] hover:text-white hover:border-[#DEE32E] transition-all"
+                              className="p-2 rounded-lg bg-white border border-[#E2E8F0] text-[#475569] hover:bg-[#2563EB] hover:text-white hover:border-[#2563EB] transition-all"
                             >
                               <ExternalLink className="h-3.5 w-3.5" />
                             </a>
@@ -1280,7 +1280,7 @@ export default function PlatformAdminDashboardPage() {
                     </div>
                     {loadingAdminSubmissions ? (
                       <div className="flex justify-center p-8">
-                        <RefreshCw className="h-6 w-6 animate-spin text-[#DEE32E]" />
+                        <RefreshCw className="h-6 w-6 animate-spin text-[#2563EB]" />
                       </div>
                     ) : adminSubmissions.length > 0 ? (
                       <div className="overflow-x-auto text-xs">
@@ -1305,7 +1305,7 @@ export default function PlatformAdminDashboardPage() {
                                   <div className="text-[10px] text-slate-400">{sub.user.email}</div>
                                 </td>
                                 <td className="p-3 font-mono text-slate-500">
-                                  <a href={sub.repoUrl} target="_blank" rel="noreferrer" className="text-[#DEE32E] hover:underline truncate max-w-[200px] block">
+                                  <a href={sub.repoUrl} target="_blank" rel="noreferrer" className="text-[#2563EB] hover:underline truncate max-w-[200px] block">
                                     {sub.repoUrl.replace("https://github.com/", "")}
                                   </a>
                                 </td>
@@ -1327,12 +1327,12 @@ export default function PlatformAdminDashboardPage() {
                                     {sub.status}
                                   </Badge>
                                 </td>
-                                <td className="p-3 font-bold text-[#DEE32E]">{sub.score !== null ? `${sub.score}/100` : "Pending"}</td>
+                                <td className="p-3 font-bold text-[#2563EB]">{sub.score !== null ? `${sub.score}/100` : "Pending"}</td>
                                 <td className="p-3">
                                   {sub.reports && sub.reports.length > 0 ? (
                                     <button
                                       onClick={() => setSelectedSubmissionForReport(sub)}
-                                      className="text-[#DEE32E] hover:underline font-bold"
+                                      className="text-[#2563EB] hover:underline font-bold"
                                     >
                                       View Audit Report
                                     </button>
@@ -1377,7 +1377,7 @@ export default function PlatformAdminDashboardPage() {
                     )}
                     {loadingAdminLeaderboard ? (
                       <div className="flex justify-center p-8">
-                        <RefreshCw className="h-6 w-6 animate-spin text-[#DEE32E]" />
+                        <RefreshCw className="h-6 w-6 animate-spin text-[#2563EB]" />
                       </div>
                     ) : adminLeaderboard.length > 0 ? (
                       <div className="overflow-x-auto text-xs">
@@ -1407,7 +1407,7 @@ export default function PlatformAdminDashboardPage() {
                                     <div className="font-medium text-slate-700">{row.participantName}</div>
                                     <div className="text-[10px] text-slate-400">{row.participantEmail}</div>
                                   </td>
-                                  <td className="p-3 font-bold text-[#DEE32E]">{row.score}/100</td>
+                                  <td className="p-3 font-bold text-[#2563EB]">{row.score}/100</td>
                                   <td className="p-3">
                                   <Badge className={row.grade === "PASSED" ? "bg-emerald-50 text-emerald-600 border-emerald-200" : "bg-rose-50 text-rose-600 border-rose-200"}>
                                     {row.grade}
@@ -1447,7 +1447,7 @@ export default function PlatformAdminDashboardPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <h2 className="font-heading text-xl font-bold text-[#0F172A] flex items-center gap-2">
-                      <Trophy className="h-5 w-5 text-[#DEE32E]" />
+                      <Trophy className="h-5 w-5 text-[#2563EB]" />
                       <span>{editingHackathonId ? "Edit Hackathon" : "Create New Hackathon"}</span>
                     </h2>
                     <p className="text-xs text-[#475569]">
@@ -1498,7 +1498,7 @@ export default function PlatformAdminDashboardPage() {
                             value={hackathonDescription}
                             onChange={(e) => setHackathonDescription(e.target.value)}
                             placeholder="Provide a detailed description of the hackathon theme, rules, and guidelines."
-                            className="flex min-h-[100px] w-full rounded-[12px] border border-[#E2E8F0] bg-white px-3 py-2 text-sm text-[#0F172A] placeholder:text-[#94A3B8] transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#DEE32E] focus-visible:border-transparent"
+                            className="flex min-h-[100px] w-full rounded-[12px] border border-[#E2E8F0] bg-white px-3 py-2 text-sm text-[#0F172A] placeholder:text-[#94A3B8] transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:border-transparent"
                           />
                         </div>
                       </div>
@@ -1524,7 +1524,7 @@ export default function PlatformAdminDashboardPage() {
                             value={problemDescription}
                             onChange={(e) => setProblemDescription(e.target.value)}
                             placeholder="Write the detailed problem statement constraints, UI screens required, API endpoints, etc."
-                            className="flex min-h-[120px] w-full rounded-[12px] border border-[#E2E8F0] bg-white px-3 py-2 text-sm text-[#0F172A] placeholder:text-[#94A3B8] transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#DEE32E] focus-visible:border-transparent"
+                            className="flex min-h-[120px] w-full rounded-[12px] border border-[#E2E8F0] bg-white px-3 py-2 text-sm text-[#0F172A] placeholder:text-[#94A3B8] transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:border-transparent"
                           />
                         </div>
 
@@ -1539,7 +1539,7 @@ export default function PlatformAdminDashboardPage() {
                               variant="outline"
                               size="sm"
                               onClick={handleAddTestCase}
-                              className="h-6 text-[10px] border-[#DEE32E] text-[#DEE32E] hover:bg-[#DEE32E]/10"
+                              className="h-6 text-[10px] border-[#2563EB] text-[#2563EB] hover:bg-[#2563EB]/10"
                             >
                               Add Test Case
                             </Button>
@@ -1610,7 +1610,7 @@ export default function PlatformAdminDashboardPage() {
                           variant="outline"
                           size="sm"
                           onClick={handleAddRule}
-                          className="h-7 text-xs border-[#DEE32E] text-[#DEE32E] hover:bg-[#DEE32E]/10"
+                          className="h-7 text-xs border-[#2563EB] text-[#2563EB] hover:bg-[#2563EB]/10"
                         >
                           Add Rule
                         </Button>
@@ -1625,7 +1625,7 @@ export default function PlatformAdminDashboardPage() {
                               value={rule}
                               onChange={(e) => handleUpdateRule(idx, e.target.value)}
                               placeholder={`Rule #${idx + 1}`}
-                              className="flex h-9 flex-1 rounded-[12px] border border-[#E2E8F0] bg-white px-3 text-xs text-[#0F172A] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#DEE32E]"
+                              className="flex h-9 flex-1 rounded-[12px] border border-[#E2E8F0] bg-white px-3 text-xs text-[#0F172A] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB]"
                             />
                             <button
                               type="button"
@@ -1651,7 +1651,7 @@ export default function PlatformAdminDashboardPage() {
                           variant="outline"
                           size="sm"
                           onClick={handleAddResource}
-                          className="h-7 text-xs border-[#DEE32E] text-[#DEE32E] hover:bg-[#DEE32E]/10"
+                          className="h-7 text-xs border-[#2563EB] text-[#2563EB] hover:bg-[#2563EB]/10"
                         >
                           Add Resource
                         </Button>
@@ -1720,55 +1720,55 @@ export default function PlatformAdminDashboardPage() {
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div className="space-y-1.5">
                           <label className="block text-xs font-medium uppercase tracking-wider text-[#0F172A] flex items-center gap-1">
-                            <Calendar className="h-3.5 w-3.5 text-[#DEE32E]" />
+                            <Calendar className="h-3.5 w-3.5 text-[#2563EB]" />
                             <span>Registration Starts</span>
                           </label>
                           <input
                             type="datetime-local"
                             value={regStart}
                             onChange={(e) => setRegStart(e.target.value)}
-                            className="flex h-10 w-full rounded-[12px] border border-[#E2E8F0] bg-white px-3 py-2 text-sm text-[#0F172A] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#DEE32E] focus-visible:border-transparent"
+                            className="flex h-10 w-full rounded-[12px] border border-[#E2E8F0] bg-white px-3 py-2 text-sm text-[#0F172A] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:border-transparent"
                             required
                           />
                         </div>
 
                         <div className="space-y-1.5">
                           <label className="block text-xs font-medium uppercase tracking-wider text-[#0F172A] flex items-center gap-1">
-                            <Clock className="h-3.5 w-3.5 text-[#DEE32E]" />
+                            <Clock className="h-3.5 w-3.5 text-[#2563EB]" />
                             <span>Registration Closes</span>
                           </label>
                           <input
                             type="datetime-local"
                             value={regClose}
                             onChange={(e) => setRegClose(e.target.value)}
-                            className="flex h-10 w-full rounded-[12px] border border-[#E2E8F0] bg-white px-3 py-2 text-sm text-[#0F172A] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#DEE32E] focus-visible:border-transparent"
+                            className="flex h-10 w-full rounded-[12px] border border-[#E2E8F0] bg-white px-3 py-2 text-sm text-[#0F172A] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:border-transparent"
                             required
                           />
                         </div>
 
                         <div className="space-y-1.5">
                           <label className="block text-xs font-medium uppercase tracking-wider text-[#0F172A] flex items-center gap-1">
-                            <Calendar className="h-3.5 w-3.5 text-[#DEE32E]" />
+                            <Calendar className="h-3.5 w-3.5 text-[#2563EB]" />
                             <span>Hackathon Code Window Starts</span>
                           </label>
                           <input
                             type="datetime-local"
                             value={eventStart}
                             onChange={(e) => setEventStart(e.target.value)}
-                            className="flex h-10 w-full rounded-[12px] border border-[#E2E8F0] bg-white px-3 py-2 text-sm text-[#0F172A] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#DEE32E] focus-visible:border-transparent"
+                            className="flex h-10 w-full rounded-[12px] border border-[#E2E8F0] bg-white px-3 py-2 text-sm text-[#0F172A] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:border-transparent"
                           />
                         </div>
 
                         <div className="space-y-1.5">
                           <label className="block text-xs font-medium uppercase tracking-wider text-[#0F172A] flex items-center gap-1">
-                            <Clock className="h-3.5 w-3.5 text-[#DEE32E]" />
+                            <Clock className="h-3.5 w-3.5 text-[#2563EB]" />
                             <span>Hackathon Code Window Closes</span>
                           </label>
                           <input
                             type="datetime-local"
                             value={eventClose}
                             onChange={(e) => setEventClose(e.target.value)}
-                            className="flex h-10 w-full rounded-[12px] border border-[#E2E8F0] bg-white px-3 py-2 text-sm text-[#0F172A] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#DEE32E] focus-visible:border-transparent"
+                            className="flex h-10 w-full rounded-[12px] border border-[#E2E8F0] bg-white px-3 py-2 text-sm text-[#0F172A] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:border-transparent"
                           />
                         </div>
                       </div>
@@ -1785,7 +1785,7 @@ export default function PlatformAdminDashboardPage() {
                           variant="outline"
                           size="sm"
                           onClick={handleAddRound}
-                          className="h-7 text-xs border-[#DEE32E] text-[#DEE32E] hover:bg-[#DEE32E]/10"
+                          className="h-7 text-xs border-[#2563EB] text-[#2563EB] hover:bg-[#2563EB]/10"
                         >
                           Add Round
                         </Button>
@@ -1922,9 +1922,9 @@ export default function PlatformAdminDashboardPage() {
                         <div className="space-y-3">
                           <div
                             onClick={() => fileInputRef.current?.click()}
-                            className="flex flex-col items-center justify-center h-28 w-full border-2 border-dashed border-[#CBD5E1] rounded-lg bg-[#F8FAFC] hover:bg-slate-100 hover:border-[#DEE32E] cursor-pointer transition-all p-4 text-center group"
+                            className="flex flex-col items-center justify-center h-28 w-full border-2 border-dashed border-[#CBD5E1] rounded-lg bg-[#F8FAFC] hover:bg-slate-100 hover:border-[#2563EB] cursor-pointer transition-all p-4 text-center group"
                           >
-                            <ImageIcon className="h-6 w-6 text-[#94A3B8] group-hover:text-[#DEE32E] mb-1.5 transition-colors" />
+                            <ImageIcon className="h-6 w-6 text-[#94A3B8] group-hover:text-[#2563EB] mb-1.5 transition-colors" />
                             <span className="text-[11px] font-bold text-[#0F172A]">
                               Upload Brand Banner Image
                             </span>
@@ -1938,7 +1938,7 @@ export default function PlatformAdminDashboardPage() {
                             <span className="text-[10px] font-bold uppercase tracking-wider text-[#64748B]">Or choose preset gradient:</span>
                             <div className="grid grid-cols-4 gap-1.5">
                               {[
-                                { label: "Pink Glow", bg: "linear-gradient(135deg, #DEE32E, #FFD60A)" },
+                                { label: "Pink Glow", bg: "linear-gradient(135deg, #2563EB, #FFD60A)" },
                                 { label: "Ocean Blue", bg: "linear-gradient(to right, #2563EB, #06B6D4)" },
                                 { label: "Dark Arena", bg: "linear-gradient(to right, #0F172A, #312E81)" },
                                 { label: "Emerald", bg: "linear-gradient(to right, #059669, #10B981)" },
@@ -1997,7 +1997,7 @@ export default function PlatformAdminDashboardPage() {
                     {/* Submit Launch Hackathon Button */}
                     <Button
                       type="submit"
-                      className="w-full bg-[#DEE32E] text-white hover:bg-[#D8005C] shadow-md py-3 text-sm font-extrabold rounded-xl"
+                      className="w-full bg-[#2563EB] text-white hover:bg-[#D8005C] shadow-md py-3 text-sm font-extrabold rounded-xl"
                       leftIcon={<Trophy className="h-4.5 w-4.5" />}
                     >
                       {editingHackathonId ? "Save Changes" : "Launch Hackathon"}
@@ -2011,7 +2011,7 @@ export default function PlatformAdminDashboardPage() {
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div>
                     <h1 className="font-heading text-2xl font-extrabold text-[#0F172A] flex items-center gap-2">
-                      <Trophy className="h-6 w-6 text-[#DEE32E]" />
+                      <Trophy className="h-6 w-6 text-[#2563EB]" />
                       <span>Hackathon Management</span>
                     </h1>
                     <p className="text-xs text-[#475569]">
@@ -2019,7 +2019,7 @@ export default function PlatformAdminDashboardPage() {
                     </p>
                   </div>
                   <Button
-                    className="bg-[#DEE32E] text-white hover:bg-[#D8005C] shadow-sm font-bold"
+                    className="bg-[#2563EB] text-white hover:bg-[#D8005C] shadow-sm font-bold"
                     size="sm"
                     leftIcon={<Plus className="h-4 w-4" />}
                     onClick={() => setIsCreatingHackathon(true)}
@@ -2032,7 +2032,7 @@ export default function PlatformAdminDashboardPage() {
                   /* RENDER CREATED HACKATHONS LIST */
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {hackathons.map((hackathon) => (
-                      <Card key={hackathon.id} className="overflow-hidden border-[#E2E8F0] shadow-sm bg-white rounded-2xl flex flex-col hover:border-[#DEE32E]/40 transition-all">
+                      <Card key={hackathon.id} className="overflow-hidden border-[#E2E8F0] shadow-sm bg-white rounded-2xl flex flex-col hover:border-[#2563EB]/40 transition-all">
                         {/* Header Banner Preview */}
                         <div
                           className="h-28 w-full flex flex-col justify-end p-4 text-white relative"
@@ -2149,7 +2149,7 @@ export default function PlatformAdminDashboardPage() {
                             <button
                               type="button"
                               onClick={() => handleEditHackathon(hackathon)}
-                              className="text-[#475569] hover:text-[#DEE32E] flex items-center gap-0.5 font-bold"
+                              className="text-[#475569] hover:text-[#2563EB] flex items-center gap-0.5 font-bold"
                             >
                               <Edit3 className="h-3.5 w-3.5" />
                               <span>Edit</span>
@@ -2157,7 +2157,7 @@ export default function PlatformAdminDashboardPage() {
                             <button
                               type="button"
                               onClick={() => setActiveBlueprintHackathonId(hackathon.id)}
-                              className="text-[#475569] hover:text-[#DEE32E] flex items-center gap-0.5 font-bold"
+                              className="text-[#475569] hover:text-[#2563EB] flex items-center gap-0.5 font-bold"
                             >
                               <Sliders className="h-3.5 w-3.5" />
                               <span>Blueprint</span>
@@ -2213,7 +2213,7 @@ export default function PlatformAdminDashboardPage() {
           >
             <div>
               <h1 className="font-heading text-2xl font-extrabold text-[#0F172A] flex items-center gap-2">
-                <GitPullRequest className="h-6 w-6 text-[#DEE32E]" />
+                <GitPullRequest className="h-6 w-6 text-[#2563EB]" />
                 <span>Global Submissions Portal</span>
               </h1>
               <p className="text-xs text-[#475569]">
@@ -2235,7 +2235,7 @@ export default function PlatformAdminDashboardPage() {
               </div>
               {loadingAdminSubmissions ? (
                 <div className="flex justify-center p-8">
-                  <RefreshCw className="h-6 w-6 animate-spin text-[#DEE32E]" />
+                  <RefreshCw className="h-6 w-6 animate-spin text-[#2563EB]" />
                 </div>
               ) : adminSubmissions.length > 0 ? (
                 <div className="overflow-x-auto text-xs">
@@ -2261,7 +2261,7 @@ export default function PlatformAdminDashboardPage() {
                             <div className="text-[10px] text-slate-400">{sub.user.email}</div>
                           </td>
                           <td className="p-3 font-mono text-slate-500">
-                            <a href={sub.repoUrl} target="_blank" rel="noreferrer" className="text-[#DEE32E] hover:underline truncate max-w-[200px] block">
+                            <a href={sub.repoUrl} target="_blank" rel="noreferrer" className="text-[#2563EB] hover:underline truncate max-w-[200px] block">
                               {sub.repoUrl.replace("https://github.com/", "")}
                             </a>
                           </td>
@@ -2274,12 +2274,12 @@ export default function PlatformAdminDashboardPage() {
                               {sub.status}
                             </Badge>
                           </td>
-                          <td className="p-3 font-bold text-[#DEE32E]">{sub.score !== null ? `${sub.score}/100` : "Pending"}</td>
+                          <td className="p-3 font-bold text-[#2563EB]">{sub.score !== null ? `${sub.score}/100` : "Pending"}</td>
                           <td className="p-3">
                             {sub.reports && sub.reports.length > 0 ? (
                               <button
                                 onClick={() => setSelectedSubmissionForReport(sub)}
-                                className="text-[#DEE32E] hover:underline font-bold"
+                                className="text-[#2563EB] hover:underline font-bold"
                               >
                                 View Audit Report
                               </button>
@@ -2317,7 +2317,7 @@ export default function PlatformAdminDashboardPage() {
             <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
               <div>
                 <h1 className="font-heading text-2xl font-extrabold text-[#0F172A] flex items-center gap-2">
-                  <Scale className="h-6 w-6 text-[#DEE32E]" />
+                  <Scale className="h-6 w-6 text-[#2563EB]" />
                   <span>Virtual Judging Center</span>
                 </h1>
                 <p className="text-xs text-[#475569]">
@@ -2386,7 +2386,7 @@ export default function PlatformAdminDashboardPage() {
                 </Card>
                 <Card className="p-4 bg-white border-[#E2E8F0] flex flex-col justify-between">
                   <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Evaluating</span>
-                  <span className="text-2xl font-black text-[#DEE32E] mt-1">{judgingStats.evaluatingCount}</span>
+                  <span className="text-2xl font-black text-[#2563EB] mt-1">{judgingStats.evaluatingCount}</span>
                 </Card>
                 <Card className="p-4 bg-white border-[#E2E8F0] flex flex-col justify-between">
                   <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-wider">Completed</span>
@@ -2417,7 +2417,7 @@ export default function PlatformAdminDashboardPage() {
               </Card>
             ) : loadingJudgingSubmissions ? (
               <Card className="p-12 flex items-center justify-center">
-                <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#DEE32E] border-t-transparent" />
+                <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#2563EB] border-t-transparent" />
               </Card>
             ) : judgingSubmissions.length === 0 ? (
               <Card className="p-6">
@@ -2500,7 +2500,7 @@ export default function PlatformAdminDashboardPage() {
                                 <Button
                                   variant="default"
                                   size="sm"
-                                  className={`h-7 px-2.5 text-[10px] font-bold rounded-lg ${sub.status === "FAILED" ? "bg-[#DEE32E] hover:bg-[#D8005C] text-white" : "bg-slate-200 text-slate-400 cursor-not-allowed"}`}
+                                  className={`h-7 px-2.5 text-[10px] font-bold rounded-lg ${sub.status === "FAILED" ? "bg-[#2563EB] hover:bg-[#D8005C] text-white" : "bg-slate-200 text-slate-400 cursor-not-allowed"}`}
                                   disabled={sub.status !== "FAILED"}
                                   onClick={() => handleRetryJudgingEvaluation(sub.id)}
                                 >
@@ -2530,7 +2530,7 @@ export default function PlatformAdminDashboardPage() {
           >
             <div>
               <h1 className="font-heading text-2xl font-extrabold text-[#0F172A] flex items-center gap-2">
-                <Medal className="h-6 w-6 text-[#DEE32E]" />
+                <Medal className="h-6 w-6 text-[#2563EB]" />
                 <span>Platform Leaderboards</span>
               </h1>
               <p className="text-xs text-[#475569]">
@@ -2560,7 +2560,7 @@ export default function PlatformAdminDashboardPage() {
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
               <div>
                 <h1 className="font-heading text-2xl font-extrabold text-[#0F172A] flex items-center gap-2">
-                  <Users className="h-6 w-6 text-[#DEE32E]" />
+                  <Users className="h-6 w-6 text-[#2563EB]" />
                   <span>Participant Registrations</span>
                 </h1>
                 <p className="text-xs text-[#475569]">
@@ -2586,7 +2586,7 @@ export default function PlatformAdminDashboardPage() {
 
             {loadingRegs ? (
               <Card className="p-12 flex items-center justify-center">
-                <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#DEE32E] border-t-transparent" />
+                <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#2563EB] border-t-transparent" />
               </Card>
             ) : registrations.length === 0 ? (
               <Card className="p-6">
@@ -2626,7 +2626,7 @@ export default function PlatformAdminDashboardPage() {
                             <td className="p-4 space-y-0.5">
                               <span className="font-medium text-[#0F172A] capitalize">{reg.participationMode}</span>
                               {reg.teamName && (
-                                <div className="text-[10px] font-bold text-[#DEE32E]">{reg.teamName}</div>
+                                <div className="text-[10px] font-bold text-[#2563EB]">{reg.teamName}</div>
                               )}
                             </td>
                             <td className="p-4">
@@ -2697,7 +2697,7 @@ export default function PlatformAdminDashboardPage() {
             <div className="flex items-center justify-between">
               <div>
                 <h1 className="font-heading text-2xl font-extrabold text-[#0F172A] flex items-center gap-2">
-                  <BarChart3 className="h-6 w-6 text-[#DEE32E]" />
+                  <BarChart3 className="h-6 w-6 text-[#2563EB]" />
                   <span>Metrics & Live Logs</span>
                 </h1>
                 <p className="text-xs text-[#475569]">
@@ -2718,7 +2718,7 @@ export default function PlatformAdminDashboardPage() {
 
             {loadingSystemMetrics && !systemMetrics ? (
               <Card className="p-12 flex items-center justify-center">
-                <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#DEE32E] border-t-transparent" />
+                <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#2563EB] border-t-transparent" />
               </Card>
             ) : !systemMetrics ? (
               <Card className="p-8 text-center text-slate-500 italic">
@@ -2731,7 +2731,7 @@ export default function PlatformAdminDashboardPage() {
                   {/* BullMQ Queue Health Card */}
                   <Card className="p-6 border border-[#E2E8F0] shadow-xs">
                     <h3 className="text-xs font-black uppercase text-[#64748B] tracking-wider mb-4 flex items-center gap-1.5">
-                      <div className="h-2.5 w-2.5 rounded-full bg-[#DEE32E] animate-pulse" />
+                      <div className="h-2.5 w-2.5 rounded-full bg-[#2563EB] animate-pulse" />
                       BullMQ Queue Engine Health
                     </h3>
                     <div className="space-y-3">
@@ -2749,7 +2749,7 @@ export default function PlatformAdminDashboardPage() {
                       </div>
                       <div className="flex items-center justify-between text-xs border-b border-[#F1F5F9] pb-2">
                         <span className="text-[#64748B]">Jobs Active (Evaluating)</span>
-                        <span className="font-bold text-[#DEE32E]">
+                        <span className="font-bold text-[#2563EB]">
                           {systemMetrics.queue ? systemMetrics.queue.active : 0}
                         </span>
                       </div>
@@ -2789,7 +2789,7 @@ export default function PlatformAdminDashboardPage() {
                       </div>
                       <div className="flex items-center justify-between text-xs border-b border-[#F1F5F9] pb-2">
                         <span className="text-[#64748B]">Total Evaluating Submissions</span>
-                        <span className="font-bold text-[#DEE32E]">{systemMetrics.db.evaluating}</span>
+                        <span className="font-bold text-[#2563EB]">{systemMetrics.db.evaluating}</span>
                       </div>
                       <div className="flex items-center justify-between text-xs pb-1">
                         <span className="text-[#64748B]">Avg Evaluation Duration</span>
@@ -2855,7 +2855,7 @@ export default function PlatformAdminDashboardPage() {
           >
             <div>
               <h1 className="font-heading text-2xl font-extrabold text-[#0F172A] flex items-center gap-2">
-                <Settings className="h-6 w-6 text-[#DEE32E]" />
+                <Settings className="h-6 w-6 text-[#2563EB]" />
                 <span>System Configurations</span>
               </h1>
               <p className="text-xs text-[#475569]">
@@ -2902,7 +2902,7 @@ export default function PlatformAdminDashboardPage() {
                 </div>
               </CardContent>
               <CardFooter className="flex justify-end gap-2 bg-[#F8FAFC]/30 border-t border-[#F1F5F9] p-4">
-                <Button onClick={handleSaveSystemConfig} className="bg-[#DEE32E] text-white hover:bg-[#D8005C] shadow-sm font-bold" size="sm" leftIcon={<Sparkles className="h-4 w-4" />}>
+                <Button onClick={handleSaveSystemConfig} className="bg-[#2563EB] text-white hover:bg-[#D8005C] shadow-sm font-bold" size="sm" leftIcon={<Sparkles className="h-4 w-4" />}>
                   Save System Config
                 </Button>
               </CardFooter>

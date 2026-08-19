@@ -95,7 +95,7 @@ export function CertificateCanvasRenderer({
         ctx.lineWidth = borderWidth;
         ctx.strokeRect(12 * scaleX, 12 * scaleY, width - 24 * scaleX, height - 24 * scaleY);
 
-        ctx.strokeStyle = "#DEE32E";
+        ctx.strokeStyle = "#2563EB";
         ctx.lineWidth = Math.max(1, borderWidth / 3);
         ctx.strokeRect(20 * scaleX, 20 * scaleY, width - 40 * scaleX, height - 40 * scaleY);
       } else if (layout.frameStyle === "minimal") {
