@@ -1400,19 +1400,19 @@ export default function PlatformAdminDashboardPage() {
                                 <tr key={idx} className="hover:bg-slate-50/50">
                                   <td className="p-3">
                                     {row.rank === 1 ? (
-                                      <span className="inline-flex items-center gap-1 font-black text-amber-600 bg-amber-50/60 border border-amber-200 px-2 py-0.5 rounded-lg text-[10px]">
-                                        👑 Rank 1
+                                      <span className="inline-flex items-center justify-center font-extrabold text-amber-700 bg-amber-50 border border-amber-200/60 px-2.5 py-0.5 rounded-md text-[10px] tracking-wide uppercase min-w-[70px]">
+                                        1st Place
                                       </span>
                                     ) : row.rank === 2 ? (
-                                      <span className="inline-flex items-center gap-1 font-black text-slate-500 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded-lg text-[10px]">
-                                        🥈 Rank 2
+                                      <span className="inline-flex items-center justify-center font-extrabold text-slate-600 bg-slate-50 border border-slate-200 px-2.5 py-0.5 rounded-md text-[10px] tracking-wide uppercase min-w-[70px]">
+                                        2nd Place
                                       </span>
                                     ) : row.rank === 3 ? (
-                                      <span className="inline-flex items-center gap-1 font-black text-amber-700 bg-amber-50/20 border border-amber-700/20 px-2 py-0.5 rounded-lg text-[10px]">
-                                        🥉 Rank 3
+                                      <span className="inline-flex items-center justify-center font-extrabold text-orange-700 bg-orange-50/50 border border-orange-200/50 px-2.5 py-0.5 rounded-md text-[10px] tracking-wide uppercase min-w-[70px]">
+                                        3rd Place
                                       </span>
                                     ) : (
-                                      <span className="text-slate-600 font-extrabold pl-1">
+                                      <span className="inline-flex items-center justify-center font-bold text-slate-500 border border-transparent px-2.5 py-0.5 text-[10px] min-w-[70px]">
                                         Rank {row.rank}
                                       </span>
                                     )}
