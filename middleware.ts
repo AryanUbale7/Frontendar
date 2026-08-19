@@ -18,6 +18,36 @@ const PUBLIC_ROUTES = [
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  // Maintenance mode bypass check
+  const BYPASS_KEY = "dev-mode-arena";
+  const BYPASS_COOKIE = "bypass_maintenance";
+
+  const isApiOrAsset = pathname.startsWith("/api") || 
+                        pathname.startsWith("/_next") || 
+                        pathname.startsWith("/under-construction") ||
+                        pathname.includes(".");
+
+  // 1. Check for bypass query parameter
+  const bypassParam = request.nextUrl.searchParams.get("bypass");
+  if (bypassParam === BYPASS_KEY) {
+    const response = NextResponse.redirect(new URL(pathname, request.url));
+    // Set bypass cookie for 30 days
+    response.cookies.set(BYPASS_COOKIE, "true", {
+      path: "/",
+      maxAge: 60 * 60 * 24 * 30, // 30 days
+      sameSite: "lax",
+    });
+    return response;
+  }
+
+  // 2. Check if the bypass cookie is set
+  const hasBypassCookie = request.cookies.get(BYPASS_COOKIE)?.value === "true";
+
+  // 3. If not bypassed and not a public asset/API, rewrite to under-construction page
+  if (!hasBypassCookie && !isApiOrAsset) {
+    return NextResponse.rewrite(new URL("/under-construction", request.url));
+  }
+
   // Handle common auth route aliases
   if (pathname === "/signup") {
     return NextResponse.redirect(new URL("/sign-up", request.url), 308);
