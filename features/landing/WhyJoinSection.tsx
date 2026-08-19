@@ -134,7 +134,7 @@ export function WhyJoinSection() {
           {/* Left Arrow */}
           <button
             onClick={prevSlide}
-            className="hidden md:flex absolute left-0 top-1/2 -translate-y-1/2 z-20 h-10 w-10 items-center justify-center rounded-full border border-[#E2E8F0] bg-white text-[#FF006E] shadow-md hover:bg-[#FFF2F7] hover:border-[#FF006E]/40 transition-all duration-300 cursor-pointer"
+            className="hidden md:flex absolute left-0 top-1/2 -translate-y-1/2 z-20 h-10 w-10 items-center justify-center rounded-full border border-[#E2E8F0] bg-white text-[#00E5FF] shadow-md hover:bg-[rgba(0,229,255,0.08)] hover:border-[#00E5FF]/40 transition-all duration-300 cursor-pointer"
             aria-label="Previous slide"
           >
             <ChevronLeft className="h-5 w-5" />
@@ -143,7 +143,7 @@ export function WhyJoinSection() {
           {/* Right Arrow */}
           <button
             onClick={nextSlide}
-            className="hidden md:flex absolute right-0 top-1/2 -translate-y-1/2 z-20 h-10 w-10 items-center justify-center rounded-full border border-[#E2E8F0] bg-white text-[#FF006E] shadow-md hover:bg-[#FFF2F7] hover:border-[#FF006E]/40 transition-all duration-300 cursor-pointer"
+            className="hidden md:flex absolute right-0 top-1/2 -translate-y-1/2 z-20 h-10 w-10 items-center justify-center rounded-full border border-[#E2E8F0] bg-white text-[#00E5FF] shadow-md hover:bg-[rgba(0,229,255,0.08)] hover:border-[#00E5FF]/40 transition-all duration-300 cursor-pointer"
             aria-label="Next slide"
           >
             <ChevronRight className="h-5 w-5" />
@@ -169,8 +169,8 @@ export function WhyJoinSection() {
                     key={item.id}
                     className="px-3 w-full md:w-1/2 lg:w-1/4 shrink-0 flex-grow-0"
                   >
-                    <Card className="h-full p-6 space-y-4 hover:border-[#FF006E]/40 hover:shadow-md transition-all duration-300 bg-white border border-[#E2E8F0]">
-                      <div className="flex h-11 w-11 items-center justify-center rounded-[12px] bg-[#FF006E]/10 text-[#FF006E]">
+                    <Card className="h-full p-6 space-y-4 hover:border-[#00E5FF]/40 hover:shadow-md transition-all duration-300 bg-white border border-[#E2E8F0]">
+                      <div className="flex h-11 w-11 items-center justify-center rounded-[12px] bg-[#00E5FF]/10 text-[#00E5FF]">
                         <Icon className="h-5 w-5" />
                       </div>
                       <CardTitle className="text-base font-bold text-[#0F172A]">
@@ -197,8 +197,8 @@ export function WhyJoinSection() {
                 className={cn(
                   "h-2 rounded-full transition-all duration-300 cursor-pointer",
                   currentIndex === idx
-                    ? "bg-[#FF006E] w-6"
-                    : "bg-[#E2E8F0] hover:bg-[#FF006E]/40 w-2"
+                    ? "bg-[#00E5FF] w-6"
+                    : "bg-[#E2E8F0] hover:bg-[#00E5FF]/40 w-2"
                 )}
                 aria-label={`Go to slide ${idx + 1}`}
               />

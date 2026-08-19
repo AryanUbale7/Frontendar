@@ -110,7 +110,7 @@ export default function ParticipantDashboardPage() {
       >
         {/* Breadcrumb Header */}
         <div className="flex items-center gap-2 text-xs text-[#475569]">
-          <Link href="/" className="hover:text-[#FF006E] flex items-center gap-1">
+          <Link href="/" className="hover:text-[#00E5FF] flex items-center gap-1">
             <Home className="h-3.5 w-3.5" />
           </Link>
           <ChevronRight className="h-3 w-3 text-[#94A3B8]" />
@@ -162,7 +162,7 @@ export default function ParticipantDashboardPage() {
               {/* Avatar Circle with Photo Upload */}
               <div
                 onClick={() => avatarInputRef.current?.click()}
-                className="relative mx-auto h-20 w-20 rounded-full bg-[#FF006E] text-white font-heading font-bold text-2xl flex items-center justify-center shadow-md ring-4 ring-white overflow-hidden cursor-pointer group"
+                className="relative mx-auto h-20 w-20 rounded-full bg-[#00E5FF] text-white font-heading font-bold text-2xl flex items-center justify-center shadow-md ring-4 ring-white overflow-hidden cursor-pointer group"
               >
                 {user?.avatarUrl ? (
                   <img src={user.avatarUrl} alt={user?.fullName || "User"} className="h-full w-full object-cover rounded-full" />
@@ -182,7 +182,7 @@ export default function ParticipantDashboardPage() {
                     avatarInputRef.current?.click();
                   }}
                   aria-label="Upload profile photo"
-                  className="absolute bottom-0 right-0 flex h-6 w-6 items-center justify-center rounded-full bg-[#0F172A] text-white ring-2 ring-white hover:bg-[#FF006E] transition-all shadow-md z-10"
+                  className="absolute bottom-0 right-0 flex h-6 w-6 items-center justify-center rounded-full bg-[#0F172A] text-white ring-2 ring-white hover:bg-[#00E5FF] transition-all shadow-md z-10"
                 >
                   <Camera className="h-3 w-3" />
                 </button>
@@ -205,7 +205,7 @@ export default function ParticipantDashboardPage() {
               </div>
 
               <div className="flex items-center justify-center gap-2 pt-1">
-                <span className="px-3 py-1 rounded-md bg-[#FFF2F7] text-[#FF006E] text-xs font-bold border border-[#FFCCD5]">
+                <span className="px-3 py-1 rounded-md bg-[rgba(0,229,255,0.08)] text-[#00E5FF] text-xs font-bold border border-[#FFCCD5]">
                   Level 1
                 </span>
                 <span className="px-3 py-1 rounded-md bg-[#DCFCE7] text-[#16A34A] text-xs font-bold border border-[#86EFAC]">
@@ -256,7 +256,7 @@ export default function ParticipantDashboardPage() {
                   href="https://github.com"
                   target="_blank"
                   rel="noreferrer"
-                  className="flex items-center gap-2 p-2.5 rounded-xl border border-[#E2E8F0] hover:border-[#FF006E]/30 hover:bg-[#FFF2F7] transition-all text-xs font-semibold text-[#0F172A]"
+                  className="flex items-center gap-2 p-2.5 rounded-xl border border-[#E2E8F0] hover:border-[#00E5FF]/30 hover:bg-[rgba(0,229,255,0.08)] transition-all text-xs font-semibold text-[#0F172A]"
                 >
                   <GitBranch className="h-4 w-4 text-[#475569]" />
                   <span>GitHub</span>
@@ -264,7 +264,7 @@ export default function ParticipantDashboardPage() {
                 </a>
                 <Link
                   href="/profile/settings"
-                  className="flex items-center gap-2 p-2.5 rounded-xl border border-[#E2E8F0] hover:border-[#FF006E]/30 hover:bg-[#FFF2F7] transition-all text-xs font-semibold text-[#0F172A]"
+                  className="flex items-center gap-2 p-2.5 rounded-xl border border-[#E2E8F0] hover:border-[#00E5FF]/30 hover:bg-[rgba(0,229,255,0.08)] transition-all text-xs font-semibold text-[#0F172A]"
                 >
                   <span>👤</span>
                   <span>Edit Profile</span>
@@ -290,7 +290,7 @@ export default function ParticipantDashboardPage() {
               {initiatives.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   {initiatives.map((item, idx) => (
-                    <Card key={idx} className="p-4 border-[#E2E8F0] shadow-xs bg-white rounded-xl space-y-3 hover:border-[#FF006E]/40 transition-all flex flex-col justify-between">
+                    <Card key={idx} className="p-4 border-[#E2E8F0] shadow-xs bg-white rounded-xl space-y-3 hover:border-[#00E5FF]/40 transition-all flex flex-col justify-between">
                       <div className="space-y-3">
                         <div className="flex items-center justify-between">
                           <div
@@ -316,7 +316,7 @@ export default function ParticipantDashboardPage() {
                         </span>
                         <Link
                           href={`/register?id=${item.id}&workspace=true`}
-                          className="text-[#FF006E] hover:underline font-bold"
+                          className="text-[#00E5FF] hover:underline font-bold"
                         >
                           View Workspace →
                         </Link>

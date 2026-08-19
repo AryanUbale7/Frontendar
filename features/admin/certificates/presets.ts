@@ -322,7 +322,7 @@ export const PRESET_TEMPLATES: TemplatePreset[] = [
           fontSize: 12,
           fontFamily: "Inter, sans-serif",
           fontStyle: "bold",
-          color: "#FF006E",
+          color: "#00E5FF",
           align: "center",
           visible: true,
           zIndex: 2,

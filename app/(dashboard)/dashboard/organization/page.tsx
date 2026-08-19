@@ -52,7 +52,7 @@ export default function OrganizationDashboardPage() {
               <p className="text-xs font-semibold uppercase text-[#475569]">Total Applicants</p>
               <h3 className="font-heading text-2xl font-bold text-[#0F172A]">4,190</h3>
             </div>
-            <div className="flex h-11 w-11 items-center justify-center rounded-[14px] bg-[#FF006E]/10 text-[#FF006E]">
+            <div className="flex h-11 w-11 items-center justify-center rounded-[14px] bg-[#00E5FF]/10 text-[#00E5FF]">
               <Users className="h-5 w-5" />
             </div>
           </Card>

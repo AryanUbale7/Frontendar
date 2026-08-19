@@ -913,10 +913,10 @@ export function FigmaCertificateEditor({
 
               {/* Snap-to-center Guide Lines */}
               {snapX && (
-                <div className="absolute top-0 bottom-0 left-1/2 w-0.5 bg-[#FF006E] z-40 pointer-events-none shadow-sm" />
+                <div className="absolute top-0 bottom-0 left-1/2 w-0.5 bg-[#00E5FF] z-40 pointer-events-none shadow-sm" />
               )}
               {snapY && (
-                <div className="absolute left-0 right-0 top-1/2 h-0.5 bg-[#FF006E] z-40 pointer-events-none shadow-sm" />
+                <div className="absolute left-0 right-0 top-1/2 h-0.5 bg-[#00E5FF] z-40 pointer-events-none shadow-sm" />
               )}
 
               {/* Live Canvas Renderer */}
