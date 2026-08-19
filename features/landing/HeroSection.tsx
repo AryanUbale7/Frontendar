@@ -23,14 +23,9 @@ export function HeroSection() {
       id="hero"
       className="relative min-h-[85vh] flex items-center justify-center py-16 md:py-20 overflow-hidden bg-[#000000] selection:bg-rose-500/20 selection:text-rose-100"
     >
-      {/* Background Glowing Ambient Light Blobs (Rich colors on dark background) */}
-      <div className="absolute top-[-10%] left-[-15%] w-[450px] md:w-[750px] h-[450px] md:h-[750px] bg-blue-600/10 rounded-full blur-[120px] md:blur-[200px] pointer-events-none" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[400px] md:w-[700px] h-[400px] md:h-[700px] bg-rose-500/8 rounded-full blur-[120px] md:blur-[190px] pointer-events-none" />
-      <div className="absolute top-[20%] right-[10%] w-[350px] md:w-[550px] h-[350px] md:h-[550px] bg-amber-500/5 rounded-full blur-[100px] md:blur-[160px] pointer-events-none" />
-
-      {/* Elegant Technical Background Grid with subtle Parallax */}
+      {/* Elegant Technical Background Grid with subtle Parallax (2% opacity white lines) */}
       <div
-        className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.015)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.015)_1px,transparent_1px)] bg-[size:6rem_6rem] pointer-events-none"
+        className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:6rem_6rem] pointer-events-none"
         style={{
           transform: `translate3d(${mouse.x * 6}px, ${mouse.y * 6}px, 0)`,
           transition: "transform 0.3s cubic-bezier(0.1, 0.8, 0.3, 1)",
@@ -108,7 +103,7 @@ export function HeroSection() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.1 }}
-            className="font-heading text-4xl sm:text-7xl lg:text-[88px] font-extrabold tracking-tight text-white leading-[1.0] max-w-5xl mx-auto"
+            className="font-heading text-4xl sm:text-7xl lg:text-[88px] font-extrabold tracking-tight !text-white leading-[1.0] max-w-5xl mx-auto"
           >
             {/* Line 1 */}
             <span className="block sm:inline-block">
@@ -132,7 +127,7 @@ export function HeroSection() {
                   className="w-full h-full object-cover animate-fade-in"
                 />
               </span>{" "}
-              <span className="bg-gradient-to-r from-[#FF2D73] via-[#FF6B57] to-[#FFB52E] bg-clip-text text-transparent inline-block">
+              <span>
                 Innovate.
               </span>{" "}
               <span className="inline-block align-middle -translate-y-[4px] sm:-translate-y-[6px] lg:-translate-y-[8px] mx-1.5 sm:mx-3 w-[80px] sm:w-[130px] lg:w-[160px] h-[36px] sm:h-[55px] lg:h-[65px] rounded-full overflow-hidden border border-white/10 shadow-sm transition-transform duration-300 hover:scale-105 select-none pointer-events-none">
