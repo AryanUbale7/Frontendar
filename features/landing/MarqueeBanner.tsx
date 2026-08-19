@@ -52,7 +52,7 @@ export function MarqueeBanner() {
             const Icon = item.icon;
             return (
               <div key={idx} className="flex items-center gap-3 shrink-0 select-none">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#00E5FF]/10 border border-[#00E5FF]/20 text-[#00E5FF]">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#DEE32E]/10 border border-[#DEE32E]/20 text-[#DEE32E]">
                   <Icon className="h-4.5 w-4.5" />
                 </div>
                 <span className="font-code text-xs font-bold text-[#0F172A]">

@@ -3,7 +3,7 @@
 @config "../tailwind.config.ts";
 
 :root {
-  --color-primary: #00E5FF;
+  --color-primary: #DEE32E;
   --color-secondary: #FFD60A;
   --color-accent: #FFD60A;
   --color-background: #F8FAFC;
@@ -14,12 +14,12 @@
   --color-success: #22C55E;
   --color-warning: #FFD60A;
   --color-error: #EF4444;
-  --gradient-primary: linear-gradient(135deg, #00E5FF, #FFD60A);
+  --gradient-primary: linear-gradient(135deg, #DEE32E, #FFD60A);
   --radius-default: 16px;
 }
 
 @theme {
-  --color-primary: #00E5FF;
+  --color-primary: #DEE32E;
   --color-secondary: #FFD60A;
   --color-accent: #FFD60A;
   --color-background: #F8FAFC;
@@ -71,11 +71,11 @@ code, pre, kbd {
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #00E5FF;
+  background: #DEE32E;
 }
 
 /* Focus outline baseline for accessibility */
 *:focus-visible {
-  outline: 2px solid #00E5FF;
+  outline: 2px solid #DEE32E;
   outline-offset: 2px;
 }

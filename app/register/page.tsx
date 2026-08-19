@@ -651,7 +651,7 @@ function HackathonRegistrationContent() {
   if (loading) {
     return (
       <div className="flex min-h-screen w-full items-center justify-center bg-[#F8FAFC]">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#00E5FF] border-t-transparent" />
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#DEE32E] border-t-transparent" />
       </div>
     );
   }
@@ -863,7 +863,7 @@ function HackathonRegistrationContent() {
                 {activePortalTab === "problem" && (
                   !hackathon.problemReleased ? (
                     <Card className="p-12 text-center bg-white border-[#E2E8F0] shadow-sm rounded-2xl animate-in fade-in duration-200 flex flex-col items-center justify-center space-y-4">
-                      <div className="p-4 rounded-full bg-rose-50 text-[#00E5FF]">
+                      <div className="p-4 rounded-full bg-rose-50 text-[#DEE32E]">
                         <AlertCircle className="h-10 w-10" />
                       </div>
                       <div className="space-y-2 max-w-md">
@@ -899,8 +899,8 @@ function HackathonRegistrationContent() {
                                 }}
                                 className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
                                   activeProblemIdx === sIdx
-                                    ? "bg-[#00E5FF] text-white shadow-sm"
-                                    : "bg-[#F8FAFC] text-[#475569] border border-[#E2E8F0] hover:bg-[#00E5FF]/5 hover:text-[#00E5FF]"
+                                    ? "bg-[#DEE32E] text-white shadow-sm"
+                                    : "bg-[#F8FAFC] text-[#475569] border border-[#E2E8F0] hover:bg-[#DEE32E]/5 hover:text-[#DEE32E]"
                                 } ${submissionAttempts.length > 0 ? "opacity-75 cursor-not-allowed" : ""}`}
                               >
                                 Problem #{sIdx + 1}
@@ -909,7 +909,7 @@ function HackathonRegistrationContent() {
                           </div>
                         )}
                         <h2 className="font-heading text-lg font-bold text-[#0F172A] flex items-center gap-2">
-                          <FileCode2 className="h-5 w-5 text-[#00E5FF]" />
+                          <FileCode2 className="h-5 w-5 text-[#DEE32E]" />
                           <span>{activeStmt.title || hackathon.problemTitle}</span>
                         </h2>
                         {activeStmt.difficulty && (
@@ -997,7 +997,7 @@ function HackathonRegistrationContent() {
                   <Card className="p-6 bg-white border-[#E2E8F0] shadow-sm rounded-2xl animate-in fade-in duration-200">
                     <div className="space-y-1.5 border-b border-[#F1F5F9] pb-4 mb-4">
                       <h2 className="font-heading text-lg font-bold text-[#0F172A] flex items-center gap-2">
-                        <BookOpen className="h-5 w-5 text-[#00E5FF]" />
+                        <BookOpen className="h-5 w-5 text-[#DEE32E]" />
                         <span>Hackathon Guidelines & Rules</span>
                       </h2>
                       <p className="text-xs text-[#475569]">
@@ -1023,7 +1023,7 @@ function HackathonRegistrationContent() {
                   <Card className="p-6 bg-white border-[#E2E8F0] shadow-sm rounded-2xl animate-in fade-in duration-200">
                     <div className="space-y-1.5 border-b border-[#F1F5F9] pb-4 mb-4">
                       <h2 className="font-heading text-lg font-bold text-[#0F172A] flex items-center gap-2">
-                        <LinkIcon className="h-5 w-5 text-[#00E5FF]" />
+                        <LinkIcon className="h-5 w-5 text-[#DEE32E]" />
                         <span>Developer Resources & Templates</span>
                       </h2>
                       <p className="text-xs text-[#475569]">
@@ -1036,7 +1036,7 @@ function HackathonRegistrationContent() {
                         {hackathon.resources.map((res, resIdx) => (
                           <div
                             key={resIdx}
-                            className="p-4 border border-[#E2E8F0] rounded-xl flex items-start justify-between gap-4 hover:border-[#00E5FF]/30 transition-all bg-[#F8FAFC]"
+                            className="p-4 border border-[#E2E8F0] rounded-xl flex items-start justify-between gap-4 hover:border-[#DEE32E]/30 transition-all bg-[#F8FAFC]"
                           >
                             <div className="space-y-1">
                               <Badge variant="outline" size="sm" className="bg-white text-xs">
@@ -1051,7 +1051,7 @@ function HackathonRegistrationContent() {
                               href={res.url}
                               target="_blank"
                               rel="noreferrer"
-                              className="p-2 rounded-lg bg-white border border-[#E2E8F0] text-[#475569] hover:bg-[#00E5FF] hover:text-white hover:border-[#00E5FF] transition-all"
+                              className="p-2 rounded-lg bg-white border border-[#E2E8F0] text-[#475569] hover:bg-[#DEE32E] hover:text-white hover:border-[#DEE32E] transition-all"
                             >
                               <ExternalLink className="h-3.5 w-3.5" />
                             </a>
@@ -1068,7 +1068,7 @@ function HackathonRegistrationContent() {
                   <Card className="p-6 bg-white border-[#E2E8F0] shadow-sm rounded-2xl animate-in fade-in duration-200 space-y-6">
                     <div className="space-y-1.5 border-b border-[#F1F5F9] pb-4">
                       <h2 className="font-heading text-lg font-bold text-[#0F172A] flex items-center gap-2">
-                        <GitPullRequest className="h-5 w-5 text-[#00E5FF]" />
+                        <GitPullRequest className="h-5 w-5 text-[#DEE32E]" />
                         <span>Submission Workspace & Project Portfolio</span>
                       </h2>
                       <p className="text-xs text-[#475569]">
@@ -1087,10 +1087,10 @@ function HackathonRegistrationContent() {
                       ].map((s) => (
                         <div key={s.step} className="space-y-1.5">
                           <div className={`h-2 rounded-full transition-all ${
-                            submissionStep >= s.step ? "bg-[#00E5FF]" : "bg-slate-100"
+                            submissionStep >= s.step ? "bg-[#DEE32E]" : "bg-slate-100"
                           }`} />
                           <span className={`text-[9px] font-black uppercase tracking-wider block ${
-                            submissionStep === s.step ? "text-[#00E5FF]" : "text-slate-400"
+                            submissionStep === s.step ? "text-[#DEE32E]" : "text-slate-400"
                           }`}>{s.label}</span>
                         </div>
                       ))}
@@ -1105,8 +1105,8 @@ function HackathonRegistrationContent() {
                             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#F1F5F9] pb-5">
                               <div className="space-y-1.5">
                                 <div className="flex flex-wrap items-center gap-2.5">
-                                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-rose-50 border border-rose-200 text-[#00E5FF] text-[10px] font-mono font-bold tracking-wider uppercase">
-                                    <ShieldCheck className="w-3.5 h-3.5 text-[#00E5FF]" />
+                                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-rose-50 border border-rose-200 text-[#DEE32E] text-[10px] font-mono font-bold tracking-wider uppercase">
+                                    <ShieldCheck className="w-3.5 h-3.5 text-[#DEE32E]" />
                                     FAIE v3
                                   </span>
                                   <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 text-[10px] font-mono font-semibold">
@@ -1132,7 +1132,7 @@ function HackathonRegistrationContent() {
                                 </div>
                                 <div className="flex items-center gap-2">
                                   <span className="text-[#64748B]">Version:</span>
-                                  <span className="text-[#00E5FF] font-bold">
+                                  <span className="text-[#DEE32E] font-bold">
                                     v{evaluatingSubmission.version || (submissionAttempts[0]?.version ? submissionAttempts[0].version : 1)}
                                   </span>
                                 </div>
@@ -1184,8 +1184,8 @@ function HackathonRegistrationContent() {
                                     {evaluatingSubmission.status === "QUEUED" ? (
                                       <div className="h-6 w-6 rounded-full bg-rose-100 border border-rose-300 flex items-center justify-center">
                                         <span className="relative flex h-2 w-2">
-                                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#00E5FF] opacity-75"></span>
-                                          <span className="relative inline-flex rounded-full h-2 w-2 bg-[#00E5FF]"></span>
+                                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#DEE32E] opacity-75"></span>
+                                          <span className="relative inline-flex rounded-full h-2 w-2 bg-[#DEE32E]"></span>
                                         </span>
                                       </div>
                                     ) : (
@@ -1196,12 +1196,12 @@ function HackathonRegistrationContent() {
                                   </div>
                                   <div className="space-y-0.5 min-w-0 flex-1">
                                     <div className="flex items-center justify-between gap-2">
-                                      <h4 className={`text-xs font-bold ${evaluatingSubmission.status === "QUEUED" ? "text-[#00E5FF]" : "text-slate-800"}`}>
+                                      <h4 className={`text-xs font-bold ${evaluatingSubmission.status === "QUEUED" ? "text-[#DEE32E]" : "text-slate-800"}`}>
                                         Repository Analysis
                                       </h4>
                                       <span className={`text-[9px] font-mono px-2 py-0.5 rounded border ${
                                         evaluatingSubmission.status === "QUEUED"
-                                          ? "text-[#00E5FF] bg-rose-100 border-rose-200 font-semibold"
+                                          ? "text-[#DEE32E] bg-rose-100 border-rose-200 font-semibold"
                                           : "text-emerald-700 bg-emerald-100/80 border-emerald-200"
                                       }`}>
                                         {evaluatingSubmission.status === "QUEUED" ? "Active" : "Completed"}
@@ -1223,8 +1223,8 @@ function HackathonRegistrationContent() {
                                     {evaluatingSubmission.status === "EVALUATING" ? (
                                       <div className="h-6 w-6 rounded-full bg-rose-100 border border-rose-300 flex items-center justify-center">
                                         <span className="relative flex h-2 w-2">
-                                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#00E5FF] opacity-75"></span>
-                                          <span className="relative inline-flex rounded-full h-2 w-2 bg-[#00E5FF]"></span>
+                                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#DEE32E] opacity-75"></span>
+                                          <span className="relative inline-flex rounded-full h-2 w-2 bg-[#DEE32E]"></span>
                                         </span>
                                       </div>
                                     ) : (
@@ -1235,12 +1235,12 @@ function HackathonRegistrationContent() {
                                   </div>
                                   <div className="space-y-0.5 min-w-0 flex-1">
                                     <div className="flex items-center justify-between gap-2">
-                                      <h4 className={`text-xs font-bold ${evaluatingSubmission.status === "EVALUATING" ? "text-[#00E5FF]" : "text-slate-500"}`}>
+                                      <h4 className={`text-xs font-bold ${evaluatingSubmission.status === "EVALUATING" ? "text-[#DEE32E]" : "text-slate-500"}`}>
                                         AST Analysis
                                       </h4>
                                       <span className={`text-[9px] font-mono px-2 py-0.5 rounded border ${
                                         evaluatingSubmission.status === "EVALUATING"
-                                          ? "text-[#00E5FF] bg-rose-100 border-rose-200 font-semibold"
+                                          ? "text-[#DEE32E] bg-rose-100 border-rose-200 font-semibold"
                                           : "text-slate-400 bg-slate-100 border-slate-200"
                                       }`}>
                                         {evaluatingSubmission.status === "EVALUATING" ? "Active" : "Pending"}
@@ -1318,7 +1318,7 @@ function HackathonRegistrationContent() {
                             <div className="space-y-2 pt-2 border-t border-[#F1F5F9]">
                               <div className="flex items-center justify-between text-xs font-medium text-[#0F172A]">
                                 <span className="flex items-center gap-2 text-xs">
-                                  <Loader2 className="h-3.5 w-3.5 text-[#00E5FF] animate-spin" />
+                                  <Loader2 className="h-3.5 w-3.5 text-[#DEE32E] animate-spin" />
                                   Evaluation in progress
                                 </span>
                                 <span className="text-[11px] font-mono text-[#64748B]">
@@ -1327,7 +1327,7 @@ function HackathonRegistrationContent() {
                               </div>
                               <div className="h-1.5 w-full bg-slate-100 rounded-full overflow-hidden relative border border-slate-200/50">
                                 <div
-                                  className="h-full bg-gradient-to-r from-[#00E5FF] to-rose-500 rounded-full transition-all duration-500"
+                                  className="h-full bg-gradient-to-r from-[#DEE32E] to-rose-500 rounded-full transition-all duration-500"
                                   style={{ width: evaluatingSubmission.status === "QUEUED" ? "25%" : "65%" }}
                                 />
                               </div>
@@ -1485,7 +1485,7 @@ function HackathonRegistrationContent() {
                             <div className="flex justify-end pt-4">
                               <Button
                                 type="button"
-                                className="bg-[#00E5FF] text-white font-bold"
+                                className="bg-[#DEE32E] text-white font-bold"
                                 onClick={() => {
                                   let targetUrl = repoUrl.trim();
                                   if (targetUrl && !targetUrl.endsWith(".git") && targetUrl.includes("github.com")) {
@@ -1532,7 +1532,7 @@ function HackathonRegistrationContent() {
                               </Button>
                               <Button
                                 type="button"
-                                className="bg-[#00E5FF] text-white font-bold"
+                                className="bg-[#DEE32E] text-white font-bold"
                                 onClick={() => setSubmissionStep(3)}
                               >
                                 Next Step
@@ -1563,7 +1563,7 @@ function HackathonRegistrationContent() {
                                 Detailed Description <span className="text-rose-500">*</span>
                               </label>
                               <textarea
-                                className="w-full p-2.5 border rounded-xl text-xs focus:ring-[#00E5FF] focus:border-[#00E5FF]"
+                                className="w-full p-2.5 border rounded-xl text-xs focus:ring-[#DEE32E] focus:border-[#DEE32E]"
                                 rows={3}
                                 value={detailedDesc}
                                 onChange={(e) => setDetailedDesc(e.target.value)}
@@ -1576,7 +1576,7 @@ function HackathonRegistrationContent() {
                                 Problem Solved <span className="text-rose-500">*</span>
                               </label>
                               <textarea
-                                className="w-full p-2.5 border rounded-xl text-xs focus:ring-[#00E5FF] focus:border-[#00E5FF]"
+                                className="w-full p-2.5 border rounded-xl text-xs focus:ring-[#DEE32E] focus:border-[#DEE32E]"
                                 rows={2}
                                 value={problemSolved}
                                 onChange={(e) => setProblemSolved(e.target.value)}
@@ -1594,7 +1594,7 @@ function HackathonRegistrationContent() {
                               </Button>
                               <Button
                                 type="button"
-                                className="bg-[#00E5FF] text-white font-bold"
+                                className="bg-[#DEE32E] text-white font-bold"
                                 onClick={() => setSubmissionStep(4)}
                                 disabled={!projectName.trim() || !shortDesc.trim() || !detailedDesc.trim() || !problemSolved.trim()}
                               >
@@ -1677,7 +1677,7 @@ function HackathonRegistrationContent() {
                               </Button>
                               <Button
                                 type="button"
-                                className="bg-[#00E5FF] text-white font-bold"
+                                className="bg-[#DEE32E] text-white font-bold"
                                 onClick={() => setSubmissionStep(5)}
                               >
                                 Next Step
@@ -1712,7 +1712,7 @@ function HackathonRegistrationContent() {
                               <div className="p-4 rounded-xl border border-slate-200 bg-slate-50 flex items-center gap-3">
                                 {astCheckResult === "analyzing" ? (
                                   <>
-                                    <RefreshCw className="h-5 w-5 text-[#00E5FF] animate-spin shrink-0" />
+                                    <RefreshCw className="h-5 w-5 text-[#DEE32E] animate-spin shrink-0" />
                                     <span className="text-xs text-[#475569] font-medium">Running AST metrics and validation scripts...</span>
                                   </>
                                 ) : (
@@ -1734,7 +1734,7 @@ function HackathonRegistrationContent() {
                               </Button>
                               <Button
                                 type="button"
-                                className="bg-[#00E5FF] text-white font-bold"
+                                className="bg-[#DEE32E] text-white font-bold"
                                 loading={submittingProject}
                                 onClick={handleProjectSubmit}
                                 disabled={!checklistRepo || !checklistDeploy || !checklistReadme || !!evaluatingSubmission || (systemConfig?.forceEmailVerification && !profileVerified)}
@@ -1769,7 +1769,7 @@ function HackathonRegistrationContent() {
                                 <tr key={idx} className="hover:bg-slate-50/50">
                                   <td className="p-3 font-mono font-bold text-slate-700">v{attempt.version}</td>
                                   <td className="p-3 text-slate-500">{attempt.time}</td>
-                                  <td className="p-3 font-bold text-[#00E5FF]">{attempt.score}/100 ({attempt.grade})</td>
+                                  <td className="p-3 font-bold text-[#DEE32E]">{attempt.score}/100 ({attempt.grade})</td>
                                   <td className="p-3">
                                     <Badge className="bg-emerald-50 text-emerald-600 border border-emerald-200 text-[9px] font-bold tracking-widest uppercase">
                                       {attempt.status}
@@ -1783,7 +1783,7 @@ function HackathonRegistrationContent() {
                                           setEvaluationReport(attempt.reports[0].payload);
                                           setSubmissionSuccess(true);
                                         }}
-                                        className="text-[#00E5FF] hover:underline font-bold"
+                                        className="text-[#DEE32E] hover:underline font-bold"
                                       >
                                         View Report
                                       </button>
@@ -1823,7 +1823,7 @@ function HackathonRegistrationContent() {
                     )}
                     {loadingLeaderboard ? (
                       <div className="flex justify-center p-8">
-                        <RefreshCw className="h-6 w-6 animate-spin text-[#00E5FF]" />
+                        <RefreshCw className="h-6 w-6 animate-spin text-[#DEE32E]" />
                       </div>
                     ) : leaderboardList.length > 0 ? (
                       <div className="overflow-x-auto text-xs">
@@ -1853,7 +1853,7 @@ function HackathonRegistrationContent() {
                                   <div className="font-medium text-slate-700">{row.participantName}</div>
                                   <div className="text-[10px] text-slate-400">{row.participantEmail}</div>
                                 </td>
-                                <td className="p-3 font-bold text-[#00E5FF]">{row.score}/100</td>
+                                <td className="p-3 font-bold text-[#DEE32E]">{row.score}/100</td>
                                 <td className="p-3">
                                   <Badge className={row.grade === "PASSED" ? "bg-emerald-50 text-emerald-600 border-emerald-200" : "bg-rose-50 text-rose-600 border-rose-200"}>
                                     {row.grade}
@@ -1951,11 +1951,11 @@ function HackathonRegistrationContent() {
                             onClick={() => setParticipationMode("solo")}
                             className={`p-4 border rounded-xl flex items-start gap-3 cursor-pointer transition-all ${
                               participationMode === "solo"
-                                ? "border-[#00E5FF] bg-[#00E5FF]/5"
+                                ? "border-[#DEE32E] bg-[#DEE32E]/5"
                                 : "border-[#E2E8F0] bg-white hover:bg-[#F8FAFC]"
                             }`}
                           >
-                            <UserIcon className={`h-5 w-5 shrink-0 mt-0.5 ${participationMode === "solo" ? "text-[#00E5FF]" : "text-[#475569]"}`} />
+                            <UserIcon className={`h-5 w-5 shrink-0 mt-0.5 ${participationMode === "solo" ? "text-[#DEE32E]" : "text-[#475569]"}`} />
                             <div>
                               <h4 className="text-xs font-bold text-[#0F172A]">Solo</h4>
                               <p className="text-[10px] text-[#475569] mt-0.5">Register as an individual builder.</p>
@@ -1967,11 +1967,11 @@ function HackathonRegistrationContent() {
                             onClick={() => setParticipationMode("create_team")}
                             className={`p-4 border rounded-xl flex items-start gap-3 cursor-pointer transition-all ${
                               participationMode === "create_team"
-                                ? "border-[#00E5FF] bg-[#00E5FF]/5"
+                                ? "border-[#DEE32E] bg-[#DEE32E]/5"
                                 : "border-[#E2E8F0] bg-white hover:bg-[#F8FAFC]"
                             }`}
                           >
-                            <Users className={`h-5 w-5 shrink-0 mt-0.5 ${participationMode === "create_team" ? "text-[#00E5FF]" : "text-[#475569]"}`} />
+                            <Users className={`h-5 w-5 shrink-0 mt-0.5 ${participationMode === "create_team" ? "text-[#DEE32E]" : "text-[#475569]"}`} />
                             <div>
                               <h4 className="text-xs font-bold text-[#0F172A]">Create Team</h4>
                               <p className="text-[10px] text-[#475569] mt-0.5">Create a team and invite members.</p>
@@ -1983,11 +1983,11 @@ function HackathonRegistrationContent() {
                             onClick={() => setParticipationMode("join_team")}
                             className={`p-4 border rounded-xl flex items-start gap-3 cursor-pointer transition-all ${
                               participationMode === "join_team"
-                                ? "border-[#00E5FF] bg-[#00E5FF]/5"
+                                ? "border-[#DEE32E] bg-[#DEE32E]/5"
                                 : "border-[#E2E8F0] bg-white hover:bg-[#F8FAFC]"
                             }`}
                           >
-                            <Users className={`h-5 w-5 shrink-0 mt-0.5 ${participationMode === "join_team" ? "text-[#00E5FF]" : "text-[#475569]"}`} />
+                            <Users className={`h-5 w-5 shrink-0 mt-0.5 ${participationMode === "join_team" ? "text-[#DEE32E]" : "text-[#475569]"}`} />
                             <div>
                               <h4 className="text-xs font-bold text-[#0F172A]">Join Team</h4>
                               <p className="text-[10px] text-[#475569] mt-0.5">Use an invite code to join a team.</p>
@@ -2073,7 +2073,7 @@ function HackathonRegistrationContent() {
                     <CardFooter className="flex justify-end gap-2 bg-[#F8FAFC]/30 border-t border-[#F1F5F9] p-4">
                       <Button
                         type="submit"
-                        className="bg-[#00E5FF] text-white hover:bg-[#D8005C] shadow-sm font-bold"
+                        className="bg-[#DEE32E] text-white hover:bg-[#D8005C] shadow-sm font-bold"
                         rightIcon={<ArrowRight className="h-4 w-4" />}
                       >
                         Confirm Registration
@@ -2097,7 +2097,7 @@ function HackathonRegistrationContent() {
                 {/* About Section */}
                 <Card className="p-6 space-y-4 bg-white border-[#E2E8F0] shadow-xs rounded-2xl">
                   <h3 className="font-heading text-sm font-bold text-[#0F172A] border-b border-[#F1F5F9] pb-2 flex items-center gap-2">
-                    <Info className="h-4 w-4 text-[#00E5FF]" />
+                    <Info className="h-4 w-4 text-[#DEE32E]" />
                     <span>About the Hackathon</span>
                   </h3>
                   <p className="text-xs text-[#475569] leading-relaxed whitespace-pre-wrap">
@@ -2108,7 +2108,7 @@ function HackathonRegistrationContent() {
                 {/* Problem Statement Preview */}
                 <Card className="p-6 space-y-4 bg-white border-[#E2E8F0] shadow-xs rounded-2xl">
                   <h3 className="font-heading text-sm font-bold text-[#0F172A] border-b border-[#F1F5F9] pb-2 flex items-center gap-2">
-                    <FileCode2 className="h-4 w-4 text-[#00E5FF]" />
+                    <FileCode2 className="h-4 w-4 text-[#DEE32E]" />
                     <span>Problem Statement Overview</span>
                   </h3>
                   <div className="space-y-2">
@@ -2125,7 +2125,7 @@ function HackathonRegistrationContent() {
                 {/* Rounds & Stages Timeline */}
                 <Card className="p-6 space-y-4 bg-white border-[#E2E8F0] shadow-xs rounded-2xl">
                   <h3 className="font-heading text-sm font-bold text-[#0F172A] border-b border-[#F1F5F9] pb-2 flex items-center gap-2">
-                    <Calendar className="h-4 w-4 text-[#00E5FF]" />
+                    <Calendar className="h-4 w-4 text-[#DEE32E]" />
                     <span>Timeline & Rounds</span>
                   </h3>
 
@@ -2135,7 +2135,7 @@ function HackathonRegistrationContent() {
                         {idx !== hackathon.rounds.length - 1 && (
                           <div className="absolute left-4 top-8 bottom-0 w-0.5 bg-[#E2E8F0]" />
                         )}
-                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[rgba(0,229,255,0.08)] border border-[#FFCCD5] text-[#00E5FF] text-xs font-bold">
+                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[rgba(222,227,46,0.08)] border border-[#FFCCD5] text-[#DEE32E] text-xs font-bold">
                           {idx + 1}
                         </div>
                         <div className="space-y-1 pt-1">
@@ -2159,7 +2159,7 @@ function HackathonRegistrationContent() {
               <div className="lg:col-span-1 space-y-6">
                 {/* Register Action Card */}
                 <Card className="p-6 text-center space-y-4 border-[#E2E8F0] shadow-sm bg-white rounded-2xl relative overflow-hidden">
-                  <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#00E5FF] to-[#FFD60A]" />
+                  <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#DEE32E] to-[#FFD60A]" />
                   <div className="space-y-1 pt-1">
                     <Badge variant="success" size="sm">
                       Registration Open
@@ -2192,7 +2192,7 @@ function HackathonRegistrationContent() {
                         setShowRegistrationForm(true);
                       }
                     }}
-                    className="w-full bg-[#00E5FF] text-white hover:bg-[#D8005C] shadow-md py-3 text-xs font-bold rounded-xl"
+                    className="w-full bg-[#DEE32E] text-white hover:bg-[#D8005C] shadow-md py-3 text-xs font-bold rounded-xl"
                     rightIcon={<ArrowRight className="h-4 w-4" />}
                   >
                     Register Now
@@ -2202,14 +2202,14 @@ function HackathonRegistrationContent() {
                 {/* Guidelines Rules Card */}
                 <Card className="p-5 space-y-3 bg-white border-[#E2E8F0] shadow-xs rounded-2xl">
                   <h3 className="font-heading text-xs font-bold uppercase tracking-wider text-[#0F172A] border-b border-[#F1F5F9] pb-2 flex items-center gap-2">
-                    <CheckSquare className="h-3.5 w-3.5 text-[#00E5FF]" />
+                    <CheckSquare className="h-3.5 w-3.5 text-[#DEE32E]" />
                     <span>Quick Guidelines</span>
                   </h3>
                   {hackathon.rules.length > 0 ? (
                     <ul className="space-y-2.5 text-[11px] text-[#475569] leading-relaxed">
                       {hackathon.rules.map((rule, idx) => (
                         <li key={idx} className="flex gap-2 items-start">
-                          <span className="text-[#00E5FF] font-bold mt-0.5">•</span>
+                          <span className="text-[#DEE32E] font-bold mt-0.5">•</span>
                           <span>{rule}</span>
                         </li>
                       ))}
@@ -2231,7 +2231,7 @@ export default function HackathonRegistrationPage() {
   return (
     <Suspense fallback={
       <div className="flex min-h-screen w-full items-center justify-center bg-[#F8FAFC]">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#00E5FF] border-t-transparent" />
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-[#DEE32E] border-t-transparent" />
       </div>
     }>
       <HackathonRegistrationContent />

@@ -931,7 +931,7 @@ export function BlueprintEditor({ hackathonId, onClose }: { hackathonId?: string
         <button
           type="button"
           onClick={onClose}
-          className="flex items-center gap-1 text-xs text-[#00E5FF] font-bold hover:underline mb-2"
+          className="flex items-center gap-1 text-xs text-[#DEE32E] font-bold hover:underline mb-2"
         >
           <ChevronLeft className="h-4 w-4" />
           <span>Back to Hackathons List</span>
@@ -941,7 +941,7 @@ export function BlueprintEditor({ hackathonId, onClose }: { hackathonId?: string
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-5 bg-white border border-[#E2E8F0] rounded-2xl shadow-xs">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <Trophy className="h-5 w-5 text-[#00E5FF]" />
+            <Trophy className="h-5 w-5 text-[#DEE32E]" />
             <h2 className="font-heading text-lg font-bold text-[#0F172A]">
               Evaluation Blueprint Architect
             </h2>
@@ -962,7 +962,7 @@ export function BlueprintEditor({ hackathonId, onClose }: { hackathonId?: string
           <select
             value={selectedHackathonId}
             onChange={(e) => handleHackathonChange(e.target.value)}
-            className="flex h-9 rounded-md border border-[#E2E8F0] bg-white px-3 py-1.5 text-xs font-semibold text-[#0F172A] focus:outline-none focus:ring-2 focus:ring-[#00E5FF]"
+            className="flex h-9 rounded-md border border-[#E2E8F0] bg-white px-3 py-1.5 text-xs font-semibold text-[#0F172A] focus:outline-none focus:ring-2 focus:ring-[#DEE32E]"
           >
             {hackathons.map((h) => (
               <option key={h.id} value={h.id}>
@@ -1009,7 +1009,7 @@ export function BlueprintEditor({ hackathonId, onClose }: { hackathonId?: string
 
           <button
             onClick={() => handleSaveBlueprint("published")}
-            className="flex items-center gap-1.5 px-4 h-9 bg-[#00E5FF] text-white hover:bg-[#D8005C] shadow-sm font-bold text-xs rounded-lg transition-all"
+            className="flex items-center gap-1.5 px-4 h-9 bg-[#DEE32E] text-white hover:bg-[#D8005C] shadow-sm font-bold text-xs rounded-lg transition-all"
           >
             <CheckCircle className="h-4 w-4" />
             <span>Publish Blueprint</span>
@@ -1037,7 +1037,7 @@ export function BlueprintEditor({ hackathonId, onClose }: { hackathonId?: string
               onClick={() => setActiveSection(idx)}
               className={`w-full flex flex-col items-start text-left p-3 rounded-xl transition-all ${
                 activeSection === idx
-                  ? "bg-[#00E5FF]/5 border border-[#00E5FF]/30 text-[#00E5FF]"
+                  ? "bg-[#DEE32E]/5 border border-[#DEE32E]/30 text-[#DEE32E]"
                   : "hover:bg-[#F8FAFC] text-[#475569] border border-transparent"
               }`}
             >
@@ -1052,7 +1052,7 @@ export function BlueprintEditor({ hackathonId, onClose }: { hackathonId?: string
           <Card className="rounded-2xl border-[#E2E8F0] bg-white shadow-sm overflow-hidden min-h-[500px] flex flex-col justify-between">
             <CardHeader className="border-b border-[#F1F5F9] bg-[#F8FAFC]/30">
               <CardTitle className="text-base font-bold text-[#0F172A] flex items-center gap-2">
-                <Sliders className="h-4.5 w-4.5 text-[#00E5FF]" />
+                <Sliders className="h-4.5 w-4.5 text-[#DEE32E]" />
                 <span>{sections[activeSection].title}</span>
               </CardTitle>
               <CardDescription className="text-xs">
@@ -1097,7 +1097,7 @@ export function BlueprintEditor({ hackathonId, onClose }: { hackathonId?: string
                             <Trash2 className="h-4 w-4" />
                           </button>
                         )}
-                        <span className="text-xs font-bold text-[#00E5FF]">
+                        <span className="text-xs font-bold text-[#DEE32E]">
                           Problem Option #{idx + 1}
                         </span>
 
@@ -1120,7 +1120,7 @@ export function BlueprintEditor({ hackathonId, onClose }: { hackathonId?: string
                               setProblemStatements(problemStatements.map((s, i) => (i === idx ? { ...s, description: e.target.value } : s)))
                             }
                             placeholder="Describe the problem to be solved..."
-                            className="flex min-h-[100px] w-full rounded-[12px] border border-[#E2E8F0] px-3 py-2 text-xs focus:ring-1 focus:ring-[#00E5FF] focus:outline-none bg-white text-[#0F172A]"
+                            className="flex min-h-[100px] w-full rounded-[12px] border border-[#E2E8F0] px-3 py-2 text-xs focus:ring-1 focus:ring-[#DEE32E] focus:outline-none bg-white text-[#0F172A]"
                           />
                         </div>
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1188,8 +1188,8 @@ export function BlueprintEditor({ hackathonId, onClose }: { hackathonId?: string
                             onClick={() => setSelectedFeaturePsIdx(psIdx)}
                             className={`px-3 py-2 rounded-lg text-xs font-bold transition-all border ${
                               selectedFeaturePsIdx === psIdx
-                                ? "bg-[#00E5FF] text-white border-[#00E5FF] shadow-sm"
-                                : "bg-white text-[#475569] border-[#E2E8F0] hover:border-[#00E5FF]/40"
+                                ? "bg-[#DEE32E] text-white border-[#DEE32E] shadow-sm"
+                                : "bg-white text-[#475569] border-[#E2E8F0] hover:border-[#DEE32E]/40"
                             }`}
                           >
                             <span>{ps.title || `PS #${psIdx + 1}`}</span>
@@ -1343,7 +1343,7 @@ export function BlueprintEditor({ hackathonId, onClose }: { hackathonId?: string
                           type="checkbox"
                           checked={submissionEnabled}
                           onChange={(e) => setSubmissionEnabled(e.target.checked)}
-                          className="h-4 w-4 rounded border-slate-300 text-[#00E5FF]"
+                          className="h-4 w-4 rounded border-slate-300 text-[#DEE32E]"
                         />
                       </div>
 
@@ -1357,7 +1357,7 @@ export function BlueprintEditor({ hackathonId, onClose }: { hackathonId?: string
                           type="checkbox"
                           checked={allowMultiple}
                           onChange={(e) => setAllowMultiple(e.target.checked)}
-                          className="h-4 w-4 rounded border-slate-300 text-[#00E5FF]"
+                          className="h-4 w-4 rounded border-slate-300 text-[#DEE32E]"
                         />
                       </div>
                     </div>
@@ -1371,7 +1371,7 @@ export function BlueprintEditor({ hackathonId, onClose }: { hackathonId?: string
                         type="datetime-local"
                         value={submissionStart}
                         onChange={(e) => setSubmissionStart(e.target.value)}
-                        className="w-full p-2 border rounded-xl text-xs bg-white focus:ring-[#00E5FF] focus:border-[#00E5FF]"
+                        className="w-full p-2 border rounded-xl text-xs bg-white focus:ring-[#DEE32E] focus:border-[#DEE32E]"
                       />
                     </div>
                     <div className="space-y-1">
@@ -1380,7 +1380,7 @@ export function BlueprintEditor({ hackathonId, onClose }: { hackathonId?: string
                         type="datetime-local"
                         value={submissionEnd}
                         onChange={(e) => setSubmissionEnd(e.target.value)}
-                        className="w-full p-2 border rounded-xl text-xs bg-white focus:ring-[#00E5FF] focus:border-[#00E5FF]"
+                        className="w-full p-2 border rounded-xl text-xs bg-white focus:ring-[#DEE32E] focus:border-[#DEE32E]"
                       />
                     </div>
                   </div>
@@ -1392,7 +1392,7 @@ export function BlueprintEditor({ hackathonId, onClose }: { hackathonId?: string
                       <select
                         value={maxSubmissions}
                         onChange={(e) => setMaxSubmissions(e.target.value)}
-                        className="w-full p-2 border rounded-xl bg-white focus:ring-[#00E5FF] focus:border-[#00E5FF]"
+                        className="w-full p-2 border rounded-xl bg-white focus:ring-[#DEE32E] focus:border-[#DEE32E]"
                       >
                         <option value="1">1 Attempt</option>
                         <option value="3">3 Attempts</option>
@@ -1406,7 +1406,7 @@ export function BlueprintEditor({ hackathonId, onClose }: { hackathonId?: string
                       <select
                         value={latePolicy}
                         onChange={(e) => setLatePolicy(e.target.value)}
-                        className="w-full p-2 border rounded-xl bg-white focus:ring-[#00E5FF] focus:border-[#00E5FF]"
+                        className="w-full p-2 border rounded-xl bg-white focus:ring-[#DEE32E] focus:border-[#DEE32E]"
                       >
                         <option value="allowed">Allowed with Penalty</option>
                         <option value="not_allowed">Not Allowed</option>
@@ -1418,7 +1418,7 @@ export function BlueprintEditor({ hackathonId, onClose }: { hackathonId?: string
                       <select
                         value={evaluationMode}
                         onChange={(e) => setEvaluationMode(e.target.value)}
-                        className="w-full p-2 border rounded-xl bg-white focus:ring-[#00E5FF] focus:border-[#00E5FF]"
+                        className="w-full p-2 border rounded-xl bg-white focus:ring-[#DEE32E] focus:border-[#DEE32E]"
                       >
                         <option value="immediate">Immediate Evaluation</option>
                         <option value="deadline">On Deadline Date</option>
@@ -1455,7 +1455,7 @@ export function BlueprintEditor({ hackathonId, onClose }: { hackathonId?: string
                       <div key={key} className="space-y-1">
                         <label className="text-[10px] font-bold uppercase tracking-wider text-[#0F172A] flex justify-between">
                           <span>{key.replace(/([A-Z])/g, " $1").replace(/^./, (str) => str.toUpperCase())}</span>
-                          <span className="text-[#00E5FF]">{(codeQuality as any)[key]}%</span>
+                          <span className="text-[#DEE32E]">{(codeQuality as any)[key]}%</span>
                         </label>
                         <input
                           type="range"
@@ -1463,7 +1463,7 @@ export function BlueprintEditor({ hackathonId, onClose }: { hackathonId?: string
                           max="100"
                           value={(codeQuality as any)[key]}
                           onChange={(e) => setCodeQuality({ ...codeQuality, [key]: Number(e.target.value) })}
-                          className="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-[#00E5FF]"
+                          className="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-[#DEE32E]"
                         />
                       </div>
                     ))}
@@ -1478,7 +1478,7 @@ export function BlueprintEditor({ hackathonId, onClose }: { hackathonId?: string
                     <div className="space-y-1">
                       <label className="text-xs font-bold uppercase tracking-wider text-[#0F172A] flex justify-between">
                         <span>Minimum Lighthouse Performance Score</span>
-                        <span className="text-[#00E5FF]">{lighthouseMin}</span>
+                        <span className="text-[#DEE32E]">{lighthouseMin}</span>
                       </label>
                       <input
                         type="range"
@@ -1486,14 +1486,14 @@ export function BlueprintEditor({ hackathonId, onClose }: { hackathonId?: string
                         max="100"
                         value={lighthouseMin}
                         onChange={(e) => setLighthouseMin(Number(e.target.value))}
-                        className="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-[#00E5FF]"
+                        className="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-[#DEE32E]"
                       />
                     </div>
 
                     <div className="space-y-1">
                       <label className="text-xs font-bold uppercase tracking-wider text-[#0F172A] flex justify-between">
                         <span>Minimum Accessibility Score</span>
-                        <span className="text-[#00E5FF]">{accessibilityMin}</span>
+                        <span className="text-[#DEE32E]">{accessibilityMin}</span>
                       </label>
                       <input
                         type="range"
@@ -1501,14 +1501,14 @@ export function BlueprintEditor({ hackathonId, onClose }: { hackathonId?: string
                         max="100"
                         value={accessibilityMin}
                         onChange={(e) => setAccessibilityMin(Number(e.target.value))}
-                        className="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-[#00E5FF]"
+                        className="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-[#DEE32E]"
                       />
                     </div>
 
                     <div className="space-y-1">
                       <label className="text-xs font-bold uppercase tracking-wider text-[#0F172A] flex justify-between">
                         <span>Minimum SEO Score</span>
-                        <span className="text-[#00E5FF]">{seoMin}</span>
+                        <span className="text-[#DEE32E]">{seoMin}</span>
                       </label>
                       <input
                         type="range"
@@ -1516,14 +1516,14 @@ export function BlueprintEditor({ hackathonId, onClose }: { hackathonId?: string
                         max="100"
                         value={seoMin}
                         onChange={(e) => setSeoMin(Number(e.target.value))}
-                        className="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-[#00E5FF]"
+                        className="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-[#DEE32E]"
                       />
                     </div>
 
                     <div className="space-y-1">
                       <label className="text-xs font-bold uppercase tracking-wider text-[#0F172A] flex justify-between">
                         <span>Minimum Best Practices Score</span>
-                        <span className="text-[#00E5FF]">{bestPracticesMin}</span>
+                        <span className="text-[#DEE32E]">{bestPracticesMin}</span>
                       </label>
                       <input
                         type="range"
@@ -1531,7 +1531,7 @@ export function BlueprintEditor({ hackathonId, onClose }: { hackathonId?: string
                         max="100"
                         value={bestPracticesMin}
                         onChange={(e) => setBestPracticesMin(Number(e.target.value))}
-                        className="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-[#00E5FF]"
+                        className="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-[#DEE32E]"
                       />
                     </div>
                   </div>
@@ -1612,7 +1612,7 @@ export function BlueprintEditor({ hackathonId, onClose }: { hackathonId?: string
                   <div className="space-y-1 border-b border-[#F1F5F9] pb-2">
                     <h4 className="text-xs font-bold text-[#0F172A] flex items-center justify-between">
                       <span>Frontend Arena Intelligence Engine (FAIE) Configuration</span>
-                      <Badge variant="solid" className="bg-[#00E5FF] text-white">FAIE v2.0</Badge>
+                      <Badge variant="solid" className="bg-[#DEE32E] text-white">FAIE v2.0</Badge>
                     </h4>
                     <p className="text-[11px] text-[#475569]">
                       Deterministic, rule-backed Knowledge Engine configuration. Zero LLM hallucinations.
@@ -1627,7 +1627,7 @@ export function BlueprintEditor({ hackathonId, onClose }: { hackathonId?: string
                       value={aiPrompt}
                       onChange={(e) => setAiPrompt(e.target.value)}
                       placeholder='{"authentication": ["login", "signin", "signup", "oauth", "jwt"], "dashboard": ["analytics", "overview"]}'
-                      className="flex min-h-[160px] w-full rounded-[12px] border border-[#E2E8F0] px-3 py-2 text-xs focus:ring-1 focus:ring-[#00E5FF] focus:outline-none font-code leading-relaxed"
+                      className="flex min-h-[160px] w-full rounded-[12px] border border-[#E2E8F0] px-3 py-2 text-xs focus:ring-1 focus:ring-[#DEE32E] focus:outline-none font-code leading-relaxed"
                     />
                     <p className="text-[10px] text-[#64748B]">
                       Map expected terms to custom alias keywords for exact deterministic matching across source code, README, and route files.
@@ -1839,7 +1839,7 @@ export function BlueprintEditor({ hackathonId, onClose }: { hackathonId?: string
           <div className="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[85vh] flex flex-col border border-[#E2E8F0] overflow-hidden">
             <div className="p-5 border-b border-[#F1F5F9] flex items-center justify-between bg-[#F8FAFC]">
               <div className="flex items-center gap-2">
-                <Terminal className="h-5 w-5 text-[#00E5FF]" />
+                <Terminal className="h-5 w-5 text-[#DEE32E]" />
                 <h3 className="font-heading text-sm font-bold text-[#0F172A]">
                   Blueprint Evaluation Simulator
                 </h3>
@@ -1862,7 +1862,7 @@ export function BlueprintEditor({ hackathonId, onClose }: { hackathonId?: string
                     type="url"
                     value={previewRepoUrl}
                     onChange={(e) => setPreviewRepoUrl(e.target.value)}
-                    className="flex-1 h-9 rounded-md border border-[#E2E8F0] px-3 text-xs focus:ring-1 focus:ring-[#00E5FF] focus:outline-none"
+                    className="flex-1 h-9 rounded-md border border-[#E2E8F0] px-3 text-xs focus:ring-1 focus:ring-[#DEE32E] focus:outline-none"
                     placeholder="https://github.com/..."
                   />
                   <Button
@@ -1914,7 +1914,7 @@ export function BlueprintEditor({ hackathonId, onClose }: { hackathonId?: string
                     </div>
                     <div className="text-right">
                       <span className="text-[9px] font-bold uppercase text-[#475569] block">Final Score</span>
-                      <span className="text-2xl font-black text-[#00E5FF] font-heading">
+                      <span className="text-2xl font-black text-[#DEE32E] font-heading">
                         {previewReport.scoreSummary?.finalScore || previewReport.finalScore}/100
                       </span>
                     </div>
@@ -1967,7 +1967,7 @@ export function BlueprintEditor({ hackathonId, onClose }: { hackathonId?: string
                                 {detail.evaluatedBy}
                               </span>
                             </div>
-                            <span className="font-extrabold text-xs text-[#00E5FF]">
+                            <span className="font-extrabold text-xs text-[#DEE32E]">
                               {detail.awardedMarks} / {detail.maxMarks} Marks
                             </span>
                           </div>
