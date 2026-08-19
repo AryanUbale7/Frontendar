@@ -23,9 +23,9 @@ export function HeroSection() {
       id="hero"
       className="relative min-h-[85vh] flex items-center justify-center py-16 md:py-20 overflow-hidden bg-[#000000] selection:bg-rose-500/20 selection:text-rose-100"
     >
-      {/* Elegant Technical Background Grid with subtle Parallax (2% opacity white lines) */}
+      {/* Elegant Technical Background Grid with subtle Parallax (8% opacity white lines) */}
       <div
-        className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:6rem_6rem] pointer-events-none"
+        className="absolute inset-0 bg-[linear-gradient(to_right,rgba(255,255,255,0.08)_1px,transparent_1px),linear-gradient(to_bottom,rgba(255,255,255,0.08)_1px,transparent_1px)] bg-[size:6rem_6rem] pointer-events-none"
         style={{
           transform: `translate3d(${mouse.x * 6}px, ${mouse.y * 6}px, 0)`,
           transition: "transform 0.3s cubic-bezier(0.1, 0.8, 0.3, 1)",

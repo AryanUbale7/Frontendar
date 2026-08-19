@@ -27,15 +27,15 @@ export function LandingNavbar() {
     <header className="sticky top-0 z-50 w-full pt-4 pb-2 px-4 pointer-events-none bg-transparent">
       <div
         className={cn(
-          "mx-auto flex h-14 max-w-5xl items-center justify-between px-4 sm:px-6 rounded-full border bg-[#0F172A]/75 backdrop-blur-md shadow-xs pointer-events-auto transition-all duration-300",
+          "mx-auto flex h-14 max-w-5xl items-center justify-between px-4 sm:px-6 rounded-full border bg-white/90 backdrop-blur-md shadow-xs pointer-events-auto transition-all duration-300",
           scrolled
-            ? "border-slate-800 shadow-md shadow-black/50"
-            : "border-slate-800/40 shadow-xs"
+            ? "border-slate-200/80 shadow-md shadow-slate-100/20"
+            : "border-slate-200/40 shadow-xs"
         )}
       >
         {/* Brand Logo */}
         <Link href="#hero" className="flex items-center gap-2 group">
-          <div className="flex h-9 w-9 items-center justify-center rounded-[11px] bg-black p-0.5 shadow-sm group-hover:scale-105 transition-transform shrink-0 border border-slate-850">
+          <div className="flex h-9 w-9 items-center justify-center rounded-[11px] bg-black p-0.5 shadow-sm group-hover:scale-105 transition-transform shrink-0 border border-slate-800">
             <img
               src="/logo.png"
               alt="Frontend Arena Logo"
@@ -43,10 +43,10 @@ export function LandingNavbar() {
             />
           </div>
           <div className="flex flex-col">
-            <span className="font-heading text-xs font-extrabold text-white tracking-tight">
+            <span className="font-heading text-xs font-extrabold text-[#0F172A] tracking-tight">
               {BRAND_CONFIG.name}
             </span>
-            <span className="text-[8px] font-bold text-slate-400 tracking-wider leading-none">
+            <span className="text-[8px] font-bold text-slate-500 tracking-wider leading-none">
               ARENA
             </span>
           </div>
@@ -58,7 +58,7 @@ export function LandingNavbar() {
             <a
               key={link.label}
               href={link.href}
-              className="text-xs font-semibold text-slate-300 hover:text-[#00E5FF] transition-colors"
+              className="text-xs font-semibold text-slate-605 hover:text-[#FF006E] transition-colors"
             >
               {link.label}
             </a>
@@ -79,7 +79,7 @@ export function LandingNavbar() {
             </>
           ) : (
             <>
-              <Button asChild variant="ghost" size="sm" className="rounded-full text-slate-300 hover:text-white hover:bg-slate-800/40 text-xs font-semibold h-8 px-3">
+              <Button asChild variant="ghost" size="sm" className="rounded-full text-slate-600 hover:text-slate-900 hover:bg-slate-100/50 text-xs font-semibold h-8 px-3">
                 <Link href="/sign-in">Sign In</Link>
               </Button>
               <Button asChild variant="default" size="sm" className="rounded-full h-8 px-4 text-xs font-bold">
@@ -109,7 +109,7 @@ export function LandingNavbar() {
             size="icon"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             aria-label="Toggle menu"
-            className="h-8 w-8 rounded-full text-slate-300 hover:text-white hover:bg-slate-800/40"
+            className="h-8 w-8 rounded-full text-slate-600 hover:text-slate-950 hover:bg-slate-100/50"
           >
             {mobileMenuOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
           </Button>
