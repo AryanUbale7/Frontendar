@@ -1821,6 +1821,46 @@ function HackathonRegistrationContent() {
                         </select>
                       </div>
                     )}
+                    {/* My Standing Sticky Widget */}
+                    {!loadingLeaderboard && leaderboardList.length > 0 && (() => {
+                      const myRankEntry = user ? leaderboardList.find((r: any) => r.participantEmail === user.email) : null;
+                      if (!myRankEntry) return null;
+                      return (
+                        <div className="p-4 bg-slate-50 border border-slate-200/60 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                          <div className="flex items-center gap-3">
+                            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#0F172A] text-white shrink-0 shadow-sm">
+                              <Medal className="h-5 w-5" />
+                            </div>
+                            <div>
+                              <h4 className="font-extrabold text-[#0F172A] text-xs uppercase tracking-wider">Your Standings</h4>
+                              <p className="text-xs text-slate-500 mt-0.5">
+                                Project: <span className="font-bold text-[#0F172A]">{myRankEntry.projectName}</span>
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-4 sm:gap-6 self-stretch sm:self-auto justify-between sm:justify-end border-t sm:border-t-0 pt-3 sm:pt-0 border-slate-200/60">
+                            <div className="text-left sm:text-right">
+                              <span className="text-[9px] text-slate-400 font-bold block uppercase tracking-wider">Rank</span>
+                              <span className="text-sm font-black text-[#0F172A] flex items-center gap-0.5 sm:justify-end">
+                                {myRankEntry.rank === 1 ? "👑 " : myRankEntry.rank === 2 ? "🥈 " : myRankEntry.rank === 3 ? "🥉 " : "#"}
+                                {myRankEntry.rank}
+                              </span>
+                            </div>
+                            <div className="text-left sm:text-right">
+                              <span className="text-[9px] text-slate-400 font-bold block uppercase tracking-wider">Score</span>
+                              <span className="text-sm font-black text-[#0F172A]">{myRankEntry.score}/100</span>
+                            </div>
+                            <div className="text-left sm:text-right">
+                              <span className="text-[9px] text-slate-400 font-bold block uppercase tracking-wider">Status</span>
+                              <Badge className={myRankEntry.grade === "PASSED" ? "bg-emerald-50 text-emerald-600 border-emerald-200 font-extrabold text-[9px] h-5" : "bg-rose-50 text-rose-600 border-rose-200 font-extrabold text-[9px] h-5"}>
+                                {myRankEntry.grade}
+                              </Badge>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })()}
+
                     {loadingLeaderboard ? (
                       <div className="flex justify-center p-8">
                         <RefreshCw className="h-6 w-6 animate-spin text-[#0F172A]" />
@@ -1842,15 +1882,41 @@ function HackathonRegistrationContent() {
                             {leaderboardList.map((row, idx) => {
                               const matchedPS = blueprint?.problemStatements?.find((p: any) => p.id === row.problemStatementId || p.title === row.problemStatementId);
                               const psTitle = matchedPS ? matchedPS.title : row.problemStatementId || "Default Problem";
+                              const isCurrentUserRow = user && row.participantEmail === user.email;
                               return (
-                                <tr key={idx} className="hover:bg-slate-50/50">
-                                  <td className="p-3 font-extrabold text-slate-800">Rank {row.rank}</td>
+                                <tr key={idx} className={`hover:bg-slate-50/50 transition-colors ${isCurrentUserRow ? "bg-slate-50 font-bold" : ""}`}>
+                                  <td className="p-3">
+                                    {row.rank === 1 ? (
+                                      <span className="inline-flex items-center gap-1 font-black text-amber-600 bg-amber-50/60 border border-amber-200 px-2 py-0.5 rounded-lg text-[10px]">
+                                        👑 Rank 1
+                                      </span>
+                                    ) : row.rank === 2 ? (
+                                      <span className="inline-flex items-center gap-1 font-black text-slate-500 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded-lg text-[10px]">
+                                        🥈 Rank 2
+                                      </span>
+                                    ) : row.rank === 3 ? (
+                                      <span className="inline-flex items-center gap-1 font-black text-amber-700 bg-amber-50/20 border border-amber-700/20 px-2 py-0.5 rounded-lg text-[10px]">
+                                        🥉 Rank 3
+                                      </span>
+                                    ) : (
+                                      <span className="text-slate-600 font-extrabold pl-1">
+                                        Rank {row.rank}
+                                      </span>
+                                    )}
+                                  </td>
                                   <td className="p-3">
                                     <div className="font-semibold text-[#0F172A]">{row.projectName}</div>
                                     <div className="text-[10px] text-slate-400 font-semibold">{psTitle}</div>
                                   </td>
                                 <td className="p-3">
-                                  <div className="font-medium text-slate-700">{row.participantName}</div>
+                                  <div className="font-medium text-slate-700 flex items-center gap-1.5">
+                                    <span>{row.participantName}</span>
+                                    {isCurrentUserRow && (
+                                      <span className="text-[9px] font-extrabold bg-[#0F172A] text-white px-1.5 py-0.5 rounded-[4px] uppercase tracking-wider">
+                                        You
+                                      </span>
+                                    )}
+                                  </div>
                                   <div className="text-[10px] text-slate-400">{row.participantEmail}</div>
                                 </td>
                                 <td className="p-3 font-bold text-[#0F172A]">{row.score}/100</td>

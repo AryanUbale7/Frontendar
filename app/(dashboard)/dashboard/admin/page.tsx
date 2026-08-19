@@ -1398,7 +1398,25 @@ export default function PlatformAdminDashboardPage() {
                               const psTitle = matchedPS ? matchedPS.title : row.problemStatementId || "Default Problem";
                               return (
                                 <tr key={idx} className="hover:bg-slate-50/50">
-                                  <td className="p-3 font-extrabold text-slate-800">Rank {row.rank}</td>
+                                  <td className="p-3">
+                                    {row.rank === 1 ? (
+                                      <span className="inline-flex items-center gap-1 font-black text-amber-600 bg-amber-50/60 border border-amber-200 px-2 py-0.5 rounded-lg text-[10px]">
+                                        👑 Rank 1
+                                      </span>
+                                    ) : row.rank === 2 ? (
+                                      <span className="inline-flex items-center gap-1 font-black text-slate-500 bg-slate-50 border border-slate-200 px-2 py-0.5 rounded-lg text-[10px]">
+                                        🥈 Rank 2
+                                      </span>
+                                    ) : row.rank === 3 ? (
+                                      <span className="inline-flex items-center gap-1 font-black text-amber-700 bg-amber-50/20 border border-amber-700/20 px-2 py-0.5 rounded-lg text-[10px]">
+                                        🥉 Rank 3
+                                      </span>
+                                    ) : (
+                                      <span className="text-slate-600 font-extrabold pl-1">
+                                        Rank {row.rank}
+                                      </span>
+                                    )}
+                                  </td>
                                   <td className="p-3">
                                     <div className="font-semibold text-[#0F172A]">{row.projectName}</div>
                                     <div className="text-[10px] text-slate-400 font-semibold">{psTitle}</div>
