@@ -9,7 +9,6 @@ import { PlatformStatsSection } from "@/features/landing/PlatformStatsSection";
 import { FAQSection } from "@/features/landing/FAQSection";
 import { CtaBannerSection } from "@/features/landing/CtaBannerSection";
 import { Footer } from "@/components/design-system/Footer";
-import { Preloader } from "@/components/design-system/Preloader";
 
 export const metadata: Metadata = {
   title: "Frontend Arena — Official Developer Community & Premium Hackathons",
@@ -47,7 +46,6 @@ export const metadata: Metadata = {
 export default function Home() {
   return (
     <div className="min-h-screen flex flex-col bg-[#000000]">
-      <Preloader />
       {/* 1. Navbar */}
       <LandingNavbar />
 
