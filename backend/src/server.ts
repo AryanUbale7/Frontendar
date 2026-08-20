@@ -69,6 +69,29 @@ async function getSystemConfig() {
   return config;
 }
 
+function sanitizeParticipantPayload(obj: any): any {
+  if (obj === null || obj === undefined) return obj;
+  if (Array.isArray(obj)) {
+    return obj.map(sanitizeParticipantPayload);
+  }
+  if (typeof obj === 'object') {
+    const newObj: any = {};
+    const keysToRemove = new Set([
+      'tip', 'tips', 'recommendation', 'recommendations', 'remediation', 
+      'remediationTip', 'suggestion', 'suggestions', 'howToImprove', 
+      'improvement', 'improvementTip', 'fix', 'suggestedFix'
+    ]);
+    for (const key of Object.keys(obj)) {
+      if (keysToRemove.has(key)) {
+        continue;
+      }
+      newObj[key] = sanitizeParticipantPayload(obj[key]);
+    }
+    return newObj;
+  }
+  return obj;
+}
+
 // Fetch system configuration
 app.get("/api/system/config", async (req: Request, res: Response) => {
   try {
@@ -1294,6 +1317,25 @@ app.get("/api/submissions", verifyToken, async (req: AuthenticatedRequest, res: 
       })
     );
 
+    // Sanitize evaluation report payloads if requested by a participant
+    if (req.user!.role !== "ADMIN" && req.user!.role !== "SUPER_ADMIN") {
+      const sanitized = enrichedSubmissions.map((sub) => {
+        if (sub.reports) {
+          sub.reports = sub.reports.map((rep) => {
+            if (rep.payload) {
+              return {
+                ...rep,
+                payload: sanitizeParticipantPayload(rep.payload)
+              };
+            }
+            return rep;
+          });
+        }
+        return sub;
+      });
+      return res.json(sanitized);
+    }
+
     res.json(enrichedSubmissions);
   } catch (err: any) {
     res.status(500).json({ error: "Failed to fetch submissions: " + err.message });
@@ -1316,6 +1358,21 @@ app.get("/api/submissions/:id/attempts", verifyToken, async (req: AuthenticatedR
       where: { submissionId: id },
       orderBy: { attemptNumber: "asc" }
     });
+
+    // Sanitize attempt payloads if requested by a participant
+    if (req.user!.role !== "ADMIN" && req.user!.role !== "SUPER_ADMIN") {
+      const sanitized = attempts.map((att) => {
+        if (att.reportPayload) {
+          return {
+            ...att,
+            reportPayload: sanitizeParticipantPayload(att.reportPayload)
+          };
+        }
+        return att;
+      });
+      return res.json(sanitized);
+    }
+
     res.json(attempts);
   } catch (err: any) {
     res.status(500).json({ error: "Failed to fetch evaluation attempts: " + err.message });
@@ -1339,6 +1396,13 @@ app.get("/api/submissions/:id/attempts/latest", verifyToken, async (req: Authent
       orderBy: { attemptNumber: "desc" }
     });
     if (!attempt) return res.status(404).json({ error: "No evaluation attempts found." });
+
+    if (req.user!.role !== "ADMIN" && req.user!.role !== "SUPER_ADMIN") {
+      if (attempt.reportPayload) {
+        attempt.reportPayload = sanitizeParticipantPayload(attempt.reportPayload);
+      }
+    }
+
     res.json(attempt);
   } catch (err: any) {
     res.status(500).json({ error: "Failed to fetch latest attempt: " + err.message });
@@ -1362,6 +1426,13 @@ app.get("/api/submissions/:id/attempts/best", verifyToken, async (req: Authentic
       orderBy: [{ score: "desc" }, { attemptNumber: "desc" }]
     });
     if (!attempt) return res.status(404).json({ error: "No completed evaluation attempts found." });
+
+    if (req.user!.role !== "ADMIN" && req.user!.role !== "SUPER_ADMIN") {
+      if (attempt.reportPayload) {
+        attempt.reportPayload = sanitizeParticipantPayload(attempt.reportPayload);
+      }
+    }
+
     res.json(attempt);
   } catch (err: any) {
     res.status(500).json({ error: "Failed to fetch best attempt: " + err.message });
@@ -1387,6 +1458,13 @@ app.get("/api/submissions/:id/attempts/:attemptNumber", verifyToken, async (req:
       where: { submissionId: id, attemptNumber: num }
     });
     if (!attempt) return res.status(404).json({ error: `Attempt #${num} not found.` });
+
+    if (req.user!.role !== "ADMIN" && req.user!.role !== "SUPER_ADMIN") {
+      if (attempt.reportPayload) {
+        attempt.reportPayload = sanitizeParticipantPayload(attempt.reportPayload);
+      }
+    }
+
     res.json(attempt);
   } catch (err: any) {
     res.status(500).json({ error: `Failed to fetch attempt #${num}: ` + err.message });

@@ -131,6 +131,7 @@ export interface EvaluationReportProps {
   }>;
   selectedAttemptNumber?: number;
   onSelectAttempt?: (attemptNumber: number) => void;
+  isAdmin?: boolean;
 }
 
 export function EvaluationReport({
@@ -138,7 +139,8 @@ export function EvaluationReport({
   onReevaluate,
   attempts,
   selectedAttemptNumber,
-  onSelectAttempt
+  onSelectAttempt,
+  isAdmin = false
 }: EvaluationReportProps) {
   const [activeTab, setActiveTab] = useState<"faie" | "features" | "code" | "performance">("faie");
   const [expandedFeatureIdx, setExpandedFeatureIdx] = useState<number | null>(0);
@@ -663,7 +665,7 @@ export function EvaluationReport({
                 <div className="space-y-4 pt-2">
                   <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-900 flex items-center gap-1.5">
                     <CheckCircle className="h-4 w-4 text-emerald-600" />
-                    <span>Deterministic Quality Module Checks & Recommendations</span>
+                    <span>Deterministic Quality Module Checks{isAdmin && " & Recommendations"}</span>
                   </h4>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -687,7 +689,7 @@ export function EvaluationReport({
                                 <span className="font-mono text-[10px] text-slate-600">{chk.awardedScore}/{chk.maxScore}</span>
                               </div>
                               <p className="text-[11px] text-slate-600 font-mono pl-5 leading-relaxed">{chk.evidence}</p>
-                              {chk.recommendation && (
+                              {isAdmin && chk.recommendation && (
                                 <p className="text-[10px] text-amber-800 bg-amber-50 p-2 rounded border border-amber-200 mt-1 pl-5">
                                   💡 <strong>Tip:</strong> {chk.recommendation}
                                 </p>

@@ -2962,7 +2962,7 @@ export default function PlatformAdminDashboardPage() {
               <X className="h-5 w-5" />
             </button>
             {selectedSubmissionForReport.reports && selectedSubmissionForReport.reports.length > 0 ? (
-              <EvaluationReport report={selectedSubmissionForReport.reports[0].payload} />
+              <EvaluationReport report={selectedSubmissionForReport.reports[0].payload} isAdmin={true} />
             ) : (
               <div className="p-12 text-center">
                 <p className="text-sm text-slate-500 italic">No evaluation report available for this submission.</p>
