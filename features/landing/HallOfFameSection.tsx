@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import {
   Trophy,
   Medal,
@@ -10,13 +10,11 @@ import {
   Crown,
   ChevronDown,
   Globe,
-  Calendar,
   Users,
   Building,
 } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { LinkedInIcon, GitHubIcon } from "@/features/admin/hall-of-fame/social-icons";
 
 interface HofBadgeData {
@@ -89,7 +87,7 @@ export function HallOfFameSection() {
           <div className="h-6 w-96 bg-slate-100 rounded-lg animate-pulse mb-8" />
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             {[1, 2, 3, 4].map((i) => (
-              <div key={i} className="h-96 bg-white rounded-3xl border border-slate-200 animate-pulse" />
+              <div key={i} className="h-80 bg-white rounded-2xl border border-slate-200 animate-pulse" />
             ))}
           </div>
         </div>
@@ -139,7 +137,7 @@ export function HallOfFameSection() {
 
       <div className="mx-auto max-w-7xl px-4 md:px-6 space-y-14">
         {/* Section Header with Event Name & Event Selector Dropdown */}
-        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 pb-4 border-b border-[#E2E8F0]/80">
+        <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-6 pb-4 border-b border-[#E2E8F0]">
           <div className="space-y-3">
             <div className="flex flex-wrap items-center gap-2">
               <span className="px-3 py-1 rounded-lg bg-[#2563EB] text-white font-bold text-xs uppercase tracking-wider flex items-center gap-1.5 shadow-xs">
@@ -233,35 +231,35 @@ export function HallOfFameSection() {
                   viewport={{ once: true }}
                   transition={{ duration: 0.4, delay: idx * 0.1 }}
                 >
-                  <Card className="border border-amber-300/80 bg-gradient-to-b from-amber-50/50 via-white to-white p-6 sm:p-8 rounded-3xl shadow-sm hover:shadow-xl transition-all relative overflow-hidden group">
-                    <div className="absolute top-4 right-4 h-11 w-11 rounded-2xl bg-amber-500/15 flex items-center justify-center text-amber-600 font-bold shadow-xs">
-                      <Crown className="h-6 w-6" />
+                  <Card className="border-2 border-amber-300 bg-gradient-to-b from-amber-50/40 via-white to-white p-6 sm:p-8 rounded-3xl shadow-sm hover:shadow-xl transition-all relative overflow-hidden group">
+                    <div className="absolute top-5 right-5 h-10 w-10 rounded-2xl bg-amber-500/15 flex items-center justify-center text-amber-600 font-bold shadow-xs">
+                      <Crown className="h-5 w-5" />
                     </div>
 
                     <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 sm:gap-8">
-                      {/* Photo Frame */}
+                      {/* Large Photo */}
                       <div className="relative shrink-0">
-                        <div className="h-36 w-36 sm:h-44 sm:w-44 rounded-3xl overflow-hidden border-3 border-amber-400 p-1 bg-white shadow-lg group-hover:scale-105 transition-transform duration-300">
+                        <div className="h-32 w-32 sm:h-36 sm:w-36 rounded-2xl overflow-hidden border-2 border-amber-400 p-1 bg-white shadow-md group-hover:scale-105 transition-transform duration-300">
                           {winner.photoUrl ? (
                             <img
                               src={winner.photoUrl}
                               alt={winner.fullName}
-                              className="h-full w-full object-cover rounded-2xl"
+                              className="h-full w-full object-cover rounded-xl"
                             />
                           ) : (
-                            <div className="h-full w-full rounded-2xl bg-amber-100 text-amber-700 flex items-center justify-center font-bold text-3xl">
+                            <div className="h-full w-full rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center font-bold text-3xl">
                               {winner.fullName.charAt(0)}
                             </div>
                           )}
                         </div>
-                        <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 px-3.5 py-1 rounded-full bg-amber-500 text-white font-extrabold text-[11px] uppercase tracking-wider shadow-md flex items-center gap-1.5 whitespace-nowrap">
-                          <Trophy className="h-3.5 w-3.5" />
-                          <span>1st Place Winner</span>
+                        <div className="absolute -bottom-2.5 left-1/2 -translate-x-1/2 px-3 py-0.5 rounded-full bg-amber-500 text-white font-extrabold text-[10px] uppercase tracking-wider shadow-md flex items-center gap-1 whitespace-nowrap">
+                          <Trophy className="h-3 w-3" />
+                          <span>1st Place</span>
                         </div>
                       </div>
 
-                      {/* Info & Achievements */}
-                      <div className="space-y-3.5 flex-1 text-center sm:text-left min-w-0 pt-1">
+                      {/* Info */}
+                      <div className="space-y-3 flex-1 text-center sm:text-left min-w-0">
                         <div>
                           <h4 className="font-heading text-2xl sm:text-3xl font-bold text-[#0F172A]">
                             {winner.fullName}
@@ -281,7 +279,7 @@ export function HallOfFameSection() {
                         </div>
 
                         {winner.description && (
-                          <p className="text-xs sm:text-sm text-[#475569] leading-relaxed bg-white/90 p-3.5 rounded-2xl border border-amber-100 shadow-2xs">
+                          <p className="text-xs sm:text-sm text-[#475569] leading-relaxed bg-white/90 p-3 rounded-xl border border-amber-100 shadow-2xs">
                             {winner.description}
                           </p>
                         )}
@@ -292,7 +290,7 @@ export function HallOfFameSection() {
                             {winner.badges.map((b) => (
                               <span
                                 key={b.id}
-                                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg bg-amber-500/15 text-amber-900 text-xs font-bold border border-amber-200"
+                                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-500/15 text-amber-900 text-xs font-bold border border-amber-200"
                               >
                                 <Sparkles className="h-3.5 w-3.5 text-amber-600" />
                                 <span>{b.name}</span>
@@ -308,10 +306,10 @@ export function HallOfFameSection() {
                               href={winner.linkedInUrl}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="h-9 w-9 rounded-xl bg-white border border-[#E2E8F0] flex items-center justify-center hover:text-[#0A66C2] hover:border-[#0A66C2] transition-colors shadow-xs"
+                              className="h-8 w-8 rounded-xl bg-white border border-[#E2E8F0] flex items-center justify-center hover:text-[#0A66C2] hover:border-[#0A66C2] transition-colors shadow-xs"
                               title="LinkedIn"
                             >
-                              <LinkedInIcon className="h-4.5 w-4.5" />
+                              <LinkedInIcon className="h-4 w-4" />
                             </a>
                           )}
                           {winner.portfolioUrl && (
@@ -319,10 +317,10 @@ export function HallOfFameSection() {
                               href={winner.portfolioUrl}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="h-9 w-9 rounded-xl bg-white border border-[#E2E8F0] flex items-center justify-center hover:text-[#059669] hover:border-[#059669] transition-colors shadow-xs"
+                              className="h-8 w-8 rounded-xl bg-white border border-[#E2E8F0] flex items-center justify-center hover:text-[#059669] hover:border-[#059669] transition-colors shadow-xs"
                               title="Portfolio"
                             >
-                              <Globe className="h-4.5 w-4.5" />
+                              <Globe className="h-4 w-4" />
                             </a>
                           )}
                           {winner.githubUrl && (
@@ -330,10 +328,10 @@ export function HallOfFameSection() {
                               href={winner.githubUrl}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="h-9 w-9 rounded-xl bg-white border border-[#E2E8F0] flex items-center justify-center hover:text-[#0F172A] hover:border-[#0F172A] transition-colors shadow-xs"
+                              className="h-8 w-8 rounded-xl bg-white border border-[#E2E8F0] flex items-center justify-center hover:text-[#0F172A] hover:border-[#0F172A] transition-colors shadow-xs"
                               title="GitHub"
                             >
-                              <GitHubIcon className="h-4.5 w-4.5" />
+                              <GitHubIcon className="h-4 w-4" />
                             </a>
                           )}
                         </div>
@@ -369,114 +367,109 @@ export function HallOfFameSection() {
                   viewport={{ once: true }}
                   transition={{ duration: 0.4, delay: idx * 0.08 }}
                 >
-                  <Card className="border border-[#CBD5E1] bg-white rounded-3xl shadow-xs hover:shadow-xl transition-all flex flex-col justify-between h-full group overflow-hidden">
-                    {/* Full Card Top Portrait Photo */}
-                    <div className="relative w-full h-64 sm:h-72 bg-slate-100 overflow-hidden shrink-0">
-                      {runner.photoUrl ? (
-                        <img
-                          src={runner.photoUrl}
-                          alt={runner.fullName}
-                          className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500"
-                        />
-                      ) : (
-                        <div className="w-full h-full bg-slate-100 text-slate-700 flex items-center justify-center font-bold text-4xl">
-                          {runner.fullName.charAt(0)}
-                        </div>
-                      )}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent opacity-80" />
-
-                      <div className="absolute top-3.5 left-3.5">
-                        <span className="px-3 py-1 rounded-full bg-white/95 text-slate-900 font-extrabold text-xs shadow-md backdrop-blur-xs border border-white/80 flex items-center gap-1">
+                  <Card className="border border-[#CBD5E1] bg-white p-6 rounded-3xl shadow-xs hover:shadow-lg transition-all flex flex-col justify-between h-full group">
+                    <div className="space-y-4">
+                      {/* Top Rank Badge */}
+                      <div className="flex items-center justify-between">
+                        <span className="px-2.5 py-1 rounded-md bg-slate-100 text-slate-800 font-bold text-xs border border-slate-200">
                           🥈 2nd Place Runner-Up
                         </span>
-                      </div>
-                      <div className="absolute top-3.5 right-3.5">
-                        <span className="px-2.5 py-0.5 rounded-full bg-black/60 text-white font-bold text-xs backdrop-blur-xs">
+                        <span className="text-xs font-bold text-[#64748B] bg-slate-100 px-2 py-0.5 rounded-md">
                           #{idx + 2}
                         </span>
                       </div>
 
-                      <div className="absolute bottom-3.5 left-4 right-4 text-white">
-                        <h4 className="font-heading text-xl font-bold drop-shadow-md">
-                          {runner.fullName}
-                        </h4>
-                        {runner.teamName && (
-                          <p className="text-xs font-semibold text-blue-200 drop-shadow-xs">
-                            Team: {runner.teamName}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Content Body */}
-                    <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
-                      <div className="space-y-2.5">
-                        {runner.collegeOrOrg && (
-                          <p className="text-xs text-[#64748B] flex items-center gap-1.5">
-                            <Building className="h-3.5 w-3.5" />
-                            <span>{runner.collegeOrOrg}</span>
-                          </p>
-                        )}
-
-                        {runner.description && (
-                          <p className="text-xs text-[#475569] leading-relaxed bg-[#F8FAFC] p-3 rounded-2xl border border-[#E2E8F0]">
-                            {runner.description}
-                          </p>
-                        )}
-
-                        {runner.badges && runner.badges.length > 0 && (
-                          <div className="flex flex-wrap gap-1.5 pt-1">
-                            {runner.badges.map((b) => (
-                              <span
-                                key={b.id}
-                                className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-[#2563EB]/10 text-[#2563EB] text-xs font-bold"
-                              >
-                                <Sparkles className="h-3 w-3" />
-                                <span>{b.name}</span>
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Social links */}
-                      <div className="flex items-center justify-between pt-3 border-t border-[#E2E8F0] text-[#64748B]">
-                        <div className="flex items-center gap-3">
-                          {runner.linkedInUrl && (
-                            <a
-                              href={runner.linkedInUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="hover:text-[#0A66C2] transition-colors p-1"
-                              title="LinkedIn"
-                            >
-                              <LinkedInIcon className="h-4.5 w-4.5" />
-                            </a>
-                          )}
-                          {runner.portfolioUrl && (
-                            <a
-                              href={runner.portfolioUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="hover:text-[#059669] transition-colors p-1"
-                              title="Portfolio"
-                            >
-                              <Globe className="h-4.5 w-4.5" />
-                            </a>
-                          )}
-                          {runner.githubUrl && (
-                            <a
-                              href={runner.githubUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="hover:text-[#0F172A] transition-colors p-1"
-                              title="GitHub"
-                            >
-                              <GitHubIcon className="h-4.5 w-4.5" />
-                            </a>
+                      {/* Photo - Large & Focused */}
+                      <div className="flex justify-center pt-2">
+                        <div className="h-32 w-32 rounded-2xl overflow-hidden border-2 border-slate-300 p-0.5 bg-white shadow-md group-hover:scale-105 transition-transform duration-300">
+                          {runner.photoUrl ? (
+                            <img
+                              src={runner.photoUrl}
+                              alt={runner.fullName}
+                              className="h-full w-full object-cover rounded-xl"
+                            />
+                          ) : (
+                            <div className="h-full w-full bg-slate-100 text-slate-700 flex items-center justify-center font-bold text-3xl">
+                              {runner.fullName.charAt(0)}
+                            </div>
                           )}
                         </div>
                       </div>
+
+                      {/* Name & Details - Crisp Black text */}
+                      <div className="text-center pt-1">
+                        <h4 className="font-heading text-xl font-bold text-[#0F172A]">
+                          {runner.fullName}
+                        </h4>
+                        {runner.teamName && (
+                          <p className="text-xs font-semibold text-[#2563EB] mt-0.5">
+                            Team: {runner.teamName}
+                          </p>
+                        )}
+                        {runner.collegeOrOrg && (
+                          <p className="text-[11px] text-[#64748B] mt-0.5">
+                            {runner.collegeOrOrg}
+                          </p>
+                        )}
+                      </div>
+
+                      {runner.description && (
+                        <p className="text-xs text-[#475569] leading-relaxed bg-[#F8FAFC] p-3 rounded-xl border border-[#E2E8F0] text-center">
+                          {runner.description}
+                        </p>
+                      )}
+
+                      {/* Badges List */}
+                      {runner.badges && runner.badges.length > 0 && (
+                        <div className="flex flex-wrap items-center justify-center gap-1.5 pt-1">
+                          {runner.badges.map((b) => (
+                            <span
+                              key={b.id}
+                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-[#2563EB]/10 text-[#2563EB] text-xs font-bold"
+                            >
+                              <Sparkles className="h-3 w-3" />
+                              <span>{b.name}</span>
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Social links */}
+                    <div className="flex items-center justify-center gap-3 pt-3.5 mt-4 border-t border-[#E2E8F0] text-[#64748B]">
+                      {runner.linkedInUrl && (
+                        <a
+                          href={runner.linkedInUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="h-8 w-8 rounded-lg bg-[#F8FAFC] border border-[#E2E8F0] flex items-center justify-center hover:text-[#0A66C2] hover:border-[#0A66C2] transition-colors"
+                          title="LinkedIn"
+                        >
+                          <LinkedInIcon className="h-4 w-4" />
+                        </a>
+                      )}
+                      {runner.portfolioUrl && (
+                        <a
+                          href={runner.portfolioUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="h-8 w-8 rounded-lg bg-[#F8FAFC] border border-[#E2E8F0] flex items-center justify-center hover:text-[#059669] hover:border-[#059669] transition-colors"
+                          title="Portfolio"
+                        >
+                          <Globe className="h-4 w-4" />
+                        </a>
+                      )}
+                      {runner.githubUrl && (
+                        <a
+                          href={runner.githubUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="h-8 w-8 rounded-lg bg-[#F8FAFC] border border-[#E2E8F0] flex items-center justify-center hover:text-[#0F172A] hover:border-[#0F172A] transition-colors"
+                          title="GitHub"
+                        >
+                          <GitHubIcon className="h-4 w-4" />
+                        </a>
+                      )}
                     </div>
                   </Card>
                 </motion.div>
@@ -508,114 +501,109 @@ export function HallOfFameSection() {
                   viewport={{ once: true }}
                   transition={{ duration: 0.35, delay: idx * 0.04 }}
                 >
-                  <Card className="border border-[#E2E8F0] bg-white rounded-3xl shadow-xs hover:shadow-xl transition-all flex flex-col justify-between h-full group overflow-hidden">
-                    {/* Full Top Portrait Photo */}
-                    <div className="relative w-full h-64 sm:h-72 bg-slate-100 overflow-hidden shrink-0">
-                      {finalist.photoUrl ? (
-                        <img
-                          src={finalist.photoUrl}
-                          alt={finalist.fullName}
-                          className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500"
-                        />
-                      ) : (
-                        <div className="w-full h-full bg-[#F1F5F9] text-[#0F172A] flex items-center justify-center font-bold text-3xl">
-                          {finalist.fullName.charAt(0)}
-                        </div>
-                      )}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-transparent opacity-80" />
-
-                      <div className="absolute top-3.5 left-3.5">
-                        <span className="px-3 py-1 rounded-full bg-white/95 text-blue-900 font-extrabold text-xs shadow-md backdrop-blur-xs border border-white/80">
+                  <Card className="border border-[#E2E8F0] bg-white p-6 rounded-3xl shadow-xs hover:shadow-lg transition-all flex flex-col justify-between h-full group text-center">
+                    <div className="space-y-4">
+                      {/* Top Header Row */}
+                      <div className="flex items-center justify-between">
+                        <span className="px-2.5 py-0.5 rounded-md bg-[#EFF6FF] text-[#2563EB] text-xs font-bold border border-[#DBEAFE]">
                           Top 10 Finalist
                         </span>
-                      </div>
-                      <div className="absolute top-3.5 right-3.5">
-                        <span className="px-2.5 py-0.5 rounded-full bg-black/60 text-white font-bold text-xs backdrop-blur-xs">
+                        <span className="text-xs font-bold text-[#64748B] bg-[#F1F5F9] px-2 py-0.5 rounded-md">
                           #{idx + 1}
                         </span>
                       </div>
 
-                      <div className="absolute bottom-3.5 left-4 right-4 text-white">
-                        <h4 className="font-heading text-lg font-bold drop-shadow-md truncate" title={finalist.fullName}>
-                          {finalist.fullName}
-                        </h4>
-                        {finalist.teamName && (
-                          <p className="text-xs font-semibold text-blue-200 drop-shadow-xs truncate">
-                            Team: {finalist.teamName}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Content Body */}
-                    <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
-                      <div className="space-y-2.5">
-                        {finalist.collegeOrOrg && (
-                          <p className="text-xs text-[#64748B] flex items-center gap-1.5 truncate">
-                            <Building className="h-3.5 w-3.5 shrink-0" />
-                            <span className="truncate">{finalist.collegeOrOrg}</span>
-                          </p>
-                        )}
-
-                        {finalist.description && (
-                          <p className="text-xs text-[#475569] line-clamp-2 bg-[#F8FAFC] p-2.5 rounded-xl border border-[#E2E8F0]/60">
-                            {finalist.description}
-                          </p>
-                        )}
-
-                        {finalist.badges && finalist.badges.length > 0 && (
-                          <div className="flex flex-wrap gap-1.5 pt-0.5">
-                            {finalist.badges.map((b) => (
-                              <span
-                                key={b.id}
-                                className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-[#2563EB]/10 text-[#2563EB] text-xs font-bold"
-                              >
-                                <Sparkles className="h-3 w-3" />
-                                <span>{b.name}</span>
-                              </span>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Social profiles */}
-                      <div className="flex items-center justify-between pt-3 border-t border-[#E2E8F0] text-[#64748B]">
-                        <div className="flex items-center gap-3">
-                          {finalist.linkedInUrl && (
-                            <a
-                              href={finalist.linkedInUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="hover:text-[#0A66C2] transition-colors p-1"
-                              title="LinkedIn"
-                            >
-                              <LinkedInIcon className="h-4.5 w-4.5" />
-                            </a>
-                          )}
-                          {finalist.portfolioUrl && (
-                            <a
-                              href={finalist.portfolioUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="hover:text-[#059669] transition-colors p-1"
-                              title="Portfolio"
-                            >
-                              <Globe className="h-4.5 w-4.5" />
-                            </a>
-                          )}
-                          {finalist.githubUrl && (
-                            <a
-                              href={finalist.githubUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="hover:text-[#0F172A] transition-colors p-1"
-                              title="GitHub"
-                            >
-                              <GitHubIcon className="h-4.5 w-4.5" />
-                            </a>
+                      {/* Photo - Large & Focused */}
+                      <div className="flex justify-center pt-2">
+                        <div className="h-32 w-32 rounded-2xl overflow-hidden border-2 border-[#E2E8F0] p-0.5 bg-white shadow-sm group-hover:scale-105 transition-transform duration-300">
+                          {finalist.photoUrl ? (
+                            <img
+                              src={finalist.photoUrl}
+                              alt={finalist.fullName}
+                              className="h-full w-full object-cover rounded-xl"
+                            />
+                          ) : (
+                            <div className="h-full w-full bg-[#F1F5F9] text-[#0F172A] flex items-center justify-center font-bold text-3xl">
+                              {finalist.fullName.charAt(0)}
+                            </div>
                           )}
                         </div>
                       </div>
+
+                      {/* Name & Subtitles - Clear High Contrast Text */}
+                      <div className="pt-1">
+                        <h4 className="font-heading font-bold text-lg text-[#0F172A] truncate" title={finalist.fullName}>
+                          {finalist.fullName}
+                        </h4>
+                        {finalist.teamName && (
+                          <p className="text-xs font-semibold text-[#2563EB] truncate mt-0.5">
+                            Team: {finalist.teamName}
+                          </p>
+                        )}
+                        {finalist.collegeOrOrg && (
+                          <p className="text-[11px] text-[#64748B] truncate mt-0.5">
+                            {finalist.collegeOrOrg}
+                          </p>
+                        )}
+                      </div>
+
+                      {finalist.description && (
+                        <p className="text-xs text-[#475569] line-clamp-2 bg-[#F8FAFC] p-2.5 rounded-xl border border-[#E2E8F0]/60 text-center">
+                          {finalist.description}
+                        </p>
+                      )}
+
+                      {/* Badges List */}
+                      {finalist.badges && finalist.badges.length > 0 && (
+                        <div className="flex flex-wrap justify-center gap-1.5 pt-0.5">
+                          {finalist.badges.map((b) => (
+                            <span
+                              key={b.id}
+                              className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md bg-[#2563EB]/10 text-[#2563EB] text-[11px] font-bold"
+                            >
+                              <Sparkles className="h-2.5 w-2.5" />
+                              <span>{b.name}</span>
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Social profiles */}
+                    <div className="flex items-center justify-center gap-3 pt-3.5 mt-4 border-t border-[#E2E8F0] text-[#64748B]">
+                      {finalist.linkedInUrl && (
+                        <a
+                          href={finalist.linkedInUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="h-8 w-8 rounded-lg bg-[#F8FAFC] border border-[#E2E8F0] flex items-center justify-center hover:text-[#0A66C2] hover:border-[#0A66C2] transition-colors"
+                          title="LinkedIn"
+                        >
+                          <LinkedInIcon className="h-4 w-4" />
+                        </a>
+                      )}
+                      {finalist.portfolioUrl && (
+                        <a
+                          href={finalist.portfolioUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="h-8 w-8 rounded-lg bg-[#F8FAFC] border border-[#E2E8F0] flex items-center justify-center hover:text-[#059669] hover:border-[#059669] transition-colors"
+                          title="Portfolio"
+                        >
+                          <Globe className="h-4 w-4" />
+                        </a>
+                      )}
+                      {finalist.githubUrl && (
+                        <a
+                          href={finalist.githubUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="h-8 w-8 rounded-lg bg-[#F8FAFC] border border-[#E2E8F0] flex items-center justify-center hover:text-[#0F172A] hover:border-[#0F172A] transition-colors"
+                          title="GitHub"
+                        >
+                          <GitHubIcon className="h-4 w-4" />
+                        </a>
+                      )}
                     </div>
                   </Card>
                 </motion.div>
@@ -655,111 +643,107 @@ export function HallOfFameSection() {
                     viewport={{ once: true }}
                     transition={{ duration: 0.35, delay: idx * 0.04 }}
                   >
-                    <Card className="border border-[#E2E8F0] bg-white rounded-3xl shadow-xs hover:shadow-xl transition-all flex flex-col justify-between h-full group overflow-hidden">
-                      {/* Full Card Top Portrait Photo */}
-                      <div className="relative w-full h-64 sm:h-72 bg-slate-100 overflow-hidden shrink-0">
-                        {honoree.photoUrl ? (
-                          <img
-                            src={honoree.photoUrl}
-                            alt={honoree.fullName}
-                            className="w-full h-full object-cover object-top group-hover:scale-105 transition-transform duration-500"
-                          />
-                        ) : (
-                          <div className="w-full h-full bg-gradient-to-br from-purple-100 to-indigo-100 text-purple-700 flex items-center justify-center font-bold text-3xl">
-                            {honoree.fullName.charAt(0)}
-                          </div>
-                        )}
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-transparent opacity-80" />
-
-                        {/* Top Floating Badge */}
-                        <div className="absolute top-3.5 left-3.5 max-w-[85%]">
-                          <span className="px-3 py-1 rounded-full bg-white/95 text-purple-900 font-extrabold text-xs shadow-md backdrop-blur-xs border border-white/80 truncate block">
+                    <Card className="border border-[#E2E8F0] bg-white p-6 rounded-3xl shadow-xs hover:shadow-lg transition-all flex flex-col justify-between h-full group text-center">
+                      <div className="space-y-4">
+                        {/* Top Category Badge */}
+                        <div className="flex items-center justify-center">
+                          <span className="px-3 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-200/80 font-bold text-xs truncate max-w-full">
                             {title}
                           </span>
                         </div>
 
-                        {/* Name on image overlay */}
-                        <div className="absolute bottom-3.5 left-4 right-4 text-white">
-                          <h4 className="font-heading text-lg font-bold drop-shadow-md truncate" title={honoree.fullName}>
-                            {honoree.fullName}
-                          </h4>
-                          {honoree.teamName && (
-                            <p className="text-xs font-semibold text-purple-200 drop-shadow-xs truncate">
-                              Team: {honoree.teamName}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Content Body */}
-                      <div className="p-5 flex-1 flex flex-col justify-between space-y-4">
-                        <div className="space-y-2.5">
-                          {honoree.collegeOrOrg && (
-                            <p className="text-xs text-[#64748B] flex items-center gap-1.5 truncate">
-                              <Building className="h-3.5 w-3.5 shrink-0" />
-                              <span className="truncate">{honoree.collegeOrOrg}</span>
-                            </p>
-                          )}
-
-                          {honoree.description && (
-                            <p className="text-xs text-[#475569] line-clamp-2 bg-[#F8FAFC] p-2.5 rounded-xl border border-[#E2E8F0]/60">
-                              {honoree.description}
-                            </p>
-                          )}
-
-                          {honoree.badges && honoree.badges.length > 0 && (
-                            <div className="flex flex-wrap gap-1.5 pt-0.5">
-                              {honoree.badges.map((b) => (
-                                <span
-                                  key={b.id}
-                                  className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-[#2563EB]/10 text-[#2563EB] text-xs font-bold"
-                                >
-                                  <Sparkles className="h-3 w-3" />
-                                  <span>{b.name}</span>
-                                </span>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Social profiles */}
-                        <div className="flex items-center justify-between pt-3 border-t border-[#E2E8F0] text-[#64748B]">
-                          <div className="flex items-center gap-3">
-                            {honoree.linkedInUrl && (
-                              <a
-                                href={honoree.linkedInUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="hover:text-[#0A66C2] transition-colors p-1"
-                                title="LinkedIn"
-                              >
-                                <LinkedInIcon className="h-4.5 w-4.5" />
-                              </a>
-                            )}
-                            {honoree.portfolioUrl && (
-                              <a
-                                href={honoree.portfolioUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="hover:text-[#059669] transition-colors p-1"
-                                title="Portfolio"
-                              >
-                                <Globe className="h-4.5 w-4.5" />
-                              </a>
-                            )}
-                            {honoree.githubUrl && (
-                              <a
-                                href={honoree.githubUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="hover:text-[#0F172A] transition-colors p-1"
-                                title="GitHub"
-                              >
-                                <GitHubIcon className="h-4.5 w-4.5" />
-                              </a>
+                        {/* Photo - Large & Focused */}
+                        <div className="flex justify-center pt-2">
+                          <div className="h-32 w-32 rounded-2xl overflow-hidden border-2 border-purple-100 p-0.5 bg-white shadow-sm group-hover:scale-105 transition-transform duration-300">
+                            {honoree.photoUrl ? (
+                              <img
+                                src={honoree.photoUrl}
+                                alt={honoree.fullName}
+                                className="h-full w-full object-cover rounded-xl"
+                              />
+                            ) : (
+                              <div className="h-full w-full bg-purple-50 text-purple-700 flex items-center justify-center font-bold text-3xl">
+                                {honoree.fullName.charAt(0)}
+                              </div>
                             )}
                           </div>
                         </div>
+
+                        {/* Name & Subtitles - Clear High Contrast Text */}
+                        <div className="pt-1">
+                          <h4 className="font-heading font-bold text-lg text-[#0F172A] truncate" title={honoree.fullName}>
+                            {honoree.fullName}
+                          </h4>
+                          {honoree.teamName && (
+                            <p className="text-xs font-semibold text-[#2563EB] truncate mt-0.5">
+                              Team: {honoree.teamName}
+                            </p>
+                          )}
+                          {honoree.collegeOrOrg && (
+                            <p className="text-[11px] text-[#64748B] truncate mt-0.5">
+                              {honoree.collegeOrOrg}
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Bio / Description */}
+                        {honoree.description && (
+                          <p className="text-xs text-[#475569] line-clamp-2 bg-[#F8FAFC] p-2.5 rounded-xl border border-[#E2E8F0]/60 text-center">
+                            {honoree.description}
+                          </p>
+                        )}
+
+                        {/* Badges List */}
+                        {honoree.badges && honoree.badges.length > 0 && (
+                          <div className="flex flex-wrap justify-center gap-1.5 pt-0.5">
+                            {honoree.badges.map((b) => (
+                              <span
+                                key={b.id}
+                                className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md bg-[#2563EB]/10 text-[#2563EB] text-[11px] font-bold"
+                              >
+                                <Sparkles className="h-2.5 w-2.5" />
+                                <span>{b.name}</span>
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Social profiles */}
+                      <div className="flex items-center justify-center gap-3 pt-3.5 mt-4 border-t border-[#E2E8F0] text-[#64748B]">
+                        {honoree.linkedInUrl && (
+                          <a
+                            href={honoree.linkedInUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="h-8 w-8 rounded-lg bg-[#F8FAFC] border border-[#E2E8F0] flex items-center justify-center hover:text-[#0A66C2] hover:border-[#0A66C2] transition-colors"
+                            title="LinkedIn"
+                          >
+                            <LinkedInIcon className="h-4 w-4" />
+                          </a>
+                        )}
+                        {honoree.portfolioUrl && (
+                          <a
+                            href={honoree.portfolioUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="h-8 w-8 rounded-lg bg-[#F8FAFC] border border-[#E2E8F0] flex items-center justify-center hover:text-[#059669] hover:border-[#059669] transition-colors"
+                            title="Portfolio"
+                          >
+                            <Globe className="h-4 w-4" />
+                          </a>
+                        )}
+                        {honoree.githubUrl && (
+                          <a
+                            href={honoree.githubUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="h-8 w-8 rounded-lg bg-[#F8FAFC] border border-[#E2E8F0] flex items-center justify-center hover:text-[#0F172A] hover:border-[#0F172A] transition-colors"
+                            title="GitHub"
+                          >
+                            <GitHubIcon className="h-4 w-4" />
+                          </a>
+                        )}
                       </div>
                     </Card>
                   </motion.div>
