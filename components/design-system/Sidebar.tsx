@@ -12,6 +12,8 @@ import {
   Settings,
   QrCode,
   Award,
+  Sparkles,
+  Crown,
   ChevronLeft,
   ChevronRight,
   X,
@@ -30,6 +32,8 @@ const ICON_MAP: Record<string, React.ElementType> = {
   Users,
   QrCode,
   Award,
+  Sparkles,
+  Crown,
   BarChart3,
   Settings,
 };

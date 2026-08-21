@@ -47,6 +47,7 @@ import { BlueprintEditor } from "@/features/admin/blueprint/BlueprintEditor";
 import { EvaluationReport } from "@/components/design-system/EvaluationReport";
 import { QrVerificationPanel } from "@/features/admin/qr/QrVerificationPanel";
 import { CertificateManagementPanel } from "@/features/admin/certificates/CertificateManagementPanel";
+import { HallOfFameManagementPanel } from "@/features/admin/hall-of-fame/HallOfFameManagementPanel";
 
 /** Build Authorization headers from localStorage token for admin API calls. */
 function authHeaders(): Record<string, string> {
@@ -820,6 +821,17 @@ export default function PlatformAdminDashboardPage() {
 
   const renderTabContent = () => {
     switch (activeTab) {
+      case "hall_of_fame":
+        return (
+          <motion.div
+            key="hall_of_fame"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+          >
+            <HallOfFameManagementPanel />
+          </motion.div>
+        );
       case "certificates":
         return (
           <motion.div

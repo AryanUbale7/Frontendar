@@ -5,6 +5,7 @@ import { HeroSection } from "@/features/landing/HeroSection";
 import { WhoWeAreSection } from "@/features/landing/WhoWeAreSection";
 import { WhyJoinSection } from "@/features/landing/WhyJoinSection";
 import { FeaturedHackathonsSection } from "@/features/landing/FeaturedHackathonsSection";
+import { HallOfFameSection } from "@/features/landing/HallOfFameSection";
 import { PlatformStatsSection } from "@/features/landing/PlatformStatsSection";
 import { FAQSection } from "@/features/landing/FAQSection";
 import { CtaBannerSection } from "@/features/landing/CtaBannerSection";
@@ -68,6 +69,9 @@ export default function Home() {
 
         {/* 6. Featured Hackathons */}
         <FeaturedHackathonsSection />
+
+        {/* 6b. Hall of Fame Showcase */}
+        <HallOfFameSection />
 
         {/* 7. FAQ */}
         <FAQSection />

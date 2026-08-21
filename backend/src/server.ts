@@ -7,6 +7,7 @@ import { prisma } from "./config/db";
 import { authRouter } from "./routes/auth";
 import { qrVerificationRouter } from "./routes/qr-verification";
 import { certificatesRouter } from "./routes/certificates";
+import { hallOfFameRouter } from "./routes/hall-of-fame";
 import { verifyToken, optionalAuth, requireRole, AuthenticatedRequest, maintenanceGuard } from "./middleware/auth";
 import { createEvaluationQueue, EvaluationQueueDriver } from "./engine/queue";
 import { startEvaluationWorker, EvaluationWorkerHandle } from "./worker";
@@ -47,6 +48,7 @@ setInterval(() => {
 app.use("/api/auth", authRouter);
 app.use("/api/qr-verification", qrVerificationRouter);
 app.use("/api/certificates", certificatesRouter);
+app.use("/api/hall-of-fame", hallOfFameRouter);
 
 // Health check endpoint
 app.get("/health", (req: Request, res: Response) => {

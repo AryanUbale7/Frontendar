@@ -226,4 +226,69 @@ model Certificate {
   @@index([templateId])
 }
 
+model HallOfFameEvent {
+  id           String                  @id @default(uuid())
+  name         String
+  year         String
+  description  String?
+  coverUrl     String?
+  status       String                  @default("draft") // draft, published, archived
+  order        Int                     @default(0)
+  createdAt    DateTime                @default(now())
+  updatedAt    DateTime                @updatedAt
+  participants HallOfFameParticipant[]
+
+  @@index([status])
+  @@index([year])
+}
+
+model HallOfFameParticipant {
+  id                String             @id @default(uuid())
+  eventId           String
+  event             HallOfFameEvent    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  fullName          String
+  teamName          String?
+  collegeOrOrg      String?
+  description       String?
+  photoUrl          String?
+  recognitionType   String             @default("winner") // winner, runner_up, top_10, finalist, special_recognition, custom
+  customRecognition String?
+  order             Int                @default(0)
+  linkedInUrl       String?
+  portfolioUrl      String?
+  githubUrl         String?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  badges            ParticipantBadge[]
+
+  @@index([eventId])
+  @@index([recognitionType])
+  @@index([order])
+}
+
+model HallOfFameBadge {
+  id           String             @id @default(uuid())
+  name         String
+  description  String?
+  icon         String?
+  status       String             @default("active") // active, inactive
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+  participants ParticipantBadge[]
+}
+
+model ParticipantBadge {
+  id            String                @id @default(uuid())
+  participantId String
+  badgeId       String
+  participant   HallOfFameParticipant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  badge         HallOfFameBadge       @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+  createdAt     DateTime              @default(now())
+
+  @@unique([participantId, badgeId])
+  @@index([participantId])
+  @@index([badgeId])
+}
+
+
 
