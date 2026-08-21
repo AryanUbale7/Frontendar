@@ -571,7 +571,7 @@ export function HallOfFameManagementPanel() {
 
           {/* Participant Cards Grid */}
           {filteredParticipants.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
               {filteredParticipants.map((p, idx) => {
                 const recognitionLabel =
                   p.recognitionType === "custom" && p.customRecognition
@@ -583,32 +583,32 @@ export function HallOfFameManagementPanel() {
                 return (
                   <Card
                     key={p.id}
-                    className={`p-4 border rounded-2xl bg-white shadow-sm flex flex-col justify-between transition-all hover:shadow-md ${
+                    className={`p-5 border rounded-2xl bg-white shadow-2xs flex flex-col justify-between transition-all hover:shadow-md ${
                       isWinner
-                        ? "border-amber-300 ring-1 ring-amber-300/50"
+                        ? "border-amber-300 ring-2 ring-amber-300/40 bg-gradient-to-b from-amber-50/20 to-white"
                         : "border-[#E2E8F0]"
                     }`}
                   >
                     <div className="space-y-3">
                       {/* Top Recognition Badge & Actions */}
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between gap-2">
                         <Badge
                           variant={isWinner ? "solid" : "secondary"}
                           size="sm"
                           className={
                             isWinner
                               ? "bg-gradient-to-r from-amber-500 to-amber-600 text-white font-bold text-[10px]"
-                              : "text-[10px] font-bold"
+                              : "text-[10px] font-bold truncate"
                           }
                         >
                           {recognitionLabel}
                         </Badge>
 
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-center gap-1 shrink-0">
                           <Button
                             size="sm"
                             variant="ghost"
-                            className="h-7 w-7 p-0 text-[#475569]"
+                            className="h-7 w-7 p-0 text-[#475569] hover:bg-slate-100"
                             onClick={() => {
                               setEditingParticipant(p);
                               setIsParticipantModalOpen(true);
@@ -636,47 +636,50 @@ export function HallOfFameManagementPanel() {
                         </div>
                       </div>
 
-                      {/* Participant Profile Details */}
-                      <div className="flex items-start gap-3">
-                        {p.photoUrl ? (
-                          <img
-                            src={p.photoUrl}
-                            alt={p.fullName}
-                            className="h-14 w-14 rounded-2xl object-cover border border-[#E2E8F0] shrink-0 shadow-xs"
-                          />
-                        ) : (
-                          <div className="h-14 w-14 rounded-2xl bg-[#2563EB]/10 text-[#2563EB] flex items-center justify-center font-bold text-lg shrink-0">
-                            {p.fullName.charAt(0)}
-                          </div>
-                        )}
-
-                        <div className="space-y-0.5 flex-1 min-w-0">
-                          <h3 className="font-heading font-bold text-sm text-[#0F172A] truncate">
-                            {p.fullName}
-                          </h3>
-                          {p.teamName && (
-                            <p className="text-xs text-[#2563EB] font-medium truncate">
-                              Team: {p.teamName}
-                            </p>
-                          )}
-                          {p.collegeOrOrg && (
-                            <p className="text-[11px] text-[#64748B] truncate">
-                              {p.collegeOrOrg}
-                            </p>
+                      {/* Participant Photo - Large & Prominent */}
+                      <div className="flex justify-center pt-1">
+                        <div className="h-24 w-24 sm:h-28 sm:w-28 rounded-2xl overflow-hidden border-2 border-[#E2E8F0] p-0.5 bg-white shadow-xs">
+                          {p.photoUrl ? (
+                            <img
+                              src={p.photoUrl}
+                              alt={p.fullName}
+                              className="h-full w-full rounded-xl object-cover"
+                            />
+                          ) : (
+                            <div className="h-full w-full rounded-xl bg-[#2563EB]/10 text-[#2563EB] flex items-center justify-center font-bold text-2xl">
+                              {p.fullName.charAt(0)}
+                            </div>
                           )}
                         </div>
                       </div>
 
+                      {/* Profile Name & Subtitles */}
+                      <div className="text-center">
+                        <h3 className="font-heading font-bold text-base text-[#0F172A] truncate" title={p.fullName}>
+                          {p.fullName}
+                        </h3>
+                        {p.teamName && (
+                          <p className="text-xs text-[#2563EB] font-medium truncate mt-0.5">
+                            Team: {p.teamName}
+                          </p>
+                        )}
+                        {p.collegeOrOrg && (
+                          <p className="text-[11px] text-[#64748B] truncate">
+                            {p.collegeOrOrg}
+                          </p>
+                        )}
+                      </div>
+
                       {/* Bio / Description */}
                       {p.description && (
-                        <p className="text-xs text-[#475569] line-clamp-2 bg-[#F8FAFC] p-2 rounded-xl border border-[#E2E8F0]/60">
+                        <p className="text-xs text-[#475569] line-clamp-2 bg-[#F8FAFC] p-2.5 rounded-xl border border-[#E2E8F0]/60 text-left">
                           {p.description}
                         </p>
                       )}
 
                       {/* Badges List */}
                       {p.badges && p.badges.length > 0 && (
-                        <div className="flex flex-wrap gap-1 pt-1">
+                        <div className="flex flex-wrap justify-center gap-1 pt-0.5">
                           {p.badges.map((b) => (
                             <span
                               key={b.id}
@@ -690,42 +693,44 @@ export function HallOfFameManagementPanel() {
                       )}
                     </div>
 
-                    {/* Social links row */}
-                    <div className="flex items-center gap-2 pt-3 mt-3 border-t border-[#E2E8F0]/60 text-[#64748B]">
-                      {p.linkedInUrl && (
-                        <a
-                          href={p.linkedInUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="hover:text-[#0A66C2] transition-colors"
-                          title="LinkedIn Profile"
-                        >
-                          <LinkedInIcon className="h-4 w-4" />
-                        </a>
-                      )}
-                      {p.portfolioUrl && (
-                        <a
-                          href={p.portfolioUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="hover:text-[#059669] transition-colors"
-                          title="Portfolio Website"
-                        >
-                          <Globe className="h-4 w-4" />
-                        </a>
-                      )}
-                      {p.githubUrl && (
-                        <a
-                          href={p.githubUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="hover:text-[#0F172A] transition-colors"
-                          title="GitHub Profile"
-                        >
-                          <GitHubIcon className="h-4 w-4" />
-                        </a>
-                      )}
-                      <span className="text-[10px] text-[#94A3B8] ml-auto">
+                    {/* Social links row & Rank */}
+                    <div className="flex items-center justify-between pt-3 mt-3 border-t border-[#E2E8F0]/60 text-[#64748B]">
+                      <div className="flex items-center gap-2">
+                        {p.linkedInUrl && (
+                          <a
+                            href={p.linkedInUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="hover:text-[#0A66C2] transition-colors p-0.5"
+                            title="LinkedIn Profile"
+                          >
+                            <LinkedInIcon className="h-3.5 w-3.5" />
+                          </a>
+                        )}
+                        {p.portfolioUrl && (
+                          <a
+                            href={p.portfolioUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="hover:text-[#059669] transition-colors p-0.5"
+                            title="Portfolio Website"
+                          >
+                            <Globe className="h-3.5 w-3.5" />
+                          </a>
+                        )}
+                        {p.githubUrl && (
+                          <a
+                            href={p.githubUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="hover:text-[#0F172A] transition-colors p-0.5"
+                            title="GitHub Profile"
+                          >
+                            <GitHubIcon className="h-3.5 w-3.5" />
+                          </a>
+                        )}
+                      </div>
+                      <span className="text-[10px] font-semibold text-[#94A3B8] bg-slate-50 px-2 py-0.5 rounded-md border border-slate-200/60">
                         Rank #{idx + 1}
                       </span>
                     </div>
