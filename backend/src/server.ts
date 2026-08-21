@@ -1759,6 +1759,69 @@ async function boot(): Promise<void> {
           "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
         );
       `);
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "HallOfFameEvent" (
+          "id" TEXT NOT NULL PRIMARY KEY,
+          "name" TEXT NOT NULL,
+          "year" TEXT NOT NULL,
+          "description" TEXT,
+          "coverUrl" TEXT,
+          "status" TEXT NOT NULL DEFAULT 'draft',
+          "order" INTEGER NOT NULL DEFAULT 0,
+          "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "HallOfFameParticipant" (
+          "id" TEXT NOT NULL PRIMARY KEY,
+          "eventId" TEXT NOT NULL,
+          "fullName" TEXT NOT NULL,
+          "teamName" TEXT,
+          "collegeOrOrg" TEXT,
+          "description" TEXT,
+          "photoUrl" TEXT,
+          "recognitionType" TEXT NOT NULL DEFAULT 'winner',
+          "customRecognition" TEXT,
+          "order" INTEGER NOT NULL DEFAULT 0,
+          "linkedInUrl" TEXT,
+          "portfolioUrl" TEXT,
+          "githubUrl" TEXT,
+          "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "HallOfFameBadge" (
+          "id" TEXT NOT NULL PRIMARY KEY,
+          "name" TEXT NOT NULL,
+          "description" TEXT,
+          "icon" TEXT,
+          "status" TEXT NOT NULL DEFAULT 'active',
+          "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+      await prisma.$executeRawUnsafe(`
+        CREATE TABLE IF NOT EXISTS "ParticipantBadge" (
+          "id" TEXT NOT NULL PRIMARY KEY,
+          "participantId" TEXT NOT NULL,
+          "badgeId" TEXT NOT NULL,
+          "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          CONSTRAINT "ParticipantBadge_participantId_badgeId_key" UNIQUE ("participantId", "badgeId")
+        );
+      `);
+      try {
+        await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "HallOfFameEvent_status_idx" ON "HallOfFameEvent"("status");`);
+        await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "HallOfFameEvent_year_idx" ON "HallOfFameEvent"("year");`);
+        await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "HallOfFameParticipant_eventId_idx" ON "HallOfFameParticipant"("eventId");`);
+        await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "HallOfFameParticipant_recognitionType_idx" ON "HallOfFameParticipant"("recognitionType");`);
+        await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "HallOfFameParticipant_order_idx" ON "HallOfFameParticipant"("order");`);
+        await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "ParticipantBadge_participantId_idx" ON "ParticipantBadge"("participantId");`);
+        await prisma.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "ParticipantBadge_badgeId_idx" ON "ParticipantBadge"("badgeId");`);
+      } catch {
+        // Ignore index creation warnings
+      }
       try {
         await prisma.$executeRawUnsafe(`ALTER TABLE "Submission" ADD COLUMN IF NOT EXISTS "bestScore" INTEGER;`);
         await prisma.$executeRawUnsafe(`ALTER TABLE "Submission" ADD COLUMN IF NOT EXISTS "latestAttemptId" TEXT;`);
@@ -1768,7 +1831,7 @@ async function boot(): Promise<void> {
       } catch {
         // Ignore column alter warnings if already present
       }
-      console.log("[DB] CertificateTemplate, Certificate, QrVerification, Submission, EvaluationAttempt, and EvaluationReport PostgreSQL schemas verified/created successfully.");
+      console.log("[DB] CertificateTemplate, Certificate, QrVerification, Submission, EvaluationAttempt, EvaluationReport, and HallOfFame PostgreSQL schemas verified/created successfully.");
     } catch (err: any) {
       console.warn(`[DB] Auto DDL execution skipped/failed: ${err.message}`);
     }
