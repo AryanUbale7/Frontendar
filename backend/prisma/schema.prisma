@@ -278,17 +278,18 @@ model HallOfFameBadge {
 }
 
 model ParticipantBadge {
-  id            String                @id @default(uuid())
+  id            String                  @id @default(uuid())
   participantId String
   badgeId       String
-  participant   HallOfFameParticipant @relation(fields: [participantId], references: [id], onDelete: Cascade)
-  badge         HallOfFameBadge       @relation(fields: [badgeId], references: [id], onDelete: Cascade)
-  createdAt     DateTime              @default(now())
+  participant   HallOfFameParticipant?  @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  badge         HallOfFameBadge?        @relation(fields: [badgeId], references: [id], onDelete: Cascade)
+  createdAt     DateTime                @default(now())
 
   @@unique([participantId, badgeId])
   @@index([participantId])
   @@index([badgeId])
 }
+
 
 
 

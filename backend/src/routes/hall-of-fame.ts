@@ -11,7 +11,7 @@ const fallbackParticipants = new Map<string, any>();
 const fallbackBadges = new Map<string, any>();
 
 // Default preset badges
-const DEFAULT_PRESET_BADGES = [
+export const DEFAULT_PRESET_BADGES = [
   { id: "badge-winner", name: "1st Place Winner", description: "Top ranking champion", icon: "Trophy", status: "active" },
   { id: "badge-runnerup", name: "Runner Up", description: "Outstanding performance finalist", icon: "Medal", status: "active" },
   { id: "badge-uiux", name: "Best UI/UX", description: "Exceptional design and user experience", icon: "Sparkles", status: "active" },
@@ -24,23 +24,20 @@ const DEFAULT_PRESET_BADGES = [
 DEFAULT_PRESET_BADGES.forEach((b) => fallbackBadges.set(b.id, { ...b, createdAt: new Date(), updatedAt: new Date() }));
 
 // Seed default badges in DB if none exist
-async function ensureDefaultBadgesInDb() {
+export async function ensureDefaultBadgesInDb() {
   try {
-    const count = await prisma.hallOfFameBadge.count();
-    if (count === 0) {
-      for (const badge of DEFAULT_PRESET_BADGES) {
-        await prisma.hallOfFameBadge.upsert({
-          where: { id: badge.id },
-          update: {},
-          create: {
-            id: badge.id,
-            name: badge.name,
-            description: badge.description,
-            icon: badge.icon,
-            status: badge.status,
-          },
-        });
-      }
+    for (const badge of DEFAULT_PRESET_BADGES) {
+      await prisma.hallOfFameBadge.upsert({
+        where: { id: badge.id },
+        update: {},
+        create: {
+          id: badge.id,
+          name: badge.name,
+          description: badge.description,
+          icon: badge.icon,
+          status: badge.status,
+        },
+      }).catch(() => {});
     }
   } catch (err: any) {
     // Fallback store active if DB table unmigrated
@@ -566,8 +563,29 @@ hallOfFameRouter.post(
 
         if (Array.isArray(badgeIds) && badgeIds.length > 0) {
           for (const bId of badgeIds) {
-            await prisma.participantBadge.create({
-              data: {
+            const preset = DEFAULT_PRESET_BADGES.find((b) => b.id === bId);
+            if (preset) {
+              await prisma.hallOfFameBadge.upsert({
+                where: { id: preset.id },
+                update: {},
+                create: {
+                  id: preset.id,
+                  name: preset.name,
+                  description: preset.description,
+                  icon: preset.icon,
+                  status: preset.status,
+                },
+              }).catch(() => {});
+            }
+            await prisma.participantBadge.upsert({
+              where: {
+                participantId_badgeId: {
+                  participantId: createdParticipant.id,
+                  badgeId: bId,
+                },
+              },
+              update: {},
+              create: {
                 participantId: createdParticipant.id,
                 badgeId: bId,
               },
@@ -589,7 +607,7 @@ hallOfFameRouter.post(
         if (reloaded) {
           createdParticipant = {
             ...reloaded,
-            badges: reloaded.badges.map((pb) => pb.badge).filter(Boolean),
+            badges: (reloaded.badges || []).map((pb: any) => pb?.badge).filter(Boolean),
           };
         }
       } catch (dbErr: any) {
@@ -681,8 +699,29 @@ hallOfFameRouter.put(
         if (Array.isArray(badgeIds)) {
           await prisma.participantBadge.deleteMany({ where: { participantId: id } });
           for (const bId of badgeIds) {
-            await prisma.participantBadge.create({
-              data: {
+            const preset = DEFAULT_PRESET_BADGES.find((b) => b.id === bId);
+            if (preset) {
+              await prisma.hallOfFameBadge.upsert({
+                where: { id: preset.id },
+                update: {},
+                create: {
+                  id: preset.id,
+                  name: preset.name,
+                  description: preset.description,
+                  icon: preset.icon,
+                  status: preset.status,
+                },
+              }).catch(() => {});
+            }
+            await prisma.participantBadge.upsert({
+              where: {
+                participantId_badgeId: {
+                  participantId: id,
+                  badgeId: bId,
+                },
+              },
+              update: {},
+              create: {
                 participantId: id,
                 badgeId: bId,
               },
@@ -704,7 +743,7 @@ hallOfFameRouter.put(
         if (reloaded) {
           updatedParticipant = {
             ...reloaded,
-            badges: reloaded.badges.map((pb) => pb.badge).filter(Boolean),
+            badges: (reloaded.badges || []).map((pb: any) => pb?.badge).filter(Boolean),
           };
         }
       } catch (dbErr: any) {

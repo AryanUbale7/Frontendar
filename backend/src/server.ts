@@ -7,7 +7,7 @@ import { prisma } from "./config/db";
 import { authRouter } from "./routes/auth";
 import { qrVerificationRouter } from "./routes/qr-verification";
 import { certificatesRouter } from "./routes/certificates";
-import { hallOfFameRouter } from "./routes/hall-of-fame";
+import { hallOfFameRouter, ensureDefaultBadgesInDb } from "./routes/hall-of-fame";
 import { verifyToken, optionalAuth, requireRole, AuthenticatedRequest, maintenanceGuard } from "./middleware/auth";
 import { createEvaluationQueue, EvaluationQueueDriver } from "./engine/queue";
 import { startEvaluationWorker, EvaluationWorkerHandle } from "./worker";
@@ -1832,6 +1832,7 @@ async function boot(): Promise<void> {
         // Ignore column alter warnings if already present
       }
       console.log("[DB] CertificateTemplate, Certificate, QrVerification, Submission, EvaluationAttempt, EvaluationReport, and HallOfFame PostgreSQL schemas verified/created successfully.");
+      await ensureDefaultBadgesInDb().catch(() => {});
     } catch (err: any) {
       console.warn(`[DB] Auto DDL execution skipped/failed: ${err.message}`);
     }
