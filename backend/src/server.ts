@@ -13,6 +13,7 @@ import { createEvaluationQueue, EvaluationQueueDriver } from "./engine/queue";
 import { startEvaluationWorker, EvaluationWorkerHandle } from "./worker";
 import { hashPassword } from "./engine/password";
 import { resolveLifecycleStatus, lifecycleToPersisted, canAcceptSubmissions, canAcceptRegistrations, LifecycleStatus } from "./engine/lifecycle";
+import { validateDeploymentUrlSSRF } from "./engine/ssrf";
 
 const app = express();
 app.set("trust proxy", 1);
@@ -30,7 +31,44 @@ const submissionLimiter = rateLimit({
 let evaluationQueue: EvaluationQueueDriver;
 let combinedWorkerHandle: EvaluationWorkerHandle | null = null;
 
-app.use(cors());
+const isProduction = process.env.NODE_ENV === "production";
+const allowedOrigins = [
+  process.env.FRONTEND_URL,
+  process.env.NEXT_PUBLIC_FRONTEND_URL,
+  "http://localhost:3000",
+  "http://127.0.0.1:3000",
+  "https://frontned-pi.vercel.app",
+].filter(Boolean) as string[];
+
+app.use(cors({
+  origin: (origin, callback) => {
+    // In development or for same-origin/server-to-server calls without origin header
+    if (!origin || !isProduction) {
+      return callback(null, true);
+    }
+    const isAllowed = allowedOrigins.includes(origin);
+    if (isAllowed) {
+      return callback(null, true);
+    }
+    return callback(new Error("Not allowed by CORS policy."));
+  },
+  credentials: true,
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+}));
+
+// Standard Security Headers Middleware
+app.use((req, res, next) => {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "SAMEORIGIN");
+  res.setHeader("X-XSS-Protection", "1; mode=block");
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  if (isProduction) {
+    res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+  }
+  next();
+});
+
 app.use(express.json({ limit: "15mb" }));
 app.use(express.urlencoded({ limit: "15mb", extended: true }));
 app.use(maintenanceGuard);
@@ -511,24 +549,12 @@ app.post("/api/evaluate", verifyToken, submissionLimiter, async (req: Authentica
     return res.status(400).json({ error: "INVALID_GITHUB_URL", message: err.message });
   }
 
-  // SSRF check on deploymentUrl (Phase 9)
+  // SSRF check on deploymentUrl (DNS resolution & full CIDR validation)
   if (deploymentUrl) {
     try {
-      const parsedUrl = new URL(deploymentUrl.trim());
-      const host = parsedUrl.hostname.toLowerCase();
-      const isPrivate = host === "localhost" ||
-        host === "127.0.0.1" ||
-        host === "::1" ||
-        host.startsWith("10.") ||
-        host.startsWith("192.168.") ||
-        host.startsWith("169.254.") ||
-        /^172\.(1[6-9]|2[0-9]|3[0-1])\./.test(host);
-
-      if (isPrivate) {
-        return res.status(400).json({ error: "SSRF_ATTEMPT", message: "Private network URLs are restricted." });
-      }
-    } catch {
-      return res.status(400).json({ error: "INVALID_DEPLOYMENT_URL", message: "Invalid deployment URL." });
+      await validateDeploymentUrlSSRF(deploymentUrl);
+    } catch (ssrfErr: any) {
+      return res.status(400).json({ error: "SSRF_ATTEMPT", message: ssrfErr.message || "Private network URLs are restricted." });
     }
   }
 
@@ -1624,8 +1650,13 @@ app.get("/api/hackathons/:hackathonId/leaderboard", async (req: Request, res: Re
 });
 
 // Ensure demo credentials exist so the real JWT auth flow works out of the box.
-// Idempotent: never modifies existing users.
+// Idempotent: never modifies existing users. Only active in development/test.
 async function ensureDemoUsers(): Promise<void> {
+  if (process.env.NODE_ENV === "production") {
+    console.log("[Auth] Production mode active: Automatic demo user seeding is disabled.");
+    return;
+  }
+
   const demoUsers = [
     { email: "admin@frontendarena.dev", password: "admin123", firstName: "Admin", lastName: "User", role: "ADMIN" },
     { email: "developer@frontendarena.dev", password: "developer123", firstName: "Developer", lastName: "User", role: "PARTICIPANT" }

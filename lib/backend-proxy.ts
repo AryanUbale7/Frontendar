@@ -375,6 +375,8 @@ export async function proxyRequest(
             nextResponse.cookies.set(ACCESS_TOKEN_COOKIE, accessToken, {
               path: "/",
               sameSite: "lax",
+              secure: process.env.NODE_ENV === "production",
+              httpOnly: true,
               maxAge: 60 * 60 * 24 * 7,
             });
             return nextResponse;

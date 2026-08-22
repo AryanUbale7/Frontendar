@@ -1,20 +1,45 @@
 import { Router, Request, Response } from "express";
+import rateLimit from "express-rate-limit";
 import { prisma } from "../config/db";
 import * as jwt from "jsonwebtoken";
 import { verifyToken, AuthenticatedRequest } from "../middleware/auth";
 import { OAuth2Client } from "google-auth-library";
 import { hashPassword, verifyPassword, isHashedPassword } from "../engine/password";
+import { JWT_SECRET, JWT_REFRESH_SECRET } from "../config/jwt";
 
-// Use a simple, fast hashing check for absolute reliability in microservice environments
-const JWT_SECRET = process.env.JWT_SECRET || "super-secret-key-frontend-arena";
-const JWT_REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || "super-refresh-key-frontend-arena";
+const isProd = process.env.NODE_ENV === "production";
+
+// Rate Limiters for Authentication & Verification Protection
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // 5 attempts per window
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "RATE_LIMITED", message: "Too many login attempts. Please try again in 15 minutes." },
+});
+
+const registerLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 10, // 10 accounts per IP per hour
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "RATE_LIMITED", message: "Too many registration requests. Please try again later." },
+});
+
+const verificationLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 3, // 3 verification codes per hour
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "RATE_LIMITED", message: "Too many verification requests. Please wait before requesting another code." },
+});
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 export const authRouter = Router();
 
-// Register new user
-authRouter.post("/register", async (req: Request, res: Response) => {
+// Register new user (protected with rate limiter)
+authRouter.post("/register", registerLimiter, async (req: Request, res: Response) => {
   const { email, password } = req.body;
   if (!email || !password) {
     return res.status(400).json({ error: "Email and password are required." });
@@ -44,7 +69,8 @@ authRouter.post("/register", async (req: Request, res: Response) => {
 
     res.status(201).json({ id: user.id, email: user.email, role: user.role });
   } catch (err: any) {
-    res.status(500).json({ error: "Failed to register: " + err.message });
+    console.error("[Auth] Registration error:", err);
+    res.status(500).json({ error: isProd ? "Registration failed. Please try again." : "Failed to register: " + err.message });
   }
 });
 
@@ -67,12 +93,13 @@ authRouter.get("/me", verifyToken, async (req: AuthenticatedRequest, res: Respon
       emailVerified: user.emailVerified
     });
   } catch (err: any) {
-    res.status(500).json({ error: "Failed to fetch profile: " + err.message });
+    console.error("[Auth] Profile fetch error:", err);
+    res.status(500).json({ error: isProd ? "Failed to fetch profile." : "Failed to fetch profile: " + err.message });
   }
 });
 
-// Login user
-authRouter.post("/login", async (req: Request, res: Response) => {
+// Login user (protected with strict brute-force rate limiter)
+authRouter.post("/login", loginLimiter, async (req: Request, res: Response) => {
   const { email, password } = req.body;
   if (!email || !password) {
     return res.status(400).json({ error: "Email and password are required." });
@@ -120,7 +147,8 @@ authRouter.post("/login", async (req: Request, res: Response) => {
       user: { id: user.id, email: user.email, role: user.role }
     });
   } catch (err: any) {
-    res.status(500).json({ error: "Login failed: " + err.message });
+    console.error("[Auth] Login error:", err);
+    res.status(500).json({ error: isProd ? "Login failed. Please try again." : "Login failed: " + err.message });
   }
 });
 
@@ -153,7 +181,8 @@ authRouter.post("/refresh", async (req: Request, res: Response) => {
 
     res.json({ accessToken });
   } catch (err: any) {
-    res.status(500).json({ error: "Refresh failed: " + err.message });
+    console.error("[Auth] Token refresh error:", err);
+    res.status(500).json({ error: isProd ? "Token refresh failed." : "Refresh failed: " + err.message });
   }
 });
 
@@ -170,7 +199,8 @@ authRouter.post("/logout", async (req: Request, res: Response) => {
     });
     res.json({ message: "Logout successful." });
   } catch (err: any) {
-    res.status(500).json({ error: "Logout failed: " + err.message });
+    console.error("[Auth] Logout error:", err);
+    res.status(500).json({ error: isProd ? "Logout failed." : "Logout failed: " + err.message });
   }
 });
 
@@ -205,6 +235,9 @@ authRouter.post("/google", async (req: Request, res: Response) => {
       lastName = payload.family_name || "";
       avatarUrl = payload.picture || "";
     } catch (err: any) {
+      if (isProd) {
+        return res.status(401).json({ error: "Google token verification failed." });
+      }
       // Dev mode fallback when real Google OAuth token is not configured
       email = "aryan.patel@frontendarena.dev";
       firstName = "Aryan";
@@ -216,11 +249,13 @@ authRouter.post("/google", async (req: Request, res: Response) => {
     // Find or create user
     let user = await prisma.user.findUnique({ where: { email } });
     
-    // Check if this email should be an admin
+    // Check if this email should be an admin (strict exact allowlist matching)
+    const normalizedEmail = (email || "").trim().toLowerCase();
     const adminEmails = (process.env.ADMIN_EMAILS || "")
       .split(",")
-      .map(e => e.trim().toLowerCase());
-    const shouldBeAdmin = adminEmails.includes(email.toLowerCase()) || email.toLowerCase().includes("admin");
+      .map(e => e.trim().toLowerCase())
+      .filter(Boolean);
+    const shouldBeAdmin = adminEmails.includes(normalizedEmail);
     const targetRole = shouldBeAdmin ? "ADMIN" : "PARTICIPANT";
 
     if (!user) {
@@ -289,12 +324,13 @@ authRouter.post("/google", async (req: Request, res: Response) => {
       }
     });
   } catch (err: any) {
-    res.status(500).json({ error: "Google login failed: " + err.message });
+    console.error("[Auth] Google sign-in database error:", err);
+    res.status(500).json({ error: isProd ? "Google login failed. Please try again." : "Google login failed: " + err.message });
   }
 });
 
-// Send email verification code
-authRouter.post("/send-verification", verifyToken, async (req: AuthenticatedRequest, res: Response) => {
+// Send email verification code (rate-limited, secrets stripped in production)
+authRouter.post("/send-verification", verifyToken, verificationLimiter, async (req: AuthenticatedRequest, res: Response) => {
   const userId = req.user!.id;
   try {
     const code = Math.floor(100000 + Math.random() * 900000).toString(); // 6 digit code
@@ -302,10 +338,17 @@ authRouter.post("/send-verification", verifyToken, async (req: AuthenticatedRequ
       where: { id: userId },
       data: { verificationCode: code }
     });
-    console.log(`[Auth] Verification code for user ${req.user!.email} is: ${code}`);
+    console.log(`[Auth] Verification code dispatched for user ${req.user!.email}`);
+    
+    // In production, never return verification codes in the HTTP response body
+    if (isProd) {
+      return res.json({ message: "Verification code sent successfully to registered email address." });
+    }
+
     res.json({ message: "Verification code sent successfully. Check backend console logs.", code });
   } catch (err: any) {
-    res.status(500).json({ error: "Failed to generate verification code: " + err.message });
+    console.error("[Auth] Send verification error:", err);
+    res.status(500).json({ error: isProd ? "Failed to send verification code." : "Failed to generate verification code: " + err.message });
   }
 });
 
@@ -334,6 +377,7 @@ authRouter.post("/verify-email", verifyToken, async (req: AuthenticatedRequest, 
 
     res.json({ message: "Email verified successfully!", emailVerified: true });
   } catch (err: any) {
-    res.status(500).json({ error: "Verification failed: " + err.message });
+    console.error("[Auth] Verify email error:", err);
+    res.status(500).json({ error: isProd ? "Verification failed. Please try again." : "Verification failed: " + err.message });
   }
 });

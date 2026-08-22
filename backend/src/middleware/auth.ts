@@ -1,8 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import * as jwt from "jsonwebtoken";
 import { prisma } from "../config/db";
-
-const JWT_SECRET = process.env.JWT_SECRET || "super-secret-key-frontend-arena";
+import { JWT_SECRET } from "../config/jwt";
 
 export interface AuthenticatedRequest extends Request {
   user?: {
