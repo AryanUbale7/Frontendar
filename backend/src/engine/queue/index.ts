@@ -18,25 +18,64 @@ export type { EvaluationJobData, EvaluationQueueDriver, QueueMetrics, SanitizedJ
 export { getSharedRedisConfig };
 
 async function verifyRedisAvailable(): Promise<void> {
-   const { connection, display } = getSharedRedisConfig();
-   const probe = new Redis({ ...connection, lazyConnect: true });
-   probe.on("error", () => {
-     /* handled via the connect()/ping() rejection below */
-   });
-   try {
-     await probe.connect();
-     await probe.ping();
-   } catch (err) {
-     throw new Error(
-       `Redis is unavailable at ${display} but EVALUATION_QUEUE_DRIVER=redis is configured. ` +
-         `Start Redis (or fix REDIS_URL/REDIS_HOST/REDIS_PORT) before booting. ` +
-         `For local development only you may set EVALUATION_QUEUE_DRIVER=memory — this is NEVER allowed in production. ` +
-         `Details: ${(err as Error).message}`
-     );
-   } finally {
-     probe.disconnect();
-   }
- }
+  const { connection, display } = getSharedRedisConfig();
+  const maxAttempts = intFromEnv("REDIS_STARTUP_MAX_ATTEMPTS", 10);
+  const retryDelayMs = intFromEnv("REDIS_STARTUP_RETRY_DELAY_MS", 1500);
+  const probeTimeoutMs = intFromEnv("REDIS_PROBE_TIMEOUT_MS", 2000);
+
+  let lastError: Error | null = null;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    const probe = new Redis({
+      ...connection,
+      lazyConnect: true,
+      connectTimeout: probeTimeoutMs,
+      retryStrategy: null,
+      maxRetriesPerRequest: 1,
+    });
+
+    probe.on("error", () => {
+      /* Handled via connect/ping catch */
+    });
+
+    try {
+      await probe.connect();
+      await probe.ping();
+      console.log("[Redis] Connection verified successfully.");
+      try {
+        probe.disconnect();
+      } catch {}
+      return;
+    } catch (err: any) {
+      lastError = err instanceof Error ? err : new Error(String(err));
+      try {
+        probe.disconnect();
+      } catch {}
+
+      if (attempt < maxAttempts) {
+        console.warn(
+          `[Redis] Connection attempt ${attempt}/${maxAttempts} failed. Retrying in ${retryDelayMs}ms...`
+        );
+        await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
+      }
+    }
+  }
+
+  console.error(`[Redis] Startup verification failed after ${maxAttempts} attempts.`);
+
+  if (process.env.NODE_ENV === "production") {
+    throw new Error(
+      "Redis is unavailable and EVALUATION_QUEUE_DRIVER=redis is configured. " +
+        "Redis must be available before production startup."
+    );
+  }
+
+  throw new Error(
+    `Redis is unavailable at ${display} but EVALUATION_QUEUE_DRIVER=redis is configured. ` +
+      `Start Redis (or fix REDIS_URL/REDIS_HOST/REDIS_PORT) before booting. ` +
+      `For local development only you may set EVALUATION_QUEUE_DRIVER=memory.`
+  );
+}
 
 class MemoryEvaluationQueueDriver implements EvaluationQueueDriver {
   readonly name = "memory" as const;

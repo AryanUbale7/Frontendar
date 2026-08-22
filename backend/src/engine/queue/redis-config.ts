@@ -79,6 +79,13 @@ export function parseRedisConnection(): RedisTarget {
   const connection: RedisConnectionConfig = {
     host: parsed.hostname,
     port: Number(parsed.port || 6379),
+    connectTimeout: intFromEnv("REDIS_CONNECT_TIMEOUT_MS", 10000),
+    enableReadyCheck: true,
+    maxRetriesPerRequest: null,
+    retryStrategy: (times: number) => {
+      // Bounded exponential backoff reconnection strategy (200ms - 3000ms)
+      return Math.min(times * 200, 3000);
+    },
   };
   if (parsed.username) connection.username = decodeURIComponent(parsed.username);
   if (parsed.password) connection.password = decodeURIComponent(parsed.password);
