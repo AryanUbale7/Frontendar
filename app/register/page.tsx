@@ -421,14 +421,26 @@ function HackathonRegistrationContent() {
       }
 
       const reg = await response.json();
-      setRegistrationStatus(reg.status);
+      setRegistrationStatus(reg.status || "APPROVED");
+      setIsRegistered(true);
+      setShowRegistrationForm(false);
       setSuccess(true);
 
-      setTimeout(() => {
-        setIsRegistered(true);
-        setShowRegistrationForm(false);
-        setSuccess(false);
-      }, 2000);
+      // Optimistically store in user's enrolled hackathons cache so dashboard immediately reflects enrollment with 0ms delay
+      try {
+        const storedRegs = JSON.parse(localStorage.getItem("fa_user_enrolled_hackathons") || "[]");
+        if (!storedRegs.some((r: any) => r.id === activeHackathon.id)) {
+          storedRegs.unshift({
+            id: activeHackathon.id,
+            title: activeHackathon.name,
+            date: activeHackathon.eventClose ? new Date(activeHackathon.eventClose).toLocaleDateString() : "N/A",
+            bannerUrl: activeHackathon.bannerUrl,
+            tag: activeHackathon.lifecycle ? activeHackathon.lifecycle.charAt(0) + activeHackathon.lifecycle.slice(1).toLowerCase() : (activeHackathon.status || "Virtual")
+          });
+          localStorage.setItem("fa_user_enrolled_hackathons", JSON.stringify(storedRegs));
+          window.dispatchEvent(new Event("storage"));
+        }
+      } catch {}
     } catch (err: any) {
       setErrorMsg(err.message || "Failed to register. Please try again.");
     }

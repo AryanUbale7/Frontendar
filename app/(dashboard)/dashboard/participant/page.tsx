@@ -22,7 +22,16 @@ import { EmptyState } from "@/components/design-system/EmptyState";
 
 export default function ParticipantDashboardPage() {
   const { user, updateUserProfile } = useUser();
-  const [initiatives, setInitiatives] = useState<any[]>([]);
+  const [initiatives, setInitiatives] = useState<any[]>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        return JSON.parse(localStorage.getItem("fa_user_enrolled_hackathons") || "[]");
+      } catch {
+        return [];
+      }
+    }
+    return [];
+  });
 
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const coverInputRef = useRef<HTMLInputElement>(null);
@@ -59,45 +68,67 @@ export default function ParticipantDashboardPage() {
     }
   };
 
-  // Load enrolled hackathons from PostgreSQL
+  // Load enrolled hackathons from PostgreSQL concurrently without pauses
   const [submittedCount, setSubmittedCount] = useState(0);
 
   useEffect(() => {
-    if (user) {
-      const loadParticipantData = async () => {
-        try {
-          // Fetch registrations for the user
-          const regRes = await fetch(`/api/registrations?userId=${user.id}`);
-          const hackRes = await fetch(`/api/hackathons`);
-          const subRes = await fetch(`/api/submissions?userId=${user.id}`);
-          
-          if (regRes.ok && hackRes.ok) {
-            const regs = await regRes.json();
-            const hacks = await hackRes.json();
-            if (Array.isArray(regs) && Array.isArray(hacks)) {
-              const enrolledHacks = hacks.filter(h => regs.some(r => r.hackathonId === h.id));
-              const formatted = enrolledHacks.map(h => ({
-                id: h.id,
-                title: h.name,
-                date: h.eventClose ? new Date(h.eventClose).toLocaleDateString() : "N/A",
-                bannerUrl: h.bannerUrl,
-                tag: h.lifecycle ? h.lifecycle.charAt(0) + h.lifecycle.slice(1).toLowerCase() : (h.status || "Virtual")
-              }));
-              setInitiatives(formatted);
-            }
+    if (!user) return;
+
+    const loadParticipantData = async () => {
+      try {
+        // Fetch registrations, hackathons, and submissions in parallel
+        const [regRes, hackRes, subRes] = await Promise.all([
+          fetch(`/api/registrations?userId=${user.id}`, { cache: "no-store" }),
+          fetch(`/api/hackathons`, { cache: "no-store" }),
+          fetch(`/api/submissions?userId=${user.id}`, { cache: "no-store" }),
+        ]);
+
+        if (regRes.ok && hackRes.ok) {
+          const [regs, hacks] = await Promise.all([regRes.json(), hackRes.json()]);
+          if (Array.isArray(regs) && Array.isArray(hacks)) {
+            const enrolledHacks = hacks.filter((h) => regs.some((r) => r.hackathonId === h.id));
+            const formatted = enrolledHacks.map((h) => ({
+              id: h.id,
+              title: h.name,
+              date: h.eventClose ? new Date(h.eventClose).toLocaleDateString() : "N/A",
+              bannerUrl: h.bannerUrl,
+              tag: h.lifecycle ? h.lifecycle.charAt(0) + h.lifecycle.slice(1).toLowerCase() : (h.status || "Virtual"),
+            }));
+            setInitiatives(formatted);
+            try {
+              localStorage.setItem("fa_user_enrolled_hackathons", JSON.stringify(formatted));
+            } catch {}
           }
-          if (subRes.ok) {
-            const subs = await subRes.json();
-            if (Array.isArray(subs)) {
-              setSubmittedCount(subs.filter((s: any) => s.status === "COMPLETED").length);
-            }
-          }
-        } catch (e) {
-          console.error("Failed to load enrolled hackathons:", e);
         }
-      };
-      loadParticipantData();
-    }
+        if (subRes.ok) {
+          const subs = await subRes.json();
+          if (Array.isArray(subs)) {
+            setSubmittedCount(subs.filter((s: any) => s.status === "COMPLETED").length);
+          }
+        }
+      } catch (e) {
+        console.error("Failed to load enrolled hackathons:", e);
+      }
+    };
+
+    loadParticipantData();
+
+    // Re-sync whenever window regains focus or storage changes
+    window.addEventListener("focus", loadParticipantData);
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === "fa_user_enrolled_hackathons" || e.key === null) {
+        try {
+          const cached = JSON.parse(localStorage.getItem("fa_user_enrolled_hackathons") || "[]");
+          setInitiatives(cached);
+        } catch {}
+      }
+    };
+    window.addEventListener("storage", handleStorage);
+
+    return () => {
+      window.removeEventListener("focus", loadParticipantData);
+      window.removeEventListener("storage", handleStorage);
+    };
   }, [user]);
 
   return (

@@ -12,34 +12,37 @@ export default function SignInPage() {
   const router = useRouter();
   const { user, isAuthenticated, signInWithGoogle } = useAuth();
   const [error, setError] = useState("");
+  const [isSigningIn, setIsSigningIn] = useState(false);
 
   useEffect(() => {
     if (isAuthenticated && user) {
       if (user.role === "platform_admin") {
-        router.push("/dashboard/admin");
+        router.replace("/dashboard/admin");
       } else if (user.role === "org_admin") {
-        router.push("/dashboard/organization");
+        router.replace("/dashboard/organization");
       } else {
-        router.push("/dashboard/participant");
+        router.replace("/dashboard/participant");
       }
     }
   }, [user, isAuthenticated, router]);
 
   const handleGoogleSignIn = async (credentialToken: string) => {
     setError("");
+    setIsSigningIn(true);
     try {
-      const user = await signInWithGoogle(credentialToken);
-      if (user) {
-        if (user.role === "platform_admin") {
-          router.push("/dashboard/admin");
-        } else if (user.role === "org_admin") {
-          router.push("/dashboard/organization");
+      const authUser = await signInWithGoogle(credentialToken);
+      if (authUser) {
+        if (authUser.role === "platform_admin") {
+          router.replace("/dashboard/admin");
+        } else if (authUser.role === "org_admin") {
+          router.replace("/dashboard/organization");
         } else {
-          router.push("/dashboard/participant");
+          router.replace("/dashboard/participant");
         }
       }
     } catch (err: any) {
       setError(typeof err === "string" ? err : (err && err.message) ? String(err.message) : "Google sign-in failed.");
+      setIsSigningIn(false);
     }
   };
 
@@ -67,20 +70,27 @@ export default function SignInPage() {
           )}
 
           {/* Official Google Sign-in Popup Button */}
-          <div className="flex justify-center w-full py-4">
-            <GoogleLogin
-              onSuccess={(res) => {
-                if (res.credential) {
-                  handleGoogleSignIn(res.credential);
-                }
-              }}
-              onError={() => setError("Google Authentication Failed.")}
-              theme="outline"
-              size="large"
-              shape="pill"
-              text="continue_with"
-              width="100%"
-            />
+          <div className="flex flex-col items-center justify-center w-full py-4 space-y-3">
+            {isSigningIn ? (
+              <div className="flex items-center justify-center gap-3 py-3 px-6 rounded-full bg-slate-50 border border-slate-200 text-xs font-semibold text-slate-700 animate-pulse">
+                <div className="h-4 w-4 animate-spin rounded-full border-2 border-[#2563EB] border-t-transparent" />
+                <span>Signing in to Frontend Arena...</span>
+              </div>
+            ) : (
+              <GoogleLogin
+                onSuccess={(res) => {
+                  if (res.credential) {
+                    handleGoogleSignIn(res.credential);
+                  }
+                }}
+                onError={() => setError("Google Authentication Failed.")}
+                theme="outline"
+                size="large"
+                shape="pill"
+                text="continue_with"
+                width="100%"
+              />
+            )}
           </div>
         </CardContent>
 

@@ -15,25 +15,52 @@ function getAuthHeader(request: NextRequest): string | null {
   return null;
 }
 
+// Dynamic active backend URL caching to avoid looping through unreachable endpoints
+let cachedActiveBackendUrl: string | null = null;
+let lastActiveSuccessTime = 0;
+
 async function fetchBackend(path: string, init: RequestInit): Promise<Response> {
   const candidateUrls = [
+    cachedActiveBackendUrl,
     process.env.BACKEND_URL,
     process.env.NEXT_PUBLIC_BACKEND_URL,
     "http://127.0.0.1:4000",
     "http://localhost:4000",
+    "https://frontendar-1.onrender.com",
   ].filter(Boolean) as string[];
 
+  // Deduplicate candidate URLs while preserving priority
+  const uniqueUrls: string[] = [];
+  for (const u of candidateUrls) {
+    const clean = u.replace(/\/+$/, "");
+    if (!uniqueUrls.includes(clean)) uniqueUrls.push(clean);
+  }
+
   let lastErr: any;
-  for (const url of candidateUrls) {
+  for (const url of uniqueUrls) {
     try {
-      const target = `${url.replace(/\/+$/, "")}${path}`;
+      const target = `${url}${path}`;
+      // Set a strict 4.5-second timeout for discovery so dead hostnames/ports do not hang the UI
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 4500);
+
       const res = await fetch(target, {
         ...init,
+        signal: init.signal || controller.signal,
         cache: "no-store",
       });
+      clearTimeout(timeoutId);
+
+      // Server is active and responding (even if 4xx/5xx HTTP status)
+      cachedActiveBackendUrl = url;
+      lastActiveSuccessTime = Date.now();
       return res;
     } catch (err) {
       lastErr = err;
+      // If the cached URL failed, clear cache so we find the new one immediately
+      if (cachedActiveBackendUrl === url) {
+        cachedActiveBackendUrl = null;
+      }
     }
   }
   throw lastErr || new Error("Backend server unreachable");

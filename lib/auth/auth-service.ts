@@ -113,6 +113,11 @@ function buildDevMockSession(email: string): UserProfile {
 export class AuthService {
   private static mockUser: UserProfile | null = null;
 
+  public static hasSessionCookie(): boolean {
+    if (typeof document === "undefined") return false;
+    return document.cookie.includes(`${SESSION_COOKIE}=true`) || document.cookie.includes(`${SESSION_COOKIE}=1`);
+  }
+
   public static getStoredUser(): UserProfile | null {
     if (typeof window === "undefined") return null;
     try {

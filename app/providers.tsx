@@ -23,8 +23,18 @@ export interface AuthContextType {
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<UserProfile | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [user, setUser] = useState<UserProfile | null>(() => {
+    if (typeof window !== "undefined") {
+      return AuthService.getStoredUser();
+    }
+    return null;
+  });
+  const [isLoading, setIsLoading] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      return !AuthService.getStoredUser() && AuthService.hasSessionCookie();
+    }
+    return false;
+  });
 
   const syncUser = () => {
     const loadedUser = AuthService.getStoredUser();
